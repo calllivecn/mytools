@@ -52,7 +52,7 @@ def __sha512(file_):
 	#print('|'*60,'__sha512() {}'.format(file_))	
 	sha = sha512()
 	
-	READ_BUF = 4096
+	READ_BUF = 2**20*4
 	size = os.stat(file_).st_size
 	data_len = 0
 
