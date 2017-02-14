@@ -22,9 +22,9 @@ parse.add_argument('-T','--to',nargs='+',required=True,help='to mail address lis
 
 parse.add_argument('-t','--text',default='this is a test mail.',help='mail test')
 
-parse.add_argument('-u','--user',default=bytes('bGluenhtYWlsQHFxLmNvbQo=','ascii'),help='mail user')
+parse.add_argument('-u','--user',default=bytes('','ascii'),help='mail user')
 
-parse.add_argument('-p','--passwd',default=bytes('Z2p3aWhubGhhc2Z4YmJqaAo=','ascii'),help='mail password')
+parse.add_argument('-p','--passwd',default=bytes('','ascii'),help='mail password')
 
 parse.add_argument('-s','--subject',default='',help='mail content')
 
