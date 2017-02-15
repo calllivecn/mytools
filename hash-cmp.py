@@ -12,13 +12,14 @@ from hashlib import sha512
 from multiprocessing import Process,Queue
 from threading import Thread
 
+CPU_COUNT = os.cpu_count()
 
 argparse = ArgumentParser(description='通过sha512值检测多个目录下有无相同文件.',add_help=True)
 
-argparse.add_argument('-d',dest='delete',metavar='delete',default=False,help='相同文件直接删除')
-argparse.add_argument('-i',dest='ask',metavar='ask',default=False,help='询问是否删除相同文件')
-argparse.add_argument('-p',dest='out',metavar='output',default=True,help='输出相同文件')
-argparse.add_argument('-P',dest='process',metavar='CPU',default=os.cpu_count() - 1,help='使用几个CPU核心')
+argparse.add_argument('-d',dest='delete',action="store_true",help='相同文件直接删除')
+argparse.add_argument('-i',dest='ask',action="store_true",default=True,help='询问是否删除相同文件(default)')
+argparse.add_argument('-p',dest='out',action="store_true",help='输出相同文件')
+argparse.add_argument('-P',dest='process',type=int,metavar='CPU',default=CPU_COUNT - 1,help='使用几个CPU核心')
 argparse.add_argument('dirs',nargs='*',action="store",help='目录')
 
 args = argparse.parse_args()
@@ -37,6 +38,10 @@ def checkDirs(lists):
 		for d in not_dir:
 			print(d,'',end='')
 		print()
+		exit(1)
+	
+	if args.process > CPU_COUNT:
+		print('CPU MAX : {}'.format(CPU_COUTN))
 		exit(1)
 
 checkDirs(args.dirs)
@@ -110,27 +115,40 @@ def file_exists(value,file1,file2):
 	print('[2]',file2)
 
 	if args.out:
-		return
+		return 1
 
 	if args.delete:
 		os.remove(file1)
 		print('删除',file1)
-		return
+		return 1
 
-	
 	in_flag=False
-
 	while not in_flag:
+		
 		y = input('删除那个<1,2,N>? ')
+		
+		if y == '\n' or y == '\r\n':
+			y='n'
+
 		if y == '1':
-			os.remove(file1)
+			
+			try:
+				os.remove(file1)
+			except FileNotFoundError:
+				print('删除文件没找到{}'.format(file1))
+			return file2
+
 			in_flag = True
 		elif y == '2':
-			os.remove(file2)
+			try:
+				os.remove(file2)
+			except FileNotFoundError:
+				print('删除文件没找到{}'.format(file2))
+			return file1
+
 			in_flag = True
 		elif y == 'n' or y == 'N':
 			in_flag = True
-		
 
 
 def valueCmp():
@@ -146,7 +164,11 @@ def valueCmp():
 				return
 		else:
 			if value in FILE_SHA_VALUES:
-				file_exists(value,f,FILE_SHA_VALUES[value])
+				f = file_exists(value,f,FILE_SHA_VALUES[value])
+				if f == 1:
+					pass
+				else:
+					FILE_SHA_VALUES[value] = f
 			else:
 				FILE_SHA_VALUES[value] = f
 
