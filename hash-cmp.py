@@ -6,6 +6,8 @@
 import sqlite3,os
 from argparse import ArgumentParser
 from os.path import abspath,isdir,join
+from signal import SIGTERM
+from os import kill
 from hashlib import sha512
 from multiprocessing import Process,Queue
 from threading import Thread
@@ -146,25 +148,26 @@ def valueCmp():
 
 
 
-def exitProgram():
-	pass
+def exitProgram(mp_pids):
+	for pid in mp_pids:
+		kill(pid,SIGTERM)
 
 
 # main 
 
+mp_pid_list=[]
 for p in range(args.process):
 	mp = Process(target=taskSha512)
 	mp.start()
+	mp_pid_list.append(mp.pid)
 
 
-th = Thread(target=taskPut,args=(args.dirs,))
+th = Thread(target=taskPut,args=(args.dirs,),daemon=True)
 th.start()
 
 
 try:
 	valueCmp()
 except KeyboardInterrupt:
-	#exit_program()
-	pass
-
-print('done exit')
+	exitProgram(mp_pid_list)
+	
