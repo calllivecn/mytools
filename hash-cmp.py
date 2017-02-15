@@ -95,7 +95,11 @@ def taskSha512():
 			return
 		
 		#print('拿到文件{}'.format(file_path))
-		sha = __sha512(file_path)
+		try:
+			sha = __sha512(file_path)
+		except FileNotFoundError:
+			print('没有找到文件{}'.format(file_path))
+
 		task_get.put((file_path,sha))
 
 
