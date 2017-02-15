@@ -127,7 +127,7 @@ def file_exists(value,file1,file2):
 		
 		y = input('删除那个<1,2,N>? ')
 		
-		if y == '\n' or y == '\r\n':
+		if y == '':
 			y='n'
 
 		if y == '1':
