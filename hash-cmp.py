@@ -5,7 +5,7 @@
 
 import sqlite3,os
 from argparse import ArgumentParser
-from os.path import abspath,isdir,join
+from os.path import abspath,isdir,join,isfile
 from signal import SIGTERM
 from os import kill
 from hashlib import sha512
@@ -85,10 +85,10 @@ def taskPut(PATH_list):
 		for root,directory,files in os.walk(PATH):
 			for f in files:
 				abs_path = join(root,f)
-				#print(abs_path)
-				task_put.put(abs_path)
+				if isfile(abs_path):
+					task_put.put(abs_path)
+	
 	task_put.put(task_end_flag)
-	#print('put 结束')
 
 def taskSha512():
 	while True:
