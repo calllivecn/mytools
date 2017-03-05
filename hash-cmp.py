@@ -5,8 +5,8 @@
 
 import sqlite3,os
 from argparse import ArgumentParser
-from os.path import abspath,isdir,join,isfile
-from signal import SIGTERM
+from os.path import abspath,isdir,join,isfile,getsize
+SGITERM = 15 # from signal import SIGTERM
 from os import kill
 from hashlib import sha512
 from multiprocessing import Process,Queue
@@ -60,7 +60,7 @@ def __sha512(file_):
 	sha = sha512()
 	
 	READ_BUF = 2**20*4
-	size = os.stat(file_).st_size
+	size = getsize(file_) # os.stat(file_).st_size
 	data_len = 0
 
 	with open(file_,'rb') as f:
