@@ -3,13 +3,13 @@
 
 
 
-import os
+import os,re
 import sqlite3 as sql
 from tempfile import mktemp
 from argparse import ArgumentParser
-from os.path import abspath,isdir,join,isfile,getsize,basename
+from os.path import abspath,isdir,join,isfile,islink,getsize,basename
 SIGTERM = 15		#from signal import SIGTERM
-from os import kill
+from os import kill,remove
 from hashlib import sha512
 from multiprocessing import Process,Queue
 from threading import Thread
@@ -26,9 +26,9 @@ argparse.add_argument('dirs',nargs='*',action="store",help='目录')
 
 args = argparse.parse_args()
 
-# check dirs 是否全是目录
 
 def checkDirs(lists):
+	'''check dirs 是否全是目录'''
 	flag=False
 	not_dir=[]
 	for d in lists:
@@ -81,7 +81,7 @@ class Sql3():
 		self.db.commit()
 
 	def sha_sum(self):
-		# 比较相同名的文件
+		'''比较相同名的文件'''
 		multi_file = self.db.execute('select filename from sha512 group by filename having count(*)>1;')
 		multi_file = multi_file.fetchall()
 
@@ -99,6 +99,7 @@ class Sql3():
 
 			self.__update_sha(sha__)
 
+	'''
 		# 比较相同大小的文件
 		multi_file = self.db.execute('select filesize from sha512 group by filesize having count(*)>1;')
 		multi_file = multi_file.fetchall()
@@ -115,11 +116,13 @@ class Sql3():
 				sha__.append((sha_value,filepath))
 
 			self.__update_sha(sha__)
-
+	'''
 	
 	def __delete(self,del_lists):
 		self.db.executemany('delete from sha512 where filename=? and filepath=? and filesize=? and sha512=?',del_lists)
 		self.db.commit()
+		for filename ,filepath ,filesize ,sha512 in del_lists:
+			remove(filepath)
 
 	def close(self):
 		self.db.close()
@@ -128,7 +131,7 @@ class Sql3():
 	def check_diff(self):
 		sha_value_lists = self.db.execute('select sha512 from (select * from sha512 where sha512 is not null) group by sha512 having count(*)>1;')
 
-		for sha_value in sha_value_lists:
+		for sha_value in sha_value_lists.fetchall():
 
 			fetch = self.db.execute('select * from sha512 where sha512=?',sha_value)
 			file_sha = fetch.fetchall()
@@ -136,7 +139,7 @@ class Sql3():
 	
 			print('重复文件：')
 			for i in range(file_sha_len):
-				print(file_sha[i][0],file_sha[i][1],sep='\t')
+				print(i,file_sha[i][0],file_sha[i][1],sep='\t')
 
 			save_or_del , number_list = self.__rule_input(file_sha_len)
 			
@@ -175,6 +178,8 @@ class Sql3():
 	
 			if s_or_d == 's' or s_or_d == 'S' or s_or_d == 'd' or s_or_d == 'D':
 				pass
+			elif s_or_d == 'n' or s_or_d == 'N':
+				return 'No'
 			else:
 				print('input wrong')
 				continue
@@ -189,7 +194,7 @@ class Sql3():
 				input_number[i]=int(input_number[i])
 	
 			max_len = input_number[0]
-			print('len_file',len_file,'max_len',max_len)
+			#print('len_file',len_file,'max_len',max_len)
 			if max_len > len_file:
 				print('number error')
 				continue
@@ -230,9 +235,10 @@ def taskPut(PATH_list):
 		for root,directory,files in os.walk(PATH):
 			for f in files:
 				abs_path = join(root,f)
-				file_size = getsize(abs_path)
-				filename = basename(abs_path)
-				if isfile(abs_path):
+				if isfile(abs_path): #and not islink(abs_path):
+					print('文件：',abs_path)
+					file_size = getsize(abs_path)
+					filename = basename(abs_path)
 					task_put.put((filename,abs_path,file_size,''))
 	
 	task_put.put(task_end_flag)
@@ -272,5 +278,5 @@ th.start()
 
 try:
 	main()
-except (KeyboardInterrupt,EOFError):
+except (KeyboardInterrupt,EOFError) as e:
 	pass
