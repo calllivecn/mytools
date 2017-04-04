@@ -13,3 +13,7 @@ import os,argparse
 
 
 
+for root,dirs,files in os.walk(PATH)
+
+
+
