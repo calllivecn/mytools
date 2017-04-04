@@ -19,13 +19,13 @@ CPU_COUNT = os.cpu_count()
 argparse = ArgumentParser(description='通过文件名，文件大小和sha512值检测多个目录下有无相同文件.',add_help=True)
 
 argparse.add_argument('-d',dest='delete',action="store_true",help='相同文件直接删除')
-argparse.add_argument('-i',dest='ask',action="store_true",default=True,help='询问是否删除相同文件(default)')
-argparse.add_argument('-p',dest='out',action="store_true",help='输出相同文件')
+argparse.add_argument('-i',dest='ask',action="store_true",default=True,help='询问是否删除相同文件(默认)')
+argparse.add_argument('-p',dest='out',action="store_true",help='输出相同文件(默认)')
 argparse.add_argument('-P',dest='process',type=int,metavar='CPU',default=CPU_COUNT - 1,help='使用几个CPU核心')
 argparse.add_argument('dirs',nargs='*',action="store",help='目录')
+#argparse.add_argument('dirs',action="store",help='目录')
 
 args = argparse.parse_args()
-
 
 def checkDirs(lists):
 	'''check dirs 是否全是目录'''
@@ -85,21 +85,20 @@ class Sql3():
 		multi_file = self.db.execute('select filename from sha512 group by filename having count(*)>1;')
 		multi_file = multi_file.fetchall()
 
-		#print('比较相同名的文件',multi_file)
 
 		for f in multi_file:
 			f = f[0]
-			fetch = self.db.execute('select * from sha512 where filename=? and filesize in (select filesize from (select filename from sha512 where filename=?) group by filename having count(*)>1);',(f,f))
+			fetch = self.db.execute('select * from sha512 where filename=? and filesize in (select filesize from (select filename from sha512 where filename=?) group by filename having count(*)>1);',(f,f)) # 找出文件名相同，大小相同的文件
 			
 			sha__=[]
 
 			for filename,filepath,size,sha in fetch.fetchall():
 				sha_value = self.__sha512(filepath)
-				sha__.append((sha,filepath))
+				sha__.append((sha_value,filepath))
 
 			self.__update_sha(sha__)
 
-	'''
+	#'''
 		# 比较相同大小的文件
 		multi_file = self.db.execute('select filesize from sha512 group by filesize having count(*)>1;')
 		multi_file = multi_file.fetchall()
@@ -116,7 +115,7 @@ class Sql3():
 				sha__.append((sha_value,filepath))
 
 			self.__update_sha(sha__)
-	'''
+	#'''
 	
 	def __delete(self,del_lists):
 		self.db.executemany('delete from sha512 where filename=? and filepath=? and filesize=? and sha512=?',del_lists)
@@ -130,34 +129,35 @@ class Sql3():
 
 	def check_diff(self):
 		sha_value_lists = self.db.execute('select sha512 from (select * from sha512 where sha512 is not null) group by sha512 having count(*)>1;')
+		
+		for sha_value in sha_value_lists.fetchall(): # sha_value_lists.fetchall():
 
-		for sha_value in sha_value_lists.fetchall():
-
-			fetch = self.db.execute('select * from sha512 where sha512=?',sha_value)
-			file_sha = fetch.fetchall()
-			file_sha_len = len(file_sha)
+			if sha_value != ('',):
+				fetch = self.db.execute('select * from sha512 where sha512=?',sha_value)
+				file_sha = fetch.fetchall()
+				file_sha_len = len(file_sha)
+		
+				print('重复文件：')
+				for i in range(file_sha_len):
+					print(i,file_sha[i][0],file_sha[i][1],sep='\t')
 	
-			print('重复文件：')
-			for i in range(file_sha_len):
-				print(i,file_sha[i][0],file_sha[i][1],sep='\t')
-
-			save_or_del , number_list = self.__rule_input(file_sha_len)
-			
-			if save_or_del == 'n' and save_or_del == 'N':
-				continue
+				save_or_del , number_list = self.__rule_input(file_sha_len)
 				
-			del_list=[]
-
-			if save_or_del == 's' or save_or_del == 'S':
-				for i in range(file_sha_len):
-					if not i in number_list:
-						del_list.append(file_sha[i])
-			elif save_or_del == 'd' or save_or_del == 'D':
-				for i in range(file_sha_len):
-					if i in number_list:
-						del_list.append(file_sha[i])
-			
-			self.__delete(del_list)
+				if save_or_del == 'n' and save_or_del == 'N':
+					continue
+					
+				del_list=[]
+	
+				if save_or_del == 's' or save_or_del == 'S':
+					for i in range(file_sha_len):
+						if not i in number_list:
+							del_list.append(file_sha[i])
+				elif save_or_del == 'd' or save_or_del == 'D':
+					for i in range(file_sha_len):
+						if i in number_list:
+							del_list.append(file_sha[i])
+				
+				self.__delete(del_list)
 
 			
 
@@ -235,8 +235,8 @@ def taskPut(PATH_list):
 		for root,directory,files in os.walk(PATH):
 			for f in files:
 				abs_path = join(root,f)
-				if isfile(abs_path): #and not islink(abs_path):
-					print('文件：',abs_path)
+				if isfile(abs_path) and not islink(abs_path):
+					#print('文件：',abs_path)
 					file_size = getsize(abs_path)
 					filename = basename(abs_path)
 					task_put.put((filename,abs_path,file_size,''))
