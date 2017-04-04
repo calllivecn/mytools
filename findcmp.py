@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-
-
 import os,re
 import sqlite3 as sql
 from tempfile import mktemp
@@ -23,7 +21,6 @@ argparse.add_argument('-i',dest='ask',action="store_true",default=True,help='询
 argparse.add_argument('-p',dest='out',action="store_true",help='输出相同文件(默认)')
 argparse.add_argument('-P',dest='process',type=int,metavar='CPU',default=CPU_COUNT - 1,help='使用几个CPU核心')
 argparse.add_argument('dirs',nargs='*',action="store",help='目录')
-#argparse.add_argument('dirs',action="store",help='目录')
 
 args = argparse.parse_args()
 
