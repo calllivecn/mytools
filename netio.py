@@ -27,8 +27,12 @@ class Interface:
 		self.KB = 1<<10
 
 		self.unit = None
+
 		self.rx_unit = None
 		self.tx_unit = None
+
+		self.rx_sum_unit = None
+		self.tx_sum_unit = None
 	
 	def getBytes(self):
 		with open(self.ifname_rx) as f_rx, open(self.ifname_tx) as f_tx:
@@ -36,6 +40,9 @@ class Interface:
 			b_tx = f_tx.read()
 		self.init_rx = int(b_rx)
 		self.init_tx = int(b_tx)
+
+		self.rx_sum = self.init_rx
+		self.tx_sum = self.init_tx
 	
 	
 	def num(self):
@@ -46,6 +53,11 @@ class Interface:
 		self.rx_unit = self.unit
 		self.tx_speed = self.mod(self.init_tx - tx)
 		self.tx_unit = self.unit
+		
+		self.rx_sum = self.mod(self.rx_sum)
+		self.rx_sum_unit = self.unit
+		self.tx_sum = self.mod(self.tx_sum)
+		self.tx_sum_unit = self.unit
 	
 	def mod(self,s):
 		if s > self.TB:
@@ -65,7 +77,13 @@ class Interface:
 			return round(s,2)
 		
 	def __str__(self):
-		return 'ifname : {}\tRX : {}{}\tTX : {}{}'.format(self.ifname,self.rx_speed,self.rx_unit,self.tx_speed,self.tx_unit)
+		return 'ifname : {}\tRX : {}{}\tTX : {}{}\tRX_sum : {}{}\tTX_sum : {}{}'.format(
+				self.ifname,
+				self.rx_speed,self.rx_unit,
+				self.tx_speed,self.tx_unit,
+				self.rx_sum,self.rx_sum_unit[:-2],
+				self.tx_sum,self.tx_sum_unit[:-2]
+				)
 		
 	
 
