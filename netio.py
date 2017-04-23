@@ -77,7 +77,7 @@ class Interface:
 			return round(s,2)
 		
 	def __str__(self):
-		return 'ifname : {}\tRX : {}{}\tTX : {}{}\tRX_sum : {}{}\tTX_sum : {}{}'.format(
+		return '{}\t{}{}\t{}{}\t{}{}\t{}{}'.format(
 				self.ifname,
 				self.rx_speed,self.rx_unit,
 				self.tx_speed,self.tx_unit,
@@ -108,7 +108,7 @@ def main():
 	if len(ifnames) != 0:
 
 		while True:
-			print('iface\trecv\tsend')
+			print('iface\trecv\tsend\tRX_sum\tTX_sum')
 			for ifs in ifnames:
 				ifs.num()
 				print(ifs)
