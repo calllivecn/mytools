@@ -3,14 +3,19 @@
 # adjustment display brightness for intel_backlight
 # 
 
+using(){
+	echo "'k' or 'u' up adjustment 'j' or ' 'd' down adjustemnt"
+	echo "'q' quit"
+}
+
 case "$1" in
 	-h|--help)
 	echo "adjustment display brightness for intel_backlight"
 	echo
 	echo "Usaing: $(basename $0)"
 	echo
-	echo "'k' or 'u' up adjustment 'j' or ' 'd' down adjustemnt"
-	echo "'q' quit"
+	using
+	echo
 	exit 1
 	;;
 	*)
@@ -62,7 +67,7 @@ ch_bri(){
 echo $1 > $BRI_PATH
 }
 
-
+using
 echo "current brightness: $bri_var"
 
 while :
