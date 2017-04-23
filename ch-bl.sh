@@ -4,7 +4,7 @@
 # 
 
 using(){
-	echo "'k' or 'u' up adjustment 'j' or ' 'd' down adjustemnt"
+	echo "'k' or '↑ ' up adjustment 'j' or ' '↓ ' down adjustemnt"
 	echo "'q' quit"
 }
 
@@ -46,7 +46,7 @@ TTY=$(tty)
 
 stty -icanon -echo
 
-dd if=$TTY bs=1 count=1 2> /dev/null
+dd if=$TTY bs=8 count=1 2> /dev/null
 
 stty icanon echo
 
@@ -74,17 +74,17 @@ while :
 do
 	
 	ch=$(getch)
-	if [ "$ch"x == "j"x -o "$ch"x == "d"x ];then
+	if [ "$ch"x == "j"x -o "$ch"x == "[B"x ];then
 		bri_var=$[bri_var - step]
 		bri_var=$(check_overflow $bri_var)
 		ch_bri $bri_var
 		echo "current brightness: $bri_var"
-	elif [ "$ch"x == "k"x -o "$ch"x == "u"x ];then
+	elif [ "$ch"x == "k"x -o "$ch"x == "[A"x ];then
 		bri_var=$[bri_var + step]
 		bri_var=$(check_overflow $bri_var)
 		ch_bri $bri_var
 		echo "current brightness: $bri_var"
-	elif [ "$ch"x == "q"x ];then
+	elif [ "$ch"x == "q"x -o "$ch"x == ""x ];then
 		echo 'exit...'
 		break
 	fi
