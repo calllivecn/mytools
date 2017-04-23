@@ -5,7 +5,7 @@
 
 using(){
 	echo "'k' or '↑ ' up adjustment 'j' or ' '↓ ' down adjustemnt"
-	echo "'q' quit"
+	echo "'q' or 'ESC' quit"
 }
 
 case "$1" in
