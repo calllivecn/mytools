@@ -68,7 +68,8 @@ echo $1 > $BRI_PATH
 }
 
 using
-echo "current brightness: $bri_var"
+
+echo -en "current brightness: $bri_var"
 
 while :
 do
@@ -78,14 +79,16 @@ do
 		bri_var=$[bri_var - step]
 		bri_var=$(check_overflow $bri_var)
 		ch_bri $bri_var
-		echo "current brightness: $bri_var"
+		echo -en "\rcurrent brightness:     \b\b\b\b$bri_var"
+		#echo -en "\b\b\b\b    \b\b\b\b$bri_var"
 	elif [ "$ch"x == "k"x -o "$ch"x == "[A"x ];then
 		bri_var=$[bri_var + step]
 		bri_var=$(check_overflow $bri_var)
 		ch_bri $bri_var
-		echo "current brightness: $bri_var"
+		echo -en "\rcurrent brightness:     \b\b\b\b$bri_var"
+		#echo -en "\b\b\b\b    \b\b\b\b$bri_var"
 	elif [ "$ch"x == "q"x -o "$ch"x == ""x ];then
-		echo 'exit...'
+		echo  -e '\nexit...'
 		break
 	fi
 done
