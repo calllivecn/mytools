@@ -108,11 +108,11 @@ def main():
 	if len(ifnames) != 0:
 
 		while True:
+			print()
 			print('iface\trecv\tsend\tRX_sum\tTX_sum')
 			for ifs in ifnames:
 				ifs.num()
 				print(ifs)
-			print()
 			time.sleep(1)
 
 
