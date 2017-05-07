@@ -200,27 +200,14 @@ class Sql3():
 
 
 		
-	def __sha512(self,file_):
-
+	def __sha512(file_):
 		sha = sha512()
-	
-		READ_BUF = 2**20*4
-		size = getsize(file_)
-		data_len = 0
-
+		READ_BUF = 4*1<<20
 		with open(file_,'rb') as f:
-			
-			data = f.read(READ_BUF)
-		
-			sha.update(data)
-	
-			data_len = len(data)
-
-			while data_len < size :
-				sha.update(data)
+			data = True
+			while data:
 				data = f.read(READ_BUF)
-				data_len += len(data)
-	
+				sha.update(data)
 		return sha.hexdigest()
 
 
