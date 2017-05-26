@@ -32,10 +32,10 @@ fi
 
 if [ "$option"x == "enc"x ];then
 
-	tar -c $arg3 | xz | openssl aes-256-cbc -salt -out $out_file
+	tar -c $arg3 | pxz | openssl aes-256-cbc -salt -out $out_file
 
 elif [ "$option"x == "dec"x ];then
 
-	openssl aes-256-cbc -salt -d -in $arg3 |xz -d |tar -x
+	openssl aes-256-cbc -salt -d -in $arg3 |pxz -d |tar -x
 
 fi
