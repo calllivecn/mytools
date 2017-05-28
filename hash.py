@@ -43,5 +43,5 @@ for f in args.files:
 	while data:
 		data=f_in.read(4096)
 		s_tmp.update(data)
-	print(s_tmp.hexdigest(),f,sep="  ")
+	print(s_tmp.hexdigest(),f,sep="\t")
 	f_in.close()
