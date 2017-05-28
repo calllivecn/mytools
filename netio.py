@@ -111,7 +111,11 @@ def main():
 			print()
 			print('iface\trecv\tsend\tRX_sum\tTX_sum')
 			for ifs in ifnames:
-				ifs.num()
+				try:
+					ifs.num()
+				except FileNotFoundError:
+					ifnames.remove(ifs)
+					continue
 				print(ifs)
 			time.sleep(1)
 
