@@ -2,7 +2,7 @@
 
 set -e
 
-if [ -z "$1" -o -d "$1" ];then
+if [ -z "$1" ];then
 	echo "using: $(basename $0) <out_file>"
 	exit -1
 fi
