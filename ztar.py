@@ -12,7 +12,7 @@ Examples:
   tar -cf archive.tar foo bar  # Create archive.tar from files foo and bar.
   tar -tvf archive.tar         # List all files in archive.tar verbosely.
   tar -xf archive.tar          # Extract all files from archive.tar.
-''',usage=' tar [选项...] [FILE]...'
+''',usage=' tar [option...] [FILE]...'
 )
 
 
