@@ -83,7 +83,7 @@ def rm_dir_tree(dir__):
 
 
 for f in args.files:
-	if isfile(f):
+	if isfile(f) or islink(f):
 		remove(f)
 	elif isdir(f):
 		rm_dir_tree(f)
