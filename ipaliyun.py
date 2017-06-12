@@ -10,7 +10,7 @@ from pprint import pprint
 host = 'https://dm-81.data.aliyun.com'
 path = '/rest/160601/ip/getIpInfo.json'
 method = 'GET'
-appcode = 'c6eec2885f1540caa6b4217119ea7d58'
+appcode = '你自己的appcode'
 querys = 'ip={}'.format('210.75.225.254')
 bodys = {}
 url = host + path + '?' + querys
