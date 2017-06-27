@@ -2,9 +2,15 @@
 
 set -e
 
-if [ -z "$1" ];then
+if [ -z "$1" -o -f "$1" ];then
 	echo "using: $(basename $0) <out_file>"
-	exit -1
+	echo "or error exit $1 exists"
+	exit 1
+fi
+
+if [ $(id -u) -ne 0 ];then
+	echo need root user
+	exit 1
 fi
 
 out_file="$1"
