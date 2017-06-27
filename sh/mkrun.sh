@@ -12,6 +12,8 @@ run_file="$2"
 
 shell=$(mktemp)
 
+trap "rm $shell" EXIT
+
 file_size=$(du -b "$tar_package" |awk '{print $1}' )
 
 file_md5sum=$(md5sum "$tar_package" |awk '{print $1}' )
