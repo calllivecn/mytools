@@ -4,7 +4,7 @@
 # 
 
 using(){
-	echo "'k' or '↑ ' up adjustment 'j' or ' '↓ ' down adjustemnt"
+	echo "'k' or '↑ ' up adjustment 'j' or '↓ ' down adjustemnt"
 	echo "'q' or 'ESC' quit"
 }
 
