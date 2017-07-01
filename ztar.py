@@ -5,14 +5,14 @@
 import tarfile,sys,os,argparse
 
 parse=argparse.ArgumentParser(
-description='''GNU 'tar' saves many files together into a single tape or disk archive,
+description=r'''GNU %(prog)s saves many files together into a single tape or disk archive,
 and can restore individual files from the archive.
 
 Examples:
   tar -cf archive.tar foo bar  # Create archive.tar from files foo and bar.
   tar -tvf archive.tar         # List all files in archive.tar verbosely.
   tar -xf archive.tar          # Extract all files from archive.tar.
-''',usage=' tar [option...] [FILE]...'
+''',usage='%(prog)s [option...] [FILE]...'
 )
 
 
@@ -28,13 +28,13 @@ parse.add_argument('-v','--verbose',action='count',help='verbosely list files pr
 
 parse.add_argument('files',nargs='*',help='arvchive file or directory')
 
-parse.add_argument('-C','--directory',action='store',help='change to directory DIR')
+parse.add_argument('-C','--directory',action='store',default=os.getcwd(),help='change to directory DIR')
 
 parse.add_argument('-z','--gzip',action='store_true',help='filter the archive through gzip')
 
 parse.add_argument('-j','--bzip2',action='store_true',help='filter the archive through bzip2')
 
-parse.add_argument('-J','--xz','--lzma',dest='xz',action='store_true',help='filter the archive through xz')
+parse.add_argument('-J','--xz',dest='xz',action='store_true',help='filter the archive through xz')
 
 #parse.add_argument('--exclude',nargs='*',help='exclude files, given as a PATTERN')
 
