@@ -14,3 +14,6 @@ dd if=$TTY bs=8 count=1 2> /dev/null
 stty icanon echo
 
 }
+
+
+

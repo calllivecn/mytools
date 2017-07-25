@@ -39,8 +39,8 @@ def checkDirs(lists):
 		print()
 		exit(1)
 	
-	if args.process > CPU_COUNT:
-		print('CPU MAX : {}'.format(CPU_COUTN))
+	if args.process > CPU_COUNT and args.process <= 0:
+		print('CPU MAX : {} your {}'.format(CPU_COUTN,args.process))
 		exit(1)
 
 checkDirs(args.dirs)
@@ -200,7 +200,7 @@ class Sql3():
 
 
 		
-	def __sha512(file_):
+	def __sha512(self,file_):
 		sha = sha512()
 		READ_BUF = 4*1<<20
 		with open(file_,'rb') as f:
