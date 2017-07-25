@@ -6,11 +6,10 @@ import hashlib,sys
 
 
 def __sha512(file_):
-	#print('|'*60,'__sha512() {}'.format(file_))	
 	sha = sha512()
 	
-	READ_BUF = 2**20*4
-	size = getsize(file_) # os.stat(file_).st_size
+	READ_BUF = 4*1<<20
+	size = getsize(file_)
 	data_len = 0
 
 	with open(file_,'rb') as f:
@@ -31,7 +30,7 @@ def __sha512(file_):
 
 
 if len(sys.argv) < 2:
-	print('Using: {} <sha value> [file ... ]')
+	print('Using: {} <sha value> [file ... ]'.format(sys.argv[0]))
 	exit(-1)
 
 sha = sys.argv[1]
