@@ -4,6 +4,16 @@
 
 import hashlib,sys
 
+from argparse import ArgumentParser
+
+parse = ArgumentParser(usage=' %(prog)s <filename|sha512>',description='',epilog='\n')
+
+parse.add_argument('file',nargs='+',help='filename|sha512')
+
+
+args = parse.parse_args()
+
+print(args);exit(0)
 
 def __sha512(file_):
 	sha = sha512()
@@ -28,15 +38,7 @@ def __sha512(file_):
 	return sha.hexdigest()
 
 
-
-if len(sys.argv) < 2:
-	print('Using: {} <sha value> [file ... ]'.format(sys.argv[0]))
-	exit(-1)
-
-sha = sys.argv[1]
-
-
-for f in sys.argv[2:]:
+for f in args.file:
 	if isfile(f):
 		sha_value = __sha512(f)
 		if sha == sha_value:
