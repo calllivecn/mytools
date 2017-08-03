@@ -77,12 +77,12 @@ class Interface:
 			return round(s,2)
 		
 	def __str__(self):
-		return '{}\t{}{}\t{}{}\t{}{}\t{}{}'.format(
+		return '{:<16}{:>12}{:>12}{:>12}{:>12}'.format(
 				self.ifname,
-				self.rx_speed,self.rx_unit,
-				self.tx_speed,self.tx_unit,
-				self.rx_sum,self.rx_sum_unit[:-2],
-				self.tx_sum,self.tx_sum_unit[:-2]
+				str(self.rx_speed) + self.rx_unit,
+				str(self.tx_speed) + self.tx_unit,
+				str(self.rx_sum) + self.rx_sum_unit[:-2],
+				str(self.tx_sum) + self.tx_sum_unit[:-2]
 				)
 		
 	
@@ -109,7 +109,7 @@ def main():
 
 		while True:
 			print()
-			print('iface\trecv\tsend\tRX_sum\tTX_sum')
+			print('{:<16}{:>12}{:>12}{:>12}{:>12}'.format('iface','recv','send','RX_sum','TX_sum'))
 			for ifs in ifnames:
 				try:
 					ifs.num()
