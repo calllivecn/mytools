@@ -16,4 +16,4 @@ for f in files:
 			jn = json.load(fp)
 			pprint.pprint(jn)
 	else:
-		print('{}不是一个文件'.format(f))
+		print('{}不是一个json文件'.format(f))
