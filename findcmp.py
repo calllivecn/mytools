@@ -60,13 +60,13 @@ class Sql3():
 			fetch = self.db.execute('select tbl_name from sha where type="table" and tbl_name="sha";')
 
 			if fetch.fetchall() == []:
-				self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 text);')
+				self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 int);')
 
 		else:
 
 			self.sql_file = mktemp()
 			self.db = sql.connect(self.sql_file)
-			self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 text);')
+			self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 int);')
 		self.db.commit()
 		
 	def add(self,db_lists):
