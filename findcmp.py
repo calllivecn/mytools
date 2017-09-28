@@ -208,7 +208,8 @@ class Sql3():
 			while data:
 				data = f.read(READ_BUF)
 				sha.update(data)
-		return sha.hexdigest()
+		#return sha.hexdigest()
+		return sha.digest()
 
 
 
