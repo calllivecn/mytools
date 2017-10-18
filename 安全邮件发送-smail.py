@@ -16,7 +16,7 @@ server='smtp.qq.com'
 
 #----------------------------------------------------------------
 
-parse=argparse.ArgumentParser(description="{} is a cmdline smtp mail".format(sys.argv[0]))
+parse=argparse.ArgumentParser(description="%(prog)s is a cmdline smtp mail")
 
 parse.add_argument('-T','--to',nargs='+',required=True,help='to mail address list')
 
