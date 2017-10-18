@@ -39,8 +39,8 @@ def checkDirs(lists):
 		print()
 		exit(1)
 	
-	if args.process > CPU_COUNT:
-		print('CPU MAX : {}'.format(CPU_COUTN))
+	if args.process > CPU_COUNT and args.process <= 0:
+		print('CPU MAX : {} your {}'.format(CPU_COUTN,args.process))
 		exit(1)
 
 checkDirs(args.dirs)
@@ -60,13 +60,13 @@ class Sql3():
 			fetch = self.db.execute('select tbl_name from sha where type="table" and tbl_name="sha";')
 
 			if fetch.fetchall() == []:
-				self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 text);')
+				self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 int);')
 
 		else:
 
 			self.sql_file = mktemp()
 			self.db = sql.connect(self.sql_file)
-			self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 text);')
+			self.db.execute('create table sha512(filename text,filepath text,filesize int,sha512 int);')
 		self.db.commit()
 		
 	def add(self,db_lists):
@@ -200,7 +200,7 @@ class Sql3():
 
 
 		
-	def __sha512(file_):
+	def __sha512(self,file_):
 		sha = sha512()
 		READ_BUF = 4*1<<20
 		with open(file_,'rb') as f:
@@ -208,7 +208,8 @@ class Sql3():
 			while data:
 				data = f.read(READ_BUF)
 				sha.update(data)
-		return sha.hexdigest()
+		#return sha.hexdigest()
+		return sha.digest()
 
 
 
