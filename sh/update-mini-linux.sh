@@ -63,7 +63,6 @@ using(){
 -o		new iso filename
 '
 	echo "$str"
-	exit 0
 }
 
 flag_i=true
@@ -102,6 +101,8 @@ do
 			;;
 		h)
 			using
+			exit_rm
+			exit 1
 			;;
 		\:)
 			echo "-${OPTARG} option requires an argument"
