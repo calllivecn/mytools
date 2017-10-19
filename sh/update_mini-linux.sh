@@ -48,13 +48,16 @@ old_iso=
 new_iso="$(date +%F-%H%M%S).iso"
 iso_label="ISO $(date +%F-%H%M%S)"
 
+exit_rm(){
+	rm -rf "$work_dir"
+}
 
 using(){
 	program=$(basename "$0")
 
 	local str="Using: $program [-dlo] <-i>"
 	str="$str"'
--d		work directory
+-d		work directory (default:./)
 -i		old iso
 -l		new iso volume label name
 -o		new iso filename
@@ -70,6 +73,7 @@ do
 		d)
 			if [ -d "$OPTARG" ];then
 				echo "$OPTARG" directory not exists
+				exit_rm
 				exit 1
 			fi
 			work_dir="$OPTARG"
@@ -77,6 +81,7 @@ do
 		i)
 			if [ ! -f "$OPTARG" ];then
 				echo "$OPTARG not exists"
+				exit_rm
 				exit 1
 			fi
 			old_iso="$OPTARG"
@@ -90,6 +95,7 @@ do
 		o)
 			if [ -f "$OPTARG" ];then
 				echo "$OPARG" already exists
+				exit_rm
 				exit 1
 			fi
 			new_iso="$OPTARG"
@@ -99,10 +105,12 @@ do
 			;;
 		\:)
 			echo "-${OPTARG} option requires an argument"
+				exit_rm
 			exit 1
 			;;
 		\?)
 			echo "invalid option : -${OPTARG}"
+				exit_rm
 			exit 1
 			;;
 	esac
@@ -110,6 +118,7 @@ done
 
 if $flag_i ;then
 	echo "-i option requires"
+	exit_rm
 	exit 1
 fi
 
