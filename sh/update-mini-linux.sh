@@ -43,7 +43,7 @@
 #####################
 
 
-work_dir=$(mktemp -d -p "$(pwd -P)")
+work_dir=
 old_iso=
 new_iso="$(date +%F-%H%M%S).iso"
 iso_label="ISO $(date +%F-%H%M%S)"
@@ -63,6 +63,7 @@ using(){
 -o		new iso filename
 '
 	echo "$str"
+	exit 0
 }
 
 flag_i=true
@@ -72,7 +73,6 @@ do
 		d)
 			if [ -d "$OPTARG" ];then
 				echo "$OPTARG" directory not exists
-				exit_rm
 				exit 1
 			fi
 			work_dir="$OPTARG"
@@ -80,7 +80,6 @@ do
 		i)
 			if [ ! -f "$OPTARG" ];then
 				echo "$OPTARG not exists"
-				exit_rm
 				exit 1
 			fi
 			old_iso="$OPTARG"
@@ -94,24 +93,20 @@ do
 		o)
 			if [ -f "$OPTARG" ];then
 				echo "$OPARG" already exists
-				exit_rm
 				exit 1
 			fi
 			new_iso="$OPTARG"
 			;;
 		h)
 			using
-			exit_rm
 			exit 1
 			;;
 		\:)
 			echo "-${OPTARG} option requires an argument"
-				exit_rm
 			exit 1
 			;;
 		\?)
 			echo "invalid option : -${OPTARG}"
-				exit_rm
 			exit 1
 			;;
 	esac
@@ -119,10 +114,12 @@ done
 
 if $flag_i ;then
 	echo "-i option requires"
-	exit_rm
 	exit 1
 fi
 
+if [ ! -d "$work_dir" ];then
+	work_dir=$(mktemp -d -p "$(pwd -P)")
+fi
 
 # testing being
 #echo "$old_iso"
