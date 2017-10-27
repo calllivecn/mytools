@@ -1,9 +1,10 @@
 
 
 
-import time,datetime
-
-
+import time
+import datetime
+import sys
+import os
 
 
 
@@ -21,7 +22,11 @@ def runtime(func):
 
 
 
-
+def getabspath(f):
+	"""getabspath(file) --> (abspath , filename)"""
+	p = os.path.abspath(f)
+	p = os.path.split(p)
+	return p
 
 
 
