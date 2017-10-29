@@ -3,7 +3,7 @@
 set -e
 
 if [ -z "$1" -o -f "$1" ];then
-	echo "using: $(basename $0) <out_file>"
+	echo "using: $(basename $0) <out_file>.tar.gz"
 	echo "or error exit $1 exists"
 	exit 1
 fi
@@ -13,7 +13,7 @@ if [ $(id -u) -ne 0 ];then
 	exit 1
 fi
 
-out_file="$1"
+out_file="$1".tar.gz
 
 sys_excludes='--exclude=./proc/* --exclude=./sys/* --exclude=./run/* --exclude=./tmp/* --exclude=./dev/*'
 #sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
@@ -23,6 +23,6 @@ user_excludes='--exclude=./home/* --exclude=./mnt/* --exclude=./media/*'
 
 excludes="$sys_excludes $user_excludes"
 
-tar -C / -pc .  ${excludes} |pxz |tee $out_file | sha512sum  > ${out_file}.sha512sum
+tar -C / -pc .  ${excludes} |pigz |tee $out_file | sha512sum  > ${out_file}.sha512sum
 
 
