@@ -69,7 +69,7 @@ safe_exit(){
 trap "safe_exit" SIGINT SIGTERM
 
 echo "test writing ..."
-dd if=/dev/zero of="$filename" bs=$block count=$count oflag=direct conv=fdatasync 2>&1 |tail -n 1
+dd if=/dev/zero of="$filename" bs=$block count=$count oflag=direct conv=fsync 2>&1 |tail -n 1
 echo "test reading ..."
 dd if="$filename" of=/dev/null ibs=$block iflag=direct 2>&1 |tail -n 1
 
