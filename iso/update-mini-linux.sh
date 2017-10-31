@@ -42,6 +42,10 @@
 #
 #####################
 
+if [ "$(id -u)" -ne 0 ];then
+	echo must be root user
+	exit 1
+fi
 
 work_dir=
 old_iso=
@@ -174,6 +178,12 @@ unresolv(){
 	mv -f $work_dir/root/etc/resolv.conf{.bak,}
 }
 
+rm_var_lib_apt_lists(){
+
+	rm -rf $work_dir/root/var/lib/apt/lists
+
+}
+
 chroot_sh(){
 	echo "已经 chroot ."
 	echo "请开始你的表演(操作)."
@@ -250,9 +260,13 @@ set -e
 
 	unresolv
 
+	rm_var_lib_apt_lists
+
 	build_iso
 
 	mkiso
+
+	isohybrid "$new_iso"
 
 	clear_sh
 
