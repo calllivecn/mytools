@@ -42,6 +42,8 @@
 #
 #####################
 
+export LANG=C
+
 if [ "$(id -u)" -ne 0 ];then
 	echo must be root user
 	exit 1
@@ -185,8 +187,8 @@ rm_var_lib_apt_lists(){
 }
 
 chroot_sh(){
-	echo "已经 chroot ."
-	echo "请开始你的表演(操作)."
+	echo "already chroot ."
+	echo "Please proceed with your operation."
 	chroot "$work_dir"/root
 }
 
