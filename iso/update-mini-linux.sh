@@ -46,6 +46,7 @@ export LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8
 
 if [ "$(id -u)" -ne 0 ];then
 	echo must be root user
+	echo or sudo -i 
 	exit 1
 fi
 
@@ -149,6 +150,8 @@ init_iso(){
 	mount -o loop "$old_iso" "$work_dir"/old_iso
 	cp -a "$work_dir"/old_iso "$work_dir"/iso
 	unsquashfs -f -d "$work_dir/root" "$work_dir/iso/casper/filesystem.squashfs" 
+	mv "$work_dir"/iso/casper/vmlinuz.efi "$work_dir"/root/$(readlink "$work_dir"/root/vmlinuz)
+	mv "$work_dir"/iso/casper/initrd.lz "$work_dir"/root/$(readlink "$work_dir"/root/initrd.img)
 	umount "$old_iso"
 }
 
@@ -196,11 +199,9 @@ chroot_sh(){
 
 build_iso(){
 	rm "$work_dir"/iso/casper/filesystem.squashfs
-	rm "$work_dir"/iso/casper/initrd.lz
-	rm "$work_dir"/iso/casper/vmlinuz.efi
+	mv "$work_dir"/root/$(readlink "$work_dir"/root/vmlinuz) "$work_dir"/iso/casper/vmlinuz.efi
+	mv "$work_dir"/root/$(readlink "$work_dir"/root/initrd.img) "$work_dir"/iso/casper/initrd.lz
 	mksquashfs "$work_dir"/root "$work_dir"/iso/casper/filesystem.squashfs -comp xz -b 1M
-	cp "$work_dir"/root/vmlinuz "$work_dir"/iso/casper/vmlinuz.efi
-	cp "$work_dir"/root/initrd.img "$work_dir"/iso/casper/initrd.lz
 }
 
 mkiso(){
