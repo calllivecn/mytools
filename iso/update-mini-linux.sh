@@ -42,7 +42,7 @@
 #
 #####################
 
-export LANG=C
+export LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8
 
 if [ "$(id -u)" -ne 0 ];then
 	echo must be root user
