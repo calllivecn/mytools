@@ -51,3 +51,4 @@ iso/:
 	制作iso脚本,升级我的mini-linux。
 
 sh/:
+	我的ubuntu的脚本。
