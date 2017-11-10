@@ -16,8 +16,7 @@ netio.py:
 youtube-dl.sh:
 	youtube-dl外壳。
 
-ztar.py:
-	py版tar。
+ztar.py:  py版tar。
 
 ssl-crypto.sh:
 	文件加密脚本。
