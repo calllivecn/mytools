@@ -12,9 +12,9 @@ method = 'GET'
 appcode = '' # 我的appcode
 querys = 'ParamString=%7B%22no%22%3A%22123456%22%7D&RecNum=RecNum&SignName=SignName&TemplateCode=TemplateCode'
 querys = 'ParamString={}&RecNum={}&SignName={}&TemplateCode={}'.format(quote(dumps({"text":"text"})),
-																		quote('18107298655'),
-																		quote('SIGN'),
-																		quote('test${text}'))
+                                                                        quote('18107298655'),
+                                                                        quote('SIGN'),
+                                                                        quote('test${text}'))
 bodys = {}
 url = host + path + '?' + querys
 print(url)

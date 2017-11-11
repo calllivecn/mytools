@@ -7,8 +7,8 @@ from argparse import ArgumentParser,REMAINDER
 #from fileinput import FileInput
 
 parse = ArgumentParser(description='dos to unix in test or unix to dos',
-						usage='%(prog)s [option] -o outfile files'
-						)
+                        usage='%(prog)s [option] -o outfile files'
+                        )
 
 parse.add_argument('-c','--conversion',action='store_false',help='default DOS to UINX else UINX to DOS.')
 
@@ -26,21 +26,21 @@ args = parse.parse_args()
 
 def conversion(conver_type=args.conversion):
 
-	if conver_type:
-		r_encoding = args.inencoding
-		w_encoding = args.outencoding
-		CRLF=('\r\n','\n')
-	else:
-		w_encoding = args.inencoding
-		r_encoding = args.outencoding
-		CRLF=('\n','\r\n')
+    if conver_type:
+        r_encoding = args.inencoding
+        w_encoding = args.outencoding
+        CRLF=('\r\n','\n')
+    else:
+        w_encoding = args.inencoding
+        r_encoding = args.outencoding
+        CRLF=('\n','\r\n')
 
-	with open(args.files,encoding=r_encoding) as fd,open(args.outfile,'w+',encoding=w_encoding) as fdout:
-		for line in fd:
-			data = line.replace(*CRLF)
-			fdout.write(data)
+    with open(args.files,encoding=r_encoding) as fd,open(args.outfile,'w+',encoding=w_encoding) as fdout:
+        for line in fd:
+            data = line.replace(*CRLF)
+            fdout.write(data)
 
 try:
-	conversion()
+    conversion()
 except UnicodeDecodeError:
-	print('input file encode error',args.inencoding)
+    print('input file encode error',args.inencoding)

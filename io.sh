@@ -21,48 +21,48 @@ work_dir=$(pwd)
 using(){
 local str="Using : $(basename $0)"
 str="$str"'
--h		print this information
--d		work_dir in directoy (default: `pwd`)
--s		test file size, unit MB (default: 256)
+-h        print this information
+-d        work_dir in directoy (default: `pwd`)
+-s        test file size, unit MB (default: 256)
 '
-#-b		I/O block size (default: 1M)
+#-b        I/O block size (default: 1M)
 
 echo "$str"
 }
 
 while getopts ':hs:d:' opt
 do
-	case "$opt" in
-		h)
-			using
-			exit 0
-			;;
-		#b)
-		#	block="$OPTARG"
-		#	;;
-		s)
-			count="$OPTARG"
-			;;
-		d)
-			work_dir="$OPTARG"
-			;;
-		\?)
-			echo "-${OPTARG} invalid option"
-			exit 1
-			;;
-		\:)
-			echo "-${OPARG} need a argument"
-			exit 1
-			;;
-	esac
+    case "$opt" in
+        h)
+            using
+            exit 0
+            ;;
+        #b)
+        #    block="$OPTARG"
+        #    ;;
+        s)
+            count="$OPTARG"
+            ;;
+        d)
+            work_dir="$OPTARG"
+            ;;
+        \?)
+            echo "-${OPTARG} invalid option"
+            exit 1
+            ;;
+        \:)
+            echo "-${OPARG} need a argument"
+            exit 1
+            ;;
+    esac
 done
 shift $[ OPTIND - 1 ]
 
 filename=$(mktemp -p "$work_dir")
 
 safe_exit(){
-	rm -f "$filename"
-	exit 0
+    rm -f "$filename"
+    exit 0
 }
 
 

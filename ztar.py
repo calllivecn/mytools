@@ -44,72 +44,72 @@ args=parse.parse_args()
 #print(args)
 
 if args.create and args.files :
-	compress='w'
-	
-	if args.gzip:
-		compress='w:gz'
-	elif args.bzip2:
-		compress='w:bz2'
-	elif args.xz:
-		compress='w:xz'
+    compress='w'
+    
+    if args.gzip:
+        compress='w:gz'
+    elif args.bzip2:
+        compress='w:bz2'
+    elif args.xz:
+        compress='w:xz'
 
-	fp=tarfile.open(args.file,compress)
-	for f in args.files:
-		if os.path.isfile(f):
-			if args.verbose: print(f)
-			fp.add(f)
-		elif os.path.isdir(f):
-			for root,dirs,files in os.walk(f):
-				for file2 in files:
-					if args.verbose: print(os.path.join(root,file2))
-					fp.add(os.path.join(root,file2))
-		else:
-				print(f,': is not file or directory')
-				continue
-	fp.close()			
-			
+    fp=tarfile.open(args.file,compress)
+    for f in args.files:
+        if os.path.isfile(f):
+            if args.verbose: print(f)
+            fp.add(f)
+        elif os.path.isdir(f):
+            for root,dirs,files in os.walk(f):
+                for file2 in files:
+                    if args.verbose: print(os.path.join(root,file2))
+                    fp.add(os.path.join(root,file2))
+        else:
+                print(f,': is not file or directory')
+                continue
+    fp.close()            
+            
 
 elif args.extract :
-	decompress='r'
-	
-	if args.gzip:
-		decompress='r:gz'
-	elif args.bzip2:
-		decompress='r:bz2'
-	elif args.xz:
-		decompress='r:xz'
+    decompress='r'
+    
+    if args.gzip:
+        decompress='r:gz'
+    elif args.bzip2:
+        decompress='r:bz2'
+    elif args.xz:
+        decompress='r:xz'
 
-	fp=tarfile.open(args.file,decompress)
-	for f in fp.getnames():
-		if os.path.isdir(args.directory):
-			if args.verbose:
-				print(f)
-			fp.extract(f,args.directory)
-		elif args.directory==None :
-			if args.verbose:
-				print(f)
-			fp.extract(f,'.')
-		else:
-			print(args.directory,'not a directory, exited')
-			exit(2)
-	fp.close()
+    fp=tarfile.open(args.file,decompress)
+    for f in fp.getnames():
+        if os.path.isdir(args.directory):
+            if args.verbose:
+                print(f)
+            fp.extract(f,args.directory)
+        elif args.directory==None :
+            if args.verbose:
+                print(f)
+            fp.extract(f,'.')
+        else:
+            print(args.directory,'not a directory, exited')
+            exit(2)
+    fp.close()
 
 elif args.list :
-	decompress='r'
-	
-	if args.gzip:
-		decompress='r:gz'
-	elif args.bzip2:
-		decompress='r:bz2'
-	elif args.xz:
-		decompress='r:xz'
+    decompress='r'
+    
+    if args.gzip:
+        decompress='r:gz'
+    elif args.bzip2:
+        decompress='r:bz2'
+    elif args.xz:
+        decompress='r:xz'
 
-	fp=tarfile.open(args.file,decompress)
+    fp=tarfile.open(args.file,decompress)
 
-	fp.list(verbose=args.verbose)
+    fp.list(verbose=args.verbose)
 
-	fp.close()
+    fp.close()
 
 else:
 
-	exit(1)
+    exit(1)

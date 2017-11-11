@@ -45,24 +45,24 @@ msg['From']=args.user
 msg['Subject'] = args.subject
 
 if args.file:
-	for f in args.file:
-		f=open(f)
-		text+='####    filename :'+f.name+'\n\n'
-		text+=f.read()
-		f.close()
+    for f in args.file:
+        f=open(f)
+        text+='####    filename :'+f.name+'\n\n'
+        text+=f.read()
+        f.close()
 
 if args.attach:
-	
+    
 
-	for a in args.attach:
-		basename = os.path.basename(a)
-		fp = open(a, 'rb')
-		att = MIMEText(fp.read(), 'base64', 'utf-8')
-		fp.close()
-		att["Content-Type"] = 'application/octet-stream'
-		att.add_header('Content-Disposition', 'attachment',filename=('utf-8', '', basename))
-		#encoders.encode_base64(att)
-		msg.attach(att)
+    for a in args.attach:
+        basename = os.path.basename(a)
+        fp = open(a, 'rb')
+        att = MIMEText(fp.read(), 'base64', 'utf-8')
+        fp.close()
+        att["Content-Type"] = 'application/octet-stream'
+        att.add_header('Content-Disposition', 'attachment',filename=('utf-8', '', basename))
+        #encoders.encode_base64(att)
+        msg.attach(att)
 
 content1 = MIMEText(args.text, 'plain', 'utf-8')
 msg.attach(content1)
@@ -80,5 +80,5 @@ s.helo()
 s.ehlo()
 s.login(args.user,base64.decodebytes(args.passwd).decode('utf-8'))
 if s.sendmail(args.user, args.to, msg.as_string()):
-		print('Recv : error.')
+        print('Recv : error.')
 s.close()

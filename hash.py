@@ -20,28 +20,28 @@ args=parse.parse_args()
 #print(args)
 
 if args.md5:
-	s=hashlib.md5()
+    s=hashlib.md5()
 elif args.sha1:
-	s=hashlib.sha1()
+    s=hashlib.sha1()
 elif args.sha128:
-	s=hashlib.sha128()
+    s=hashlib.sha128()
 elif args.sha224:
-	s=hashlib.sha224()
+    s=hashlib.sha224()
 elif args.sha256:
-	s=hashlib.sha256()
+    s=hashlib.sha256()
 elif args.sha384:
-	s=hashlib.sha384()
+    s=hashlib.sha384()
 elif args.sha512:
-	s=hashlib.sha512()
+    s=hashlib.sha512()
 else:
-	s=hashlib.md5()
+    s=hashlib.md5()
 
 for f in args.files:
-	s_tmp=s.copy()
-	f_in=open(f,'rb')
-	data=1
-	while data:
-		data=f_in.read(4096)
-		s_tmp.update(data)
-	print(s_tmp.hexdigest(),f,sep="\t")
-	f_in.close()
+    s_tmp=s.copy()
+    f_in=open(f,'rb')
+    data=1
+    while data:
+        data=f_in.read(4096)
+        s_tmp.update(data)
+    print(s_tmp.hexdigest(),f,sep="\t")
+    f_in.close()

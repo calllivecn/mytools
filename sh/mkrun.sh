@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [ ! -f "$1" -o -f "$2" ];then
-	echo "using: $0 file"
-	exit -1
+    echo "using: $0 file"
+    exit -1
 fi
 
 
