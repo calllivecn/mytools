@@ -25,26 +25,26 @@ S = u + d + str(f) + c
 g = md5(S.encode()).hexdigest()
 
 
-data={	"i":d,
-		"from":"AUTO",
-		"to":"AUTO",
-		"smartresult":"dict",
-		"client":u,
-		"salt":f,
-		"sign":g,
-		"doctype":"json",
-		"version":"2.1",
-		"keyfrom":"fanyi.web",
-		"action":"FY_BY_CLICKBUTTION",
-		"typoResult":"true",
-		}
+data={    "i":d,
+        "from":"AUTO",
+        "to":"AUTO",
+        "smartresult":"dict",
+        "client":u,
+        "salt":f,
+        "sign":g,
+        "doctype":"json",
+        "version":"2.1",
+        "keyfrom":"fanyi.web",
+        "action":"FY_BY_CLICKBUTTION",
+        "typoResult":"true",
+        }
 
-header = {	"Accept":"application/json, text/javascript",
-			"Host":"fanyi.youdao.com",
-			"Origin":"http://fanyi.youdao.com",
-			"Referer":"http://fanyi.youdao.com/",
-			"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36"
-			}
+header = {    "Accept":"application/json, text/javascript",
+            "Host":"fanyi.youdao.com",
+            "Origin":"http://fanyi.youdao.com",
+            "Referer":"http://fanyi.youdao.com/",
+            "User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36"
+            }
 
 
 #print(data)
@@ -59,19 +59,19 @@ result = json.loads(result)
 
 returncode = result.get("errorCode")
 if returncode != 0:
-	print('errorCode',returncode)
-	exit(1)
+    print('errorCode',returncode)
+    exit(1)
 else:
-	result , smartResult  = result.get("translateResult") , result.get("smartResult")
-	result = result[0][0]
-	print('原文:',result.get("src"))
-	print('翻译:',result.get("tgt"))
-	if smartResult != None:
-		for i in smartResult.get("entries"):
-			if i == "":
-				continue
-			else:
-				print(i.replace('\r\n','\n'))
+    result , smartResult  = result.get("translateResult") , result.get("smartResult")
+    result = result[0][0]
+    print('原文:',result.get("src"))
+    print('翻译:',result.get("tgt"))
+    if smartResult != None:
+        for i in smartResult.get("entries"):
+            if i == "":
+                continue
+            else:
+                print(i.replace('\r\n','\n'))
 
 
 

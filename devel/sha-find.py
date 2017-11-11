@@ -19,29 +19,29 @@ args = parse.parse_args()
 print(args);#exit(0)
 
 def __sha512(file_):
-	sha = hashlib.sha512()
-	
-	READ_BUF = 4*1<<20
-	size = getsize(file_)
-	data_len = 0
+    sha = hashlib.sha512()
+    
+    READ_BUF = 4*1<<20
+    size = getsize(file_)
+    data_len = 0
 
-	with open(file_,'rb') as f:
-		
-		data = f.read(READ_BUF)
+    with open(file_,'rb') as f:
+        
+        data = f.read(READ_BUF)
 
-		while data:
-			sha.update(data)
-			data = f.read(READ_BUF)
-	
-	return sha.hexdigest()
+        while data:
+            sha.update(data)
+            data = f.read(READ_BUF)
+    
+    return sha.hexdigest()
 
 
 def find():
-	for f in args.file:
-			sha_value = __sha512(f)
-			if sha == sha_value:
-				print(sha,f,sep='\t')
-			else:
-				print(f,'not a file')
+    for f in args.file:
+            sha_value = __sha512(f)
+            if sha == sha_value:
+                print(sha,f,sep='\t')
+            else:
+                print(f,'not a file')
 
-	
+    

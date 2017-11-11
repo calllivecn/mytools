@@ -1,21 +1,21 @@
 #!/bin/bash
 
 using(){
-	echo 'using: <source> <out file> [iso label]'
-	exit 2
+    echo 'using: <source> <out file> [iso label]'
+    exit 2
 }
 
 if [ -d "$1" ];then
-	sour="$1"
-	oldpath=`pwd`
-#	cd "$1"
+    sour="$1"
+    oldpath=`pwd`
+#    cd "$1"
 else
-	using
+    using
 fi
 
 if [ -z "$2" ];then
-	outfile="$2"
-	using
+    outfile="$2"
+    using
 fi
 
 cd "$sour"

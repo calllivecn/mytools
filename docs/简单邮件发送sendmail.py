@@ -45,30 +45,30 @@ args=parse.parse_args()
 msg = MIMEMultipart()
 
 if args.From: 
-	msg['From']=args.From
+    msg['From']=args.From
 
 
 msg['Subject'] = args.subject
 
 if args.file:
-	for f in args.file:
-		f=open(f)
-		text+='####    filename :'+f.name+'\n\n'
-		text+=f.read()
-		f.close()
+    for f in args.file:
+        f=open(f)
+        text+='####    filename :'+f.name+'\n\n'
+        text+=f.read()
+        f.close()
 
 if args.attach:
-	
+    
 
-	for a in args.attach:
-		basename = os.path.basename(a)
-		fp = open(a, 'rb')
-		att = MIMEText(fp.read(), 'base64', 'utf-8')
-		fp.close()
-		att["Content-Type"] = 'application/octet-stream'
-		att.add_header('Content-Disposition', 'attachment',filename=('utf-8', '', basename))
-		#encoders.encode_base64(att)
-		msg.attach(att)
+    for a in args.attach:
+        basename = os.path.basename(a)
+        fp = open(a, 'rb')
+        att = MIMEText(fp.read(), 'base64', 'utf-8')
+        fp.close()
+        att["Content-Type"] = 'application/octet-stream'
+        att.add_header('Content-Disposition', 'attachment',filename=('utf-8', '', basename))
+        #encoders.encode_base64(att)
+        msg.attach(att)
 
 content1 = MIMEText(args.text, 'plain', 'utf-8')
 msg.attach(content1)
@@ -77,35 +77,35 @@ msg.attach(content1)
 
 #-----------------------------------------------------------
 try:
-	s = smtplib.SMTP()
+    s = smtplib.SMTP()
 
-	if args.verbose: s.set_debuglevel(2)
+    if args.verbose: s.set_debuglevel(2)
 
-	s.connect(server)
-	#s.esmtp_features["auth"]="LOGIN PLAIN"
+    s.connect(server)
+    #s.esmtp_features["auth"]="LOGIN PLAIN"
 
-	code = s.ehlo()[0]
-	usesesmtp=True
-	if not (200<= code<=299):
-		usesesmtp=False
-		code = helo()[0]
-		if not (200<=code<=299):
-			raise smtplib.SMTPHeloError
-	if usesesmtp and s.has_extn('size'):
-		print('Maximum message size is',s.esmtp_features['size'])
-		if len(msg)>int(s.esmtp_features['size']):
-			print('Message too large ; aborting.')
-			exit(2)
+    code = s.ehlo()[0]
+    usesesmtp=True
+    if not (200<= code<=299):
+        usesesmtp=False
+        code = helo()[0]
+        if not (200<=code<=299):
+            raise smtplib.SMTPHeloError
+    if usesesmtp and s.has_extn('size'):
+        print('Maximum message size is',s.esmtp_features['size'])
+        if len(msg)>int(s.esmtp_features['size']):
+            print('Message too large ; aborting.')
+            exit(2)
 
-	#s.starttls()
-	#s.helo()
-	s.login(args.user,'gjwihnlhasfxbbjh')#base64.decodebytes(args.passwd).decode('utf-8'))
-	if s.sendmail(args.user, args.to, msg.as_string()):
-		print('Recv : error.')
+    #s.starttls()
+    #s.helo()
+    s.login(args.user,'gjwihnlhasfxbbjh')#base64.decodebytes(args.passwd).decode('utf-8'))
+    if s.sendmail(args.user, args.to, msg.as_string()):
+        print('Recv : error.')
 except (smtplib.SMTPException,smtplib.SMTPHeloError) as e:
-	print('SMTPException ',e)
-	exit(1)
+    print('SMTPException ',e)
+    exit(1)
 finally:
-#	s.close()
-	s.quit()
-	
+#    s.close()
+    s.quit()
+    
