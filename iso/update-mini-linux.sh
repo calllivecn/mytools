@@ -35,6 +35,7 @@
 #
 #12.isohybrid $outiso
 
+VERSION='ubuntu16.04'
 
 ######################
 #
@@ -60,7 +61,7 @@ exit_rm(){
 }
 
 using(){
-    program=$(basename "$0")
+    program=${0##*/}
 
     local str="Using: $program [-dlo] <-i>"
     str="$str"'
@@ -213,11 +214,23 @@ mkisofs -V "$iso_label" \
 -boot-info-table \
 -no-emul-boot \
 -eltorito-alt-boot \
--e boot/grub/efi.img \
+-e efi.img \
 -no-emul-boot \
 -o "$new_iso" \
 -R "$work_dir"/iso
     
+}
+
+mkiso_v2(){
+xorriso -as mkisofs -o "$new_iso" -no-pad \
+    -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+    -c isolinux/boot.cat -b isolinux/isolinux.bin \
+    -no-emul-boot -boot-load-size 4 -boot-info-table \
+    -eltorito-alt-boot -e efi.img -no-emul-boot \
+    -isohybrid-gpt-basdat \
+    -V "$iso_label" "$work_dir"/iso
+    #-isohybrid-apm-hfsplus \
+
 }
 
 clear_sh(){
@@ -267,9 +280,9 @@ set -e
 
     build_iso
 
-    mkiso
+    mkiso_v2
 
-    isohybrid "$new_iso"
+    #isohybrid "$new_iso"
 
     clear_sh
 
