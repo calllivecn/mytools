@@ -2,6 +2,13 @@
 # date 2017-10-31 22:08:50
 # author calllivecn <c-all@qq.com>
 
+
+sudo gdisk /dev/sda
+
+1. 分一个ESP  ef00
+2. 一个data区
+3. 用gdisk 打上bios_grub标记 ef02
+
 grub-install --target i386-pc \
 --recheck \
 --boot-directory /tmp/grub/
