@@ -46,9 +46,6 @@ smail.py:
 
 my_gzip.py:
 	写个gzip练练手。（更多--help)
-	
-iso/:
-	制作iso脚本,升级我的mini-linux。
 
 sh/:
 	我的ubuntu的脚本。
