@@ -18,6 +18,7 @@ while getopts ':o:dh' opt;do
 case $opt in
     o)
         OUT='-o '"$OPTARG"
+        OUT_FILENAME="$OPTARG"
         ;;
     d)
         DEFAULT=true
@@ -63,4 +64,8 @@ else
     $YOU -f "$number" $OUT "$1"
 fi
 
-notify-send "${1##*/} 下载完成"
+if [ -n "$OUT_FILENAME" ];then
+    notify-send "$OUT_FILENAME 下载完成"
+else
+    notify-send "${1##*/} 下载完成"
+fi
