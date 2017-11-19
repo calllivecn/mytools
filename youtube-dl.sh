@@ -62,3 +62,5 @@ else
     echo $YOU -f "$number" $OUT "$1"
     $YOU -f "$number" $OUT "$1"
 fi
+
+notify-send "${1##*/} 下载完成"
