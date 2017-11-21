@@ -3,14 +3,14 @@
 set -e
 
 if [ -z "$1" -o -f "$1" ];then
-    echo "using: $(basename $0) <out_file>.tar.xz"
-    echo "or error exit $1 exists"
-    exit 1
+	echo "using: $(basename $0) <out_file>.tar.xz"
+	echo "or error exit $1 exists"
+	exit 1
 fi
 
 if [ $(id -u) -ne 0 ];then
-    echo need root user
-    exit 1
+	echo need root user
+	exit 1
 fi
 
 out_file="$1".tar.xz

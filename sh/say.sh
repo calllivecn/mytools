@@ -3,8 +3,8 @@
 
 
 if [ -z "$1" ];then
-    echo "$(basename $0)" text
-    exit 1
+	echo "$(basename $0)" text
+	exit 1
 fi
 
 
