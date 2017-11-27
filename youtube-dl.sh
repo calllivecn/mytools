@@ -57,7 +57,7 @@ do
 	eval $(getqueue)
 
 	if [ "$URL"x = ""x ];then
-		echo "$YOUTUBE_QUEUE queue in empty,sleep 5"
+		#echo "$YOUTUBE_QUEUE queue in empty,sleep 5"
 		sleep 5
 		continue
 	fi
