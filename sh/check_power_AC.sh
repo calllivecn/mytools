@@ -14,6 +14,14 @@
 AC=/sys/class/power_supply/AC/online
 touch_file=/tmp/cancel.ac
 
+###########################
+#
+#事件循环EVENT, check,cancel,done_exit
+#
+##########################
+
+# init EVENT
+EVENT=check
 
 check_environment(){
 	if ! test -f $AC;then
