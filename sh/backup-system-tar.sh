@@ -15,7 +15,7 @@ fi
 
 out_file="$1".tar.xz
 
-sys_excludes='--exclude=./proc/* --exclude=./sys/* --exclude=./run/* --exclude=./tmp/* --exclude=./dev/*'
+sys_excludes='--exclude=./proc/* --exclude=./sys/* --exclude=./run/* --exclude=./tmp/* --exclude=./dev/* --exclude=./var/log/*'
 #sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
 
 user_excludes='--exclude=./home/* --exclude=./mnt/* --exclude=./media/*'
