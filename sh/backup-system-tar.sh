@@ -2,7 +2,7 @@
 
 set -e
 
-if [ -z "$1" -o -f "$1" ];then
+if [ -z "$1" ] || [ -f "$1" ];then
 	echo "using: $(basename $0) <out_file>.tar.xz"
 	echo "or error exit $1 exists"
 	exit 1
