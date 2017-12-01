@@ -80,7 +80,7 @@ cancel(){
 	done
 }
 
-cancel_notify(){
+notify(){
 	notify-send -u critical	"AC下线，5分钟后关机 取消命令 touch $TOUCH_FILE"
 }
 
@@ -103,6 +103,7 @@ do
 			check_power
 			;;
 		'CancelAndRecovery')
+			notify
 			cancel_and_recovery
 			;;
 		'ReconveryPower')
