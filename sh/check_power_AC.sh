@@ -15,12 +15,16 @@ AC=/sys/class/power_supply/AC/online
 CHECK_POWER=/tmp/power.ac
 TOUCH_FILE=/tmp/cancel.ac
 
+notify(){
+	notify-send "$1"
+}
+
 
 ###########################
 #
 # 事件循环EVENT is in :
-# Check,CancelAndReconvery,
-# Cancel,ReconveryPower,PowerOff
+# Check,CancelAndRecovery,
+# Cancel,RecoveryPower,PowerOff
 #
 ##########################
 
@@ -29,7 +33,7 @@ EVENT='Check'
 
 check_environment(){
 	if ! test -f $AC;then
-		notify-send "$AC 不存在,exit ${0##*/}"
+		notify "$AC 不存在,exit ${0##*/}"
 		exit 1
 	fi
 }
@@ -56,7 +60,7 @@ cancel_and_recovery(){
 			rm "$TOUCH_FILE"
 			break
 		elif [ $stat -eq 1 ];then
-			EVENT='ReconveryPower'
+			EVENT='RecoveryPower'
 			break
 		fi
 
@@ -80,11 +84,6 @@ cancel(){
 	done
 }
 
-notify(){
-	notify-send -u critical	"AC下线，5分钟后关机 取消命令 touch $TOUCH_FILE"
-}
-
-
 check_environment
 
 ########################
@@ -103,17 +102,19 @@ do
 			check_power
 			;;
 		'CancelAndRecovery')
-			notify
+			notify "AC下线，5分钟后关机 取消命令 touch $TOUCH_FILE"
 			cancel_and_recovery
 			;;
 		'ReconveryPower')
+			notify "AC上线，取消关机。"
 			EVENT='Check'
 			;;
 		'Cancel')
+			notify "AC进入取消，状态。"
 			cancel
 			;;
 		'PowerOff')
-			echo 'systemctl poweroff -i'
+			systemctl poweroff -i
 			;;
 	esac
 done
