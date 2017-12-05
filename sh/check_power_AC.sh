@@ -64,7 +64,7 @@ cancel_and_recovery(){
 			break
 		fi
 
-		if [ $i -eq 900 ];then
+		if [ $i -ge 900 ];then
 			EVENT='PowerOff'
 			break
 		fi
@@ -105,12 +105,12 @@ do
 			notify "AC下线，5分钟后关机 取消命令 touch $TOUCH_FILE"
 			cancel_and_recovery
 			;;
-		'ReconveryPower')
+		'RecoveryPower')
 			notify "AC上线，取消关机。"
 			EVENT='Check'
 			;;
 		'Cancel')
-			notify "AC进入取消，状态。"
+			notify "AC进入取消，状态。touch $CHECK_POWER 进入AC检测状态。"
 			cancel
 			;;
 		'PowerOff')
