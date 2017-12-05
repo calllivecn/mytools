@@ -25,7 +25,7 @@ if [ -w "$PID" ];then
 	echo "$program is runing"
 	exit 0
 else
-	echo $$ > "$PID"
+	echo $$ > "${PID%.sh}.pid"
 fi
 
 notify(){
