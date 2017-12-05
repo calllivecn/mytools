@@ -11,9 +11,22 @@ set -e
 #
 ############################
 
+program=${0##*/}
+
 AC=/sys/class/power_supply/AC/online
 CHECK_POWER=/tmp/power.ac
 TOUCH_FILE=/tmp/cancel.ac
+
+USER_ID=$(id -u)
+PID=/run/user/${USER_ID}/${program}
+
+
+if [ -w "$PID" ];then
+	echo "$program is runing"
+	exit 0
+else
+	echo $$ > "$PID"
+fi
 
 notify(){
 	notify-send "$1"
@@ -33,7 +46,7 @@ EVENT='Check'
 
 check_environment(){
 	if ! test -f $AC;then
-		notify "$AC 不存在,exit ${0##*/}"
+		notify "$AC 不存在,exit $program"
 		exit 1
 	fi
 }
