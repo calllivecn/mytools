@@ -18,14 +18,15 @@ CHECK_POWER=/tmp/power.ac
 TOUCH_FILE=/tmp/cancel.ac
 
 USER_ID=$(id -u)
-PID=/run/user/${USER_ID}/${program}
+PID="/run/user/${USER_ID}/${program%.sh}.pid"
 
+POWEROFF_TIMEOUT=600 # 15minute
 
 if [ -w "$PID" ];then
 	echo "$program is runing"
 	exit 0
 else
-	echo $$ > "${PID%.sh}.pid"
+	echo $$ > "$PID"
 fi
 
 notify(){
@@ -65,7 +66,7 @@ check_power(){
 }
 
 cancel_and_recovery(){
-	for i in {1..900} # 15minute
+	for i in $(seq $POWEROFF_TIMEOUT) 
 	do
 		stat=$(cat "$AC")
 		if [ -f "$TOUCH_FILE" ];then
@@ -77,7 +78,7 @@ cancel_and_recovery(){
 			break
 		fi
 
-		if [ $i -ge 900 ];then
+		if [ $i -ge $POWEROFF_TIMEOUT ];then
 			EVENT='PowerOff'
 			break
 		fi
