@@ -4,23 +4,29 @@
 
 import sys
 from base64 import encodebytes,decodebytes
+from argparse import ArgumentParser
 
-thunder1 = sys.argv[1]
-print()
-print('step1:',thunder1)
-print()
-thunder2 = thunder1.lstrip('thunder://')
-print('step2:',thunder2)
-print()
-decode3 = decodebytes(thunder2.encode())
-try:
-    decode4 = decode3.decode()
-except UnicodeError:
-    decode4 = decode3.decode('gb18030')
+def thunder(thunder1):
+    thunder2 = thunder1.lstrip('thunder://')
+    decode3 = decodebytes(thunder2.encode())
+    try:
+        decode4 = decode3.decode()
+    except UnicodeError:
+        decode4 = decode3.decode('gb18030')
 
-print('step3:',decode4)
-print()
-thunder4 = decode4.lstrip('AA').rstrip('ZZ')
+    thunder4 = decode4.lstrip('AA').rstrip('ZZ')
 
-print(thunder4)
+    print(thunder4)
+
+
+parse = ArgumentParser(usage="Using: %(prog)s <thunder ...>",description="解析thunder下载地址",add_help=True,)
+
+parse.add_argument("thunder",nargs="+",help="迅雷专用下载链接")
+
+args = parse.parse_args()
+
+
+for th in args.thunder:
+    thunder(th)
+
 
