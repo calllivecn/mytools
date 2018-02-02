@@ -23,6 +23,6 @@ user_excludes='--exclude=./home/* --exclude=./mnt/* --exclude=./media/*'
 
 excludes="$sys_excludes $user_excludes"
 
-tar -C / -pc .  ${excludes} |pxz |tee $out_file | sha512sum  > ${out_file}.sha512sum
+tar ${excludes} -C / -pc . |pxz |tee $out_file | sha512sum  > ${out_file}.sha512sum
 
 
