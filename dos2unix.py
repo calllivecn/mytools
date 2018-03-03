@@ -12,7 +12,7 @@ parse = ArgumentParser(description='dos to unix in test or unix to dos',
 
 parse.add_argument('-c','--conversion',action='store_false',help='default DOS to UINX else UINX to DOS.')
 
-parse.add_argument('-f','--inencoding',metavar='',default='gb2312',help='input encode default: %(default)s')
+parse.add_argument('-f','--inencoding',metavar='',default='gb18030',help='input encode default: %(default)s')
 
 parse.add_argument('-t','--outencoding',metavar='',default='utf-8',help='output encode default: %(default)s')
 
