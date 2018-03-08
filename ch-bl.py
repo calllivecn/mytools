@@ -11,7 +11,8 @@ import os
 import copy
 ########################
 #
-# define global var
+# define global variable
+#
 #######################
 base_dir='/sys/class/backlight/'
 current_light_f='/brightness'

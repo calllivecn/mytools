@@ -5,6 +5,7 @@
 import time,sys
 import fileinput
 import random
+
 S=' '.join(sys.argv[1:])
 #print(S)
 
