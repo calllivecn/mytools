@@ -2,7 +2,8 @@
 #coding=utf-8
 
 
-import hashlib,sys
+import sys
+import hashlib
 
 from os.path import isfile,getsize
 

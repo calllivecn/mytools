@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-#codnig=utf-8
+#coding=utf-8
+# date 2018-03-08 17:38:41
+# author calllivecn <c-all@qq.com>
 
 
 import sys

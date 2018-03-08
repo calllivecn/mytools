@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 #coding=utf-8
 
-import hashlib,argparse
+import hashlib
+import argparse
 
 parse=argparse.ArgumentParser()
 
-parse.add_argument('-md5',action="store_true",help="md5")
-parse.add_argument('-sha1',action="store_true",help="sha1")
-parse.add_argument('-sha128',action="store_true",help="sha128")
-parse.add_argument('-sha224',action="store_true",help="sha224")
-parse.add_argument('-sha256',action="store_true",help="sha256")
-parse.add_argument('-sha384',action="store_true",help="sha384")
-parse.add_argument('-sha512',action="store_true",help="sha512")
+groups = parse.add_mutually_exclusive_group()
 
-parse.add_argument('files',nargs="+",help="input files")
+groups.add_argument('--md5',action="store_true",help="md5")
+groups.add_argument('--sha1',action="store_true",help="sha1")
+groups.add_argument('--sha128',action="store_true",help="sha128")
+groups.add_argument('--sha224',action="store_true",help="sha224")
+groups.add_argument('--sha256',action="store_true",help="sha256")
+groups.add_argument('--sha384',action="store_true",help="sha384")
+groups.add_argument('--sha512',action="store_true",help="sha512")
+
+parse.add_argument('files',nargs="+",help="files")
 
 args=parse.parse_args()
 
@@ -36,12 +39,13 @@ elif args.sha512:
 else:
     s=hashlib.md5()
 
+BUF = 4*(1<<20)
+
 for f in args.files:
     s_tmp=s.copy()
-    f_in=open(f,'rb')
-    data=1
-    while data:
-        data=f_in.read(4096)
-        s_tmp.update(data)
-    print(s_tmp.hexdigest(),f,sep="\t")
-    f_in.close()
+    with open(f,'rb')as f_in:
+        data=True
+        while data:
+            data=f_in.read(BUF)
+            s_tmp.update(data)
+        print(s_tmp.hexdigest(),f,sep="  ")

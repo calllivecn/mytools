@@ -30,11 +30,13 @@ parse.add_argument('files',nargs='*',help='arvchive file or directory')
 
 parse.add_argument('-C','--directory',action='store',default=os.getcwd(),help='change to directory DIR')
 
-parse.add_argument('-z','--gzip',action='store_true',help='filter the archive through gzip')
+groups = parse.add_mutually_exclusive_group()
 
-parse.add_argument('-j','--bzip2',action='store_true',help='filter the archive through bzip2')
+groups.add_argument('-z','--gzip',action='store_true',help='filter the archive through gzip')
 
-parse.add_argument('-J','--xz',dest='xz',action='store_true',help='filter the archive through xz')
+groups.add_argument('-j','--bzip2',action='store_true',help='filter the archive through bzip2')
+
+groups.add_argument('-J','--xz',dest='xz',action='store_true',help='filter the archive through xz')
 
 #parse.add_argument('--exclude',nargs='*',help='exclude files, given as a PATTERN')
 
