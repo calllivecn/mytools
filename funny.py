@@ -11,7 +11,7 @@ S=' '.join(sys.argv[1:])
 
 def randint(char):
     len_char = len(char.encode())
-    print(char,len_char,file=sys.stderr)
+    #print(char,len_char,file=sys.stderr)
     if len_char <= 1:
         return random.randint(10,30)/100
     elif 1 < len_char <=2:
