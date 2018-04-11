@@ -33,7 +33,7 @@ class Stdout():
 
 if args.decompress:
 
-        for    f in args.files:
+        for f in args.files:
             
             f_d=gzip.open(f,'rb')
     

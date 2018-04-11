@@ -7,22 +7,22 @@ import re
 from selectors import DefaultSelector,EVENT_READ
 import wave
 from base64 import encodebytes,decodebytes
+
 import evdev
 from evdev import InputDevice
 import pyaudio
 
 class Play:
-    def __init__(self,wav_buffer=None):
+    def __init__(self,wave_file):
         self.CHUNK = 1024
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 16000
 
-        if wav_buffer:
-            self.WAV_BUFFER=wav_buffer
+        self._readWave(wave_file)
 
-        self.p = pyaudio.PyAudio()
-        self.stream = self.p.open(
+        self.pa = pyaudio.PyAudio()
+        self.stream = self.pa.open(
                     format=self.FORMAT,
                     channels=self.CHANNELS,
                     rate=self.RATE,
@@ -30,7 +30,7 @@ class Play:
                     frames_per_buffer=self.CHUNK,
                     stream_callback=self.callback)
         
-    def callback(self,in_data,frames_count,time_info,status):
+    def callback(self, in_data, frames_count, time_info, status):
         self.stream.write(self.WAV_BUFFER)
         return (in_data, pyaudio.paContinue)
 
@@ -41,15 +41,14 @@ class Play:
             data = self.wf.readframes(self.CHUNK)
             self.stream.write(data)
 
-
     def close(self):
         self.stream.stop_stream()
         self.stream.close()
-        self.p.terminate()
+        self.pa.terminate()
 
-    def readWave(self,wave_file):
+    def _readWave(self,wave_file):
         with wave.open(wave_file,'rb') as wf:
-            self.FORMAT = self.p.get_format_from_width(
+            self.FORMAT = self.pa.get_format_from_width(
                                         wf.getsampwidth())
             self.CHANNELS = wf.getchannels()
             self.RATE = wf.getframerate()
@@ -64,21 +63,23 @@ class TouchKey:
     touchkey.start()
     '''
     def __init__(self):
-        self.keyboards = self.checkKeyboard()
+        keyboards = self.checkKeyboard()
         self.selector = DefaultSelector()
         for kb in keyboards:
             self.selector.register(kb,EVENT_READ)
         
     def start(self,playFunc=None):
         while True:
-            for key, mask in selector.select():
+            for key, mask in self.selector.select():
                 dev = key.fileobj
                 for event in dev.read():
                     #print(event)
                     if event.value == 1 and event.type == 1:
-                        #print('按下键',evdev.ecodes.KEY[event.code],'device:',dev.fn)
-                        #播放声音
-                        playFunc()
+                        if playFunc is None:
+                            print('按下键',evdev.ecodes.KEY[event.code],'device:',dev.fn)
+                        else:
+                            #播放声音
+                            playFunc()
 
     def __re_true(self,string):
         if len(re.findall(r'keyboard',string,re.I)) >= 1:
@@ -89,7 +90,7 @@ class TouchKey:
     def checkKeyboard(self):
         keyboards = []
         for dev in [ evdev.InputDevice(fn) for fn in evdev.list_devices() ]:
-            if __re_true(dev.name):
+            if self.__re_true(dev.name):
                 keyboards.append(dev)
         return keyboards
 
@@ -108,12 +109,21 @@ class TouchKey:
 
 
 def main():
-    play = Play()
-    play.readWave('1.wav')
+    try:
+        play = Play('1.wav')
+    
+        touchkey = TouchKey()
+        touchkey.start(play.play)
+        #touchkey.start()
+    finally:
+        play.close()
 
-    touchkey = TouchKey()
-    touchkey.start(play.play)
-
+def main2():
+    play = Play('1.wav')
 
 if __name__ == "__main__":
-    main()
+    try:
+        main2()
+    except KeyboardInterrupt:
+        
+        print("exit")
