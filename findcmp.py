@@ -138,7 +138,11 @@ class Sql3():
                 for i in range(file_sha_len):
                     print(i,file_sha[i][0],file_sha[i][1],sep='\t')
     
-                save_or_del , number_list = self.__rule_input(file_sha_len)
+                if args.delete:
+                    save_or_del = 's'
+                    number_list = [0]
+                else:
+                    save_or_del , number_list = self.__rule_input(file_sha_len)
                 
                 if save_or_del == 'n' and save_or_del == 'N':
                     continue
