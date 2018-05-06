@@ -108,6 +108,8 @@ class ItarComp:
                     break
                 self.stream_put.put(data)
 
+        #self.stream_put.task_done()
+
 
 class ItarDecomp:
 
@@ -129,7 +131,7 @@ class ItarDecomp:
         # self._head
         pass
 
-    def __itar_close(self):
+    def itar_close(self):
         self.itarobj.close()
 
     def decomp_file(self,buf=65536):
@@ -168,6 +170,6 @@ class ItarDecomp:
             self.stream_put.put(FILEISDONE)
 
         self.stream_put.put(ISDONE)
-        self.__itar_close()
+        self.itar_close()
 
 
