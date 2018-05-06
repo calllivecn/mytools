@@ -52,7 +52,7 @@ if [ $(id -u) -ne 0 ];then
 	exit 1
 fi
 
-out_file="$1".tar.xz
+out_file="${1%/}".tar.xz
 
 if [ -z "$1" ] || [ -f "$1" ];then
 	echo "using: $(basename $0) <out_file>.tar.xz"
