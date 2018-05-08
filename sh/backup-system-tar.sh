@@ -5,17 +5,33 @@
 
 set -e
 
-mkfifo_file(){
+mk_file(){
 	FIFO=$(mktemp -u)
 	mkfifo $FIFO
+	mkdir "${out_dir}"
 }
 
+TRAP=0
 clean(){
-	rm $FIFO
+
+	if [ $TRAP = 1 ];then
+		return
+	fi
+
+	if [ $SPLIT = 0 ];then
+		rm "$out_file"
+		rm "${out_file}.sha512sum"
+	elif [ $SPLIT = 1 ];then
+		rm $FIFO
+		kill $PID
+		rm -r "${out_dir}"
+	fi
+
+	TRAP=1
 }
 
 using(){
-echo "Using: ${0##*/} [-b <split block>] <filename>"
+echo "Using: ${0##*/} [[-b <split block>] | <output diectory name> ] | <filename>"
 exit 0
 }
 
@@ -28,7 +44,6 @@ do
 		b)
 			SPLIT=1
 			SPLIT_BLOCK="$OPTARG"
-			mkfifo_file
 			;;
 		h)
 			using
@@ -47,16 +62,24 @@ done
 
 shift $[ OPTIND - 1 ]
 
-if [ $(id -u) -ne 0 ];then
-	echo need root user
+out_file="${1%/}".tar.xz
+
+out_dir="${1%/}"
+
+out_filename="${out_dir##*/}".tar.xz
+
+if [ -z "$1" ] || [ -f "$1" ] || [ -d "$out_dir" ];then
+	echo "using: $(basename $0) <out_file>"
+	echo "or error exit $1 exists"
 	exit 1
 fi
 
-out_file="${1%/}".tar.xz
+if [ $SPLIT = 1 ];then
+	mk_file
+fi
 
-if [ -z "$1" ] || [ -f "$1" ];then
-	echo "using: $(basename $0) <out_file>.tar.xz"
-	echo "or error exit $1 exists"
+if [ $(id -u) -ne 0 ];then
+	echo need root user
 	exit 1
 fi
 
@@ -71,8 +94,9 @@ excludes="$sys_excludes $user_excludes"
 
 
 if [ $SPLIT = 0 ];then
-	tar -C / -pc ${excludes} . |pxz |tee $out_file | sha512sum  > ${out_file}.sha512sum
+	tar -C / -pc ${excludes} . 2> /dev/null |pxz |tee $out_file | sha512sum > ${out_file}.sha512sum
 elif [ $SPLIT = 1 ];then
-	tar -C / -pc ${excludes} . |pxz |tee $FIFO |split -b "${SPLIT_BLOCK}" - ${out_file}. &
-	sha512sum $FIFO | awk -v filename=${out_file} '{print $1,filename}' > ${out_file}.sha512sum
+	tar -C / -pc ${excludes} . 2>/dev/null |pxz |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
+	PID=$!
+	sha512sum $FIFO | awk -v filename=${out_filename} '{print $1,filename}' > "${out_dir}"/"${out_filename}".sha512sum
 fi
