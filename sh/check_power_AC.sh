@@ -14,6 +14,7 @@ set -e
 program=${0##*/}
 
 AC=/sys/class/power_supply/AC/online
+AC=/sys/class/power_supply/ADP0/online
 CHECK_POWER=/tmp/power.ac
 TOUCH_FILE=/tmp/cancel.ac
 
