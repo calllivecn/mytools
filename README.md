@@ -2,6 +2,9 @@
 
 ---
 
+### cpuonoff.sh
+* 开启或关闭CPU core来省电
+
 ### io.sh:
 * 测试硬盘读写速度
 
