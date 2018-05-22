@@ -80,8 +80,10 @@ do
 	state=$(cat "${CPU_PREFIX}${i}/${CPU_SUFFIX}")
 	if [ "$state"x = "1"x ];then
 		echo "CPU${i} on"
-	else
+	elif [ "$state"x = "0"x ];then
 		echo "CPU${i} off"
+	else
+		echo "CPU${i} unknown state"
 	fi
 done
 }
@@ -96,7 +98,7 @@ if [ "$CHECK_NMU"x = "nmu"x ];then
 	for i in $CHECK_result;
 	do
 		if [ -f ${CPU_PREFIX}${i}/${CPU_SUFFIX} ];then
-			echo 1 |tee ${CPU_PREFIX}${i}/${CPU_SUFFIX}
+			echo 1 > ${CPU_PREFIX}${i}/${CPU_SUFFIX}
 		else
 			echo "not found: ${CPU_PREFIX}${i}/${CPU_SUFFIX}"
 		fi
@@ -105,7 +107,7 @@ elif [ "$CHECK_NMU"x = "range"x ];then
 	for i in $(seq ${CHECK_result_1} ${CHECK_result_2})
 	do
 		if [ -f ${CPU_PREFIX}${i}/${CPU_SUFFIX} ];then
-			echo 1 |tee ${CPU_PREFIX}${i}/${CPU_SUFFIX}
+			echo 1 > ${CPU_PREFIX}${i}/${CPU_SUFFIX}
 		else
 			echo "not found: ${CPU_PREFIX}${i}/${CPU_SUFFIX}"
 		fi
@@ -127,7 +129,7 @@ if [ "$CHECK_NMU"x = "nmu"x ];then
 	for i in $CHECK_result;
 	do
 		if [ -f ${CPU_PREFIX}${i}/${CPU_SUFFIX} ];then
-			echo 0 |tee ${CPU_PREFIX}${i}/${CPU_SUFFIX}
+			echo 0 > ${CPU_PREFIX}${i}/${CPU_SUFFIX}
 		else
 			echo "not found: ${CPU_PREFIX}${i}/${CPU_SUFFIX}"
 		fi
@@ -136,7 +138,7 @@ elif [ "$CHECK_NMU"x = "range"x ];then
 	for i in $(seq ${CHECK_result_1} ${CHECK_result_2})
 	do
 		if [ -f ${CPU_PREFIX}${i}/${CPU_SUFFIX} ];then
-			echo 0 |tee ${CPU_PREFIX}${i}/${CPU_SUFFIX}
+			echo 0 > ${CPU_PREFIX}${i}/${CPU_SUFFIX}
 		else
 			echo "not found: ${CPU_PREFIX}${i}/${CPU_SUFFIX}"
 		fi
