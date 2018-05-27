@@ -74,7 +74,7 @@ def select_video(videos):
 	n = input_check(lenght)
 	return videos[n - 1]
 
-def check_overflow(value,max_v,min_v=1):
+def check_overflow(value,max_v,min_v=0):
 	if value < min_v:
 		return min_v
 	elif value > max_v:
