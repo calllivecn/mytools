@@ -2,14 +2,14 @@
 
 ---
 
-### cpuonoff.sh
+### sh/cpuonoff.sh
 * 开启或关闭CPU core来省电
 
 ### io.sh:
 * 测试硬盘读写速度
 
 ### libsh.sh:
-* 累积库
+* 累积的库
 
 ### netio.py:
 * linux网速查看工具。
@@ -36,9 +36,6 @@
 * 用阿里提供的API。
 * 查询ip或域名的运营商、所在国家的地区。
 
-### ipaddr.sh:
-* 查询当前外网出口ip,或给写域名ip
-
 ### findcmp.py:
 * 通过sha512值检测多个目录下有无相同文件。（升级版）
 
@@ -51,5 +48,3 @@
 ### my_gzip.py:
 * 写个gzip练练手。（更多--help)
 
-### sh/:
-* 我的ubuntu的脚本。
