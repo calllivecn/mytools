@@ -19,7 +19,6 @@ ifname_rx_packets='statistics/rx_packets'
 
 ifname_tx_packets='statistics/tx_packets'
 
-
 class Interface:
     rx_speed = 0
     tx_speed = 0
@@ -56,11 +55,13 @@ class Interface:
             b_tx = f1_tx.read()
             p_rx = f2_rx.read()
             p_tx = f2_tx.read()
-        finally:
-            f1_rx.close()
-            f1_tx.close()
-            f2_rx.close()
-            f2_tx.close()
+        except FileNotFoundError as e:
+            raise e
+
+        f1_rx.close()
+        f1_tx.close()
+        f2_rx.close()
+        f2_tx.close()
 
         self.init_rx = int(b_rx)
         self.init_tx = int(b_tx)
@@ -85,16 +86,40 @@ class Interface:
         
         self.rx_packets = (self.init_p_rx - p_rx)/self.time
         self.tx_packets = (self.init_p_tx - p_tx)/self.time
-    
+
+    def statistics(self):
+        pass
+        
         
     def __str__(self):
-        return '{:<16}{:>12}{:>12}{:>12}{:>12}'.format(
+        return '{:<16}{:>12}{:>12}{:>12}{:>12}{:>12}{:>12}'.format(
                 self.ifname,
                 str(self.rx_packets),
                 str(self.tx_packets),
                 str(self.rx_speed),
-                str(self.tx_speed)
+                str(self.tx_speed),
+                str(self.statistic_unit(self.rx_sum)),
+                str(self.statistic_unit(self.tx_sum))
                 )
+
+    def statistic_unit(self,num):
+        if num >= self.TB:
+            value = round(num/self.TB,2)
+            unit = 'TB'
+        elif num >= self.GB:
+            value = round(num/self.GB,2)
+            unit = 'GB'
+        elif num >= self.MB:
+            value = round(num/self.MB,2)
+            unit = 'MB'
+        elif num >= self.KB:
+            value = round(num/self.KB,2)
+            unit = 'KB'
+        else:
+            value = num
+            unit = 'B'
+
+        return str(value) + unit
 
     def mod(self,s):
         if self.unit == self.KB:
@@ -169,7 +194,7 @@ def main():
 
     while True:
         clear()
-        print('{:<16}{:>12}{:>12}{:>12}{:>12}'.format('iface','Rxpck/s','Txpck/s','Rx{}/s'.format(UNIT),'Tx{}/s'.format(UNIT)))
+        print('{:<16}{:>12}{:>12}{:>12}{:>12}{:>12}{:>12}'.format('iface','Rxpck/s','Txpck/s','Rx{}/s'.format(UNIT),'Tx{}/s'.format(UNIT),'Rxstatis','Txstatis'))
         for ifs in ifnames:
             try:
                 ifs.speed()
@@ -177,6 +202,7 @@ def main():
                 ifnames.remove(ifs)
                 continue
             print(ifs)
+
         time.sleep(T)
 
 if __name__ == "__main__":
