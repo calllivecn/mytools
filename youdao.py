@@ -25,7 +25,7 @@ S = u + d + str(f) + c
 g = md5(S.encode()).hexdigest()
 
 
-data={    "i":d,
+data={  "i":d,
         "from":"AUTO",
         "to":"AUTO",
         "smartresult":"dict",
@@ -39,7 +39,7 @@ data={    "i":d,
         "typoResult":"true",
         }
 
-header = {    "Accept":"application/json, text/javascript",
+header = {  "Accept":"application/json, text/javascript",
             "Host":"fanyi.youdao.com",
             "Origin":"http://fanyi.youdao.com",
             "Referer":"http://fanyi.youdao.com/",
