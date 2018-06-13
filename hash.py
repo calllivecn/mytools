@@ -46,7 +46,7 @@ else:
 
 BUF = 4*(1<<20)
 
-if args.files[0] == "-":
+if args.files == "-":
     stdin = sys.stdin.fileno()
     data=True
     while data:
