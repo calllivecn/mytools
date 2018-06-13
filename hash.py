@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 #coding=utf-8
+# date 2018-06-13 08:12:03
+# author calllivecn <c-all@qq.com>
+
 
 import hashlib
 import argparse
+import sys
+import os
 
 parse=argparse.ArgumentParser()
 
@@ -16,7 +21,7 @@ groups.add_argument('--sha256',action="store_true",help="sha256")
 groups.add_argument('--sha384',action="store_true",help="sha384")
 groups.add_argument('--sha512',action="store_true",help="sha512")
 
-parse.add_argument('files',nargs="+",help="files")
+parse.add_argument('files',nargs="*",default="-",help="files")
 
 args=parse.parse_args()
 
@@ -41,11 +46,21 @@ else:
 
 BUF = 4*(1<<20)
 
-for f in args.files:
-    s_tmp=s.copy()
-    with open(f,'rb')as f_in:
-        data=True
-        while data:
-            data=f_in.read(BUF)
-            s_tmp.update(data)
-        print(s_tmp.hexdigest(),f,sep="  ")
+if args.files[0] == "-":
+    stdin = sys.stdin.fileno()
+    data=True
+    while data:
+        data = os.read(stdin,BUF)
+        data = data
+        s.update(data)
+    print(s.hexdigest(),"-",sep="  ")
+
+else:
+    for f in args.files:
+        s_tmp=s.copy()
+        with open(f,'rb')as f_in:
+            data=True
+            while data:
+                data=f_in.read(BUF)
+                s_tmp.update(data)
+            print(s_tmp.hexdigest(),f,sep="  ")
