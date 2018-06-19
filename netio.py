@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #coding=utf-8
-# date 2018-05-29 20:29:37
+# update 2018-05-29 20:29:37
 # author calllivecn <c-all@qq.com>
 
 
@@ -81,11 +81,11 @@ class Interface:
         p_tx = self.init_p_tx
 
         self.getBytesAndPackets()
-        self.rx_speed = self.mod(self.init_rx - rx,)/self.time
-        self.tx_speed = self.mod(self.init_tx - tx)/self.time
+        self.rx_speed = round( self.mod(self.init_rx - rx) / self.time , 2)
+        self.tx_speed = round( self.mod(self.init_tx - tx) / self.time , 2)
         
-        self.rx_packets = (self.init_p_rx - p_rx)/self.time
-        self.tx_packets = (self.init_p_tx - p_tx)/self.time
+        self.rx_packets = int( (self.init_p_rx - p_rx) / self.time )
+        self.tx_packets = int( (self.init_p_tx - p_tx) / self.time )
 
     def statistics(self):
         pass
