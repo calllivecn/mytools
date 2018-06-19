@@ -24,7 +24,7 @@
 * 文件加密脚本。
 
 ### hash.py:
-* 计算md5,sha1,-sha128,sha224,sha256,sha384。
+* 计算md5,sha1,sha128,sha224,sha256,sha384。
 
 ### srm.py:
 * 安全删除文件。
