@@ -2,7 +2,7 @@
 
 ---
 
-### sh/cpuonoff.sh
+### cpuonoff.sh
 * 开启或关闭CPU core来省电
 
 ### io.sh:
