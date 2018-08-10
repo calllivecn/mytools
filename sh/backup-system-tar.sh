@@ -84,7 +84,7 @@ if [ $(id -u) -ne 0 ];then
 fi
 
 
-sys_excludes='--exclude=./proc/* --exclude=./sys/* --exclude=./run/* --exclude=./tmp/* --exclude=./dev/* --exclude=./var/log/*'
+sys_excludes='--exclude=./proc/* --exclude=./sys/* --exclude=./run/* --exclude=./tmp/* --exclude=./dev/* --exclude=./var/log/* --exclude=./snap/*'
 #sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
 
 user_excludes='--exclude=./home/* --exclude=./mnt/* --exclude=./media/*'
