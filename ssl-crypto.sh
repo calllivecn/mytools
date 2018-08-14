@@ -1,11 +1,14 @@
 #!/bin/bash
 
+set -e
+
 program=${0##*/}
 
 using(){
-	echo "Using : $program [-dzjJa] <-f crypto file> [crypto file or directory ...]"
+	echo "Using : $program [-dzjJa] [-C DIR] <-f crypto file> [crypto file or directory ...]"
 	echo "-f	crypto filename"
 	echo "-d	decrypto (defalut is crypto)"
+	echo "-C	change to directory DIR"
 	echo "-z	filter the archive through gzip"
 	echo "-j	filter the archive through bzip2"
 	echo "-J	filter the archive through xz"
