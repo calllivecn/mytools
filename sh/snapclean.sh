@@ -5,5 +5,5 @@
 
 for snapclean in $(snap list --all |awk '$6~/disable/{print $3"#"$1}')
 do
-	sudo snap remove --revision $(echo "$snapclaen" |tr '#' ' ')
+	sudo snap remove --revision $(echo "$snapclean" |tr '#' ' ')
 done
