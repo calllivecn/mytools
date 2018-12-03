@@ -8,3 +8,10 @@ import sys
 
 OK_RECODE="✓ "
 ERR_RECODE=""
+
+OK_RECODE="☺ "
+ERR_RECODE="☹ "
+
+PROMPT="☘ "
+
+

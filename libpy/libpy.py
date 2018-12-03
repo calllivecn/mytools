@@ -1,13 +1,16 @@
 
 
 
-import datetime
+import os
 import sys
-
-
-
-## 装饰器
+import copy
 import time
+import datetime
+import termios
+
+
+
+# 装饰器
 def runtime(func):
     def wapper(*args,**key):
         start = time.time()
@@ -18,10 +21,6 @@ def runtime(func):
     return wapper
 
 
-
-
-
-import os
 def getabspath(f):
     """getabspath(file) --> (abspath , filename)"""
     p = os.path.abspath(f)
@@ -29,7 +28,6 @@ def getabspath(f):
     return p
 
 
-import termios,os,copy
 def getch():
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
@@ -44,5 +42,4 @@ def getch():
     termios.tcsetattr(fd,termios.TCSADRAIN,old_settings)
 
     return ch
-
 

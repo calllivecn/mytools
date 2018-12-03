@@ -13,7 +13,7 @@ from queue import Queue
 from threading import Thread
 
 #from itarlib import ItarComp,ItarDecomp
-from itarlib import *
+from libpy.itarlib import *
 
 PROGRAM = sys.argv[0]
 
