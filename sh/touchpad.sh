@@ -16,7 +16,7 @@ fi
 
 device=$(xinput list --id-only "${DEVICE_NAME}")
 
-STATUS=$(xinput list-props $device |grep  -i enable |awk -F':' '{print $2}' |tr -d '\t ' )
+STATUS=$(xinput list-props $device |grep "Device Enabled" |awk -F':' '{print $2}' |tr -d '\t ' )
 
 if [ "$STATUS"x == "1"x ];then
 	xinput disable $device
