@@ -4,161 +4,115 @@
 # author calllivecn <c-all@qq.com>
 
 import argparse
-import gzip
-import bz2
-import lzma
 from hashlib import sha256
 import os
 import sys
 import time
 from os.path import split,join,isfile,isdir,exists,abspath,islink
-from queue import Queue
+from struct import pack, unpack
 from threading import Thread
-from multiprocessing as mp
 
-from Crypto.Cipher import AES
-#from Crypto import Random
-
-from itarlib import ItarComp,ItarDecomp
+try:
+    from Crypto.Cipher import AES
+except ModuleNotFoundError:
+    print("请运行pip install pycrypto 以安装依赖")
+    exit(2)
 
 PROGRAM = sys.argv[0]
 
+FORMAT_VERSION = 1
 
-def check_member_names(member):
-    for name in member:
-        if name.startswith('/'):
-            print("Removing leading `/' from member names")
+class PromptTooLong(Exception):
+    pass
 
-def preprocess(fullname):
-    if fullname == args.itar:
-        print("{}: {} is archive file skip".format(PROGRAM,fullname))
-        return
+class StoreFormat:
+    """
+    写入到文件的文件格式
+    """
     
-    if islink(fullname):
-       print("{}: is a symbolic link ... skip".format(fullname)) 
-       return
+    def __init__(self, prompt, out_fp):
+        """
+        prompt: `str': 密码提示信息
+        out_fp: `fp': 类文件对象
+        """
 
-    if args.verbose:
-        print(fullname)
+        self.version = FORMAT_VERSION  # 1byte
+        self.fill = 0                # 1byte
+        self.iv = os.urandom(30)     # 30byte
+        self.salt = os.urandom(32)   # 32byte
+        self.long = bytes(8)         # 8byte 加密后数据部分长度
+        self.sha256 = bytes(32)      # 32byte 加密后数据部分校验和
+        self.prompt = bytes(4096)   # 定长，utf-8编码串, 之后填写，可为空
+        self.header_len = 1 + 1 + 30 + 32 + 8 + 32 + 4096
+        # 以上就格式顺序
 
-    itar.comp_file(fullname) 
+        prompt = prompt.encode("utf-8")
+        if len(prompt) > 4096:
+            raise PromptTooLong("你给的密码提示信息太长。(utf8编码后>4096字节)")
+        else:
+            self.prompt = prompt
 
-def create_itar(args):
+        FORMAT="!BBH"
+        headers = pack(FORMAT, 1, 0, slef.prompt_len)
 
-    stream_put = Queue(100)
+        self.HEAD = headers + self.iv + self.salt + self.prompt
 
-    itar = ItarComp(stream_put)
-
-    def addfile_itar():
-
-        check_member_names(args.files)
-
-        for f1 in args.files:
-           #print("com_file({})".format(f1))
-           if isfile(f1):
-               preprocess(f1)
-           else:
-               for root,dirs,files in os.walk(f1):
-                   for f2 in files:
-                       #print("com_file({})".format(join(root,f2)))
-                       preprocess(join(root,f2))
-        # is done
-        stream_put.put(ISDONE)
-
-    def getfile_stream():
+    def init_(self):
         
-        with open(args.itar,'wb') as fw:
-            while True:
-                data = stream_put.get()
-                if data == ISDONE:
-                    return
-                fw.write(data)
+    
 
-    th = Thread(target=addfile_itar,daemon=True)
-    th.start()
+class AES256:
+    """mehtod:
+    encrypto() --> block data
+    decrypto() --> block data
+    
+    attribute:
+    self.key
+    self.key_salt 
+    self.iv
+    """
 
-    getfile_stream() 
+    def __init__(self, key, iv):
+        """
+        key 洒
+        """
+        self.key = key
+        self.iv = iv 
+        slef.mode = AES.MODE_CBC
 
-    # ------------------------------------------------------
+        self.fill = 0
 
+        self.cryptor = AES.new(self.key, self.mode, self.iv)
+        
+    def encrypt(self, data):
+        """
+        data: `byte': 由于AES 256加密块为32字节
+            当数据结尾加密块不足32字节时，
+            填充空字节。
+        return: `byte': 加密字节
+        """
+        data_len = len(data)
 
-def extract_itar(args):
+        blocks, rema = divmod(data_len, 32)
 
-    stream_put = Queue(100)
+        if rema == 0:
+            return self.cryptor.crypt(data)
 
-    def create_file(fullname, mtime):
-        if args.verbose:
-            print(fullname)
-        prefix, _ = split(fullname)
-        if not exists(prefix):
-            os.makedirs(prefix)
+        else:
+            fill = 32 - rema
+            self.fill = fill
+            return self.cryptor.encrypt(data + bytes(fill))
 
-        fp = open(fullname,'wb')
-        # change fp file mtime
-        #
-        #
-        return fp
+    def decrypt(self, data, fill=0):
+        """
+        data: `byte': 需解密数据
+        fill: `int': 0~31 number
+        return: `byte':
+        """
 
-    itar = ItarDecomp(args.itar,stream_put)
-
-    th = Thread(target=itar.decomp_file,daemon=True)
-    th.start()
-
-    while True:
-        data = stream_put.get()
-        if isinstance(data,tuple):
-            fileobj = create_file(data[0],data[3])
-        elif isinstance(data,bytes):
-            fileobj.write(data)
-        elif data == FILEISDONE:
-            #print(join(prefix,name))
-            fileobj.close()
-        elif data == ISDONE:
-            break
-
-
-def chk_fullname(fullname):
-    if ( isfile(fullname) or isdir(fullname) ) and not islink(fullname):
-        return fullname
-    else:
-        raise argparse.ArgumentTypeError("is not a reguler file")
-
-def itar(itarname):
-    if not exists(itarname):
-        raise argparse.ArgumentTypeError(itarname + " not exists")
-    else:
-        return abspath(itarname)
-
-# ----------------------------------------------------------
-
-parse = argparse.ArgumentParser(usage=\
-" Using : %(prog)s <options> [file|directory]...")
-
-groups = parse.add_mutually_exclusive_group(required=True)
-
-groups.add_argument("-c",dest="create",action="store_true",
-        help="create a itar file")
-
-groups.add_argument("-x",dest="extract",action="store_true",
-        help="extract itar file")
-
-parse.add_argument("-C",dest="chdir",default=".",help="change work directory")
-
-parse.add_argument("-f",dest="itar",required=True,help="itar filename suffix is *.itar")
-
-parse.add_argument("-v",dest="verbose",action="count",help="print verbose info")
-
-parse.add_argument("files",nargs="*",type=chk_fullname,help="file or dirs ...")
-
-args = parse.parse_args()
-
-#print(args)
-
-args.itar = abspath(args.itar)
-
-os.chdir(args.chdir)
-
-if args.create:
-    create_itar(args)
-elif args.extract:
-    extract_itar(args)
+        # if fill != 0 说明这是最后一块，且有填充字节。
+        if fill != 0:
+            return self.cryptor.decrypt(data)
+        else:
+            data = self.cryptor.decrypt(data)
+            return data[0:-fill]
