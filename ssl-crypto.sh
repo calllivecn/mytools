@@ -2,6 +2,13 @@
 
 set -e
 
+# 不同版本的openssl 加密格式还是啥会不同，
+# openssl 1.0.2g 1 Mar 2016 aes-256-cbc 加密的。
+# 用 OpenSSL 1.1.1  11 Sep 2018 的aes-256-cbc 解不了。
+# 不知道以后的版本还会不会不兼容。
+# 在这里记录下版本号
+__veriosn__="OpenSSL 1.1.1  11 Sep 2018"
+
 program=${0##*/}
 
 using(){
