@@ -8,5 +8,5 @@ PIP="pip3"
 
 for pip in $($PIP list --not-required --format freeze |awk -F'=' '{print $1}')
 do
-	$PIP install --upgrade "$pip"
+	sudo $PIP install --upgrade "$pip"
 done
