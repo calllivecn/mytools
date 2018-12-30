@@ -36,15 +36,14 @@ class StoreFormat:
         out_fp: `fp': 类文件对象
         """
 
-        self.version = FORMAT_VERSION  # 1byte
-        self.fill = 0                # 1byte
-        self.iv = os.urandom(30)     # 30byte
-        self.salt = os.urandom(32)   # 32byte
-        self.long = bytes(8)         # 8byte 加密后数据部分长度
-        self.sha256 = bytes(32)      # 32byte 加密后数据部分校验和
+        self.version = FORMAT_VERSION  # 2byte
+        self.iv = os.urandom(32)     # 32byte
+        self.salt = os.urandom(30)   # 30byte
         self.prompt = bytes(4096)   # 定长，utf-8编码串, 之后填写，可为空
-        self.header_len = 1 + 1 + 30 + 32 + 8 + 32 + 4096
+        self.header_len = 2 + 30 + 32 + 8 + 32 + 4096
         # 以上就格式顺序
+
+        self.fill = 0                # 1byte , 放在数据流的最后的
 
         prompt = prompt.encode("utf-8")
         if len(prompt) > 4096:
@@ -52,13 +51,13 @@ class StoreFormat:
         else:
             self.prompt = prompt
 
-        FORMAT="!BBH"
-        headers = pack(FORMAT, 1, 0, slef.prompt_len)
+        FORMAT="!HH"
+        headers = pack(FORMAT, 1, slef.prompt_len)
 
         self.HEAD = headers + self.iv + self.salt + self.prompt
 
-    def init_(self):
-        
+    def overwrite(self):
+        pass
     
 
 class AES256:
@@ -116,3 +115,17 @@ class AES256:
         else:
             data = self.cryptor.decrypt(data)
             return data[0:-fill]
+
+
+    def finish(self):
+        pass
+
+
+    def encode_header(self):
+        pass
+
+
+    def decode_header(self):
+        pass
+
+class 
