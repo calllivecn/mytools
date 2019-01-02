@@ -36,9 +36,11 @@ class StoreFormat:
         out_fp: `fp': 类文件对象
         """
 
-        self.version = FORMAT_VERSION  # 2byte
-        self.iv = os.urandom(32)     # 32byte
-        self.salt = os.urandom(30)   # 30byte
+        self.version = FORMAT_VERSION  # 1byte
+        self.iv = os.urandom(30)     # 30byte
+        self.salt = os.urandom(32)   # 32byte
+        self.long = bytes(8)         # 8byte 加密后数据部分长度
+        self.sha256 = bytes(32)      # 32byte 加密后数据部分校验和
         self.prompt = bytes(4096)   # 定长，utf-8编码串, 之后填写，可为空
         self.header_len = 2 + 30 + 32 + 8 + 32 + 4096
         # 以上就格式顺序
