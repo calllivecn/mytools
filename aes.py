@@ -37,7 +37,6 @@ class StoreFormat:
         """
 
         self.version = FORMAT_VERSION  # 1byte
-        self.fill = 0                # 1byte
         self.iv = os.urandom(30)     # 30byte
         self.salt = os.urandom(32)   # 32byte
         self.long = bytes(8)         # 8byte 加密后数据部分长度
