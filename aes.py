@@ -45,7 +45,7 @@ class StoreFormat:
         self.header_len = 2 + 30 + 32 + 8 + 32 + 4096
         # 以上就格式顺序
 
-        self.fill = 0                # 1byte , 放在数据流的最后的
+        self.fill = 0                # 1byte , (最后一块的填充字节数)放在数据流的最后
 
         prompt = prompt.encode("utf-8")
         if len(prompt) > 4096:
