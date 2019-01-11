@@ -111,7 +111,6 @@ class TouchKey:
 def main():
     try:
         play = Play('1.wav')
-    
         touchkey = TouchKey()
         touchkey.start(play.play)
         #touchkey.start()
@@ -125,5 +124,4 @@ if __name__ == "__main__":
     try:
         main2()
     except KeyboardInterrupt:
-        
         print("exit")
