@@ -22,7 +22,7 @@ print(args);#exit(0)
 def __sha512(file_):
     sha = hashlib.sha512()
     
-    READ_BUF = 4*1<<20
+    READ_BUF = 1<<20
     size = getsize(file_)
     data_len = 0
 
@@ -39,10 +39,10 @@ def __sha512(file_):
 
 def find():
     for f in args.file:
-            sha_value = __sha512(f)
-            if sha == sha_value:
-                print(sha,f,sep='\t')
-            else:
-                print(f,'not a file')
+        sha_value = __sha512(f)
+        if sha == sha_value:
+            print(sha,f,sep='\t')
+        else:
+            print(f,'not a file')
 
     

