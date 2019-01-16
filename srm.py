@@ -41,7 +41,7 @@ def check_files():
         for f in not_exists_lists:
             logger.info(f"{f} file not exists")
 
-        exit(1)
+        sys.exit(1)
 
 check_files()
 

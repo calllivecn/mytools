@@ -93,7 +93,7 @@ elif args.extract :
             fp.extract(f,'.')
         else:
             print(args.directory,'not a directory, exited')
-            exit(2)
+            sys.exit(2)
     fp.close()
 
 elif args.list :
@@ -114,4 +114,4 @@ elif args.list :
 
 else:
 
-    exit(1)
+    sys.exit(1)
