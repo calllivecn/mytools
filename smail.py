@@ -96,7 +96,7 @@ try:
         if len(msg) > int(s.esmtp_features['size']):
             print('Maximum message size is {}MB'.format(int(s.esmtp_features['size']) / (1<<20)))
             print('Message too large ; aborting.')
-            exit(2)
+            sys.exit(2)
 
     #s.starttls()
     #s.helo()
@@ -105,7 +105,7 @@ try:
         print('Recv : error.')
 except (smtplib.SMTPException ,smtplib.SMTPHeloError) as e:
     print('SMTPException ',e)
-    exit(1)
+    sys.exit(1)
 finally:
 #    s.close()
     s.quit()

@@ -38,15 +38,15 @@ def checkDirs(lists):
         for d in not_dir:
             print(d,'',end='')
         print()
-        exit(1)
+        sys.exit(1)
     
     if args.process > CPU_COUNT:
         print('CPU MAX : {}'.format(CPU_COUTN))
-        exit(1)
+        sys.exit(1)
 
 checkDirs(args.dirs)
 
-#print(args);exit(0)
+#print(args);sys.exit(0)
 
 task_put = Queue(128)
 task_get = Queue(128)
