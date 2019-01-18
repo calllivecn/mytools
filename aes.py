@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 FILE_VERSION = 1
 
 def getlogger(level=logging.INFO):
-    fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineon)d %(mesages)s",datefmt="%Y-%m-%d-%H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s",datefmt="%Y-%m-%d-%H:%M:%S")
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(fmt)
     logger = logging.getLogger("AES--stdout")
@@ -71,7 +71,7 @@ class FileFormat:
             self.prompt = prompt
 
     def setHeader(self, fp):
-        logger.debug("set file header")
+        logger.debug(f"set file header {fp}")
         headers = self.file_fmt.pack(self.version, self.prompt_len)
         self.HEAD = headers + self.iv + self.salt + self.prompt
         return os.write(fp, self.HEAD)
@@ -186,11 +186,19 @@ def main():
     parse.add_argument("-I",action="store", type=isregulerfile, help="AES crypto file")
 
     parse.add_argument("-k",action="store", type=isstring, help="password")
+    parse.add_argument("-v",action="count", help="verbose")
 
     args = parse.parse_args()
     print(args);#sys.exit(0)
 
     block = 1<<16 # 64k 块大小
+
+    if args.v == 1:
+        logger.setLevel(logging.INFO)
+    elif args.v == 2:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
     if args.k is None:
         password = getpass.getpass()
