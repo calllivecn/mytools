@@ -24,6 +24,8 @@ except ModuleNotFoundError:
 
 FILE_VERSION = 1
 
+AES_BLOCK = 16
+
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s",datefmt="%Y-%m-%d-%H:%M:%S")
     stream = logging.StreamHandler(sys.stdout)
@@ -34,7 +36,9 @@ def getlogger(level=logging.INFO):
     return logger
 
 logger = getlogger()
-class PromptTooLong(Exception): pass
+
+class PromptTooLong(Exception):
+    pass
 
 class FileFormat:
     """
@@ -74,15 +78,15 @@ class FileFormat:
         logger.debug(f"set file header {fp}")
         headers = self.file_fmt.pack(self.version, self.prompt_len)
         self.HEAD = headers + self.iv + self.salt + self.prompt
-        return os.write(fp, self.HEAD)
+        return fp.write(self.HEAD)
 
     def getHeader(self, fp):
         logger.debug("get file header")
-        file_version, prompt_len = self.file_fmt.unpack(os.read(fp,4))
-        iv = os.read(fp, 16)
-        salt = os.read(fp, 32)
-        prompt = os.read(fp, prompt_len)
-        return file_version, prompt_len, iv, salt, prompt
+        file_version, prompt_len = self.file_fmt.unpack(fp.read(4))
+        iv = fp.read(AES_BLOCK)
+        salt = fp.read(32)
+        prompt = fp.read(prompt_len)
+        return file_version, prompt_len, iv, salt, prompt.decode("utf-8")
 
 class AES256:
     """mehtod:
@@ -109,35 +113,39 @@ class AES256:
         
     def encrypt(self, data):
         """
-        data: `byte': 由于AES 256加密块为32字节
-            当数据结尾加密块不足32字节时，
+        data: `byte': 由于AES 256加密块为16字节
+            当数据结尾加密块不足16字节时，
             填充空字节。
         return: `byte': 加密字节
         """
         data_len = len(data)
 
-        blocks, rema = divmod(data_len, 32)
+        blocks, rema = divmod(data_len, AES_BLOCK)
 
         if rema == 0:
-            return self.cryptor.crypt(data)
+            return self.cryptor.encrypt(data)
         else:
-            fill = 32 - rema
+            fill = AES_BLOCK - rema
             self.fill = fill
             return self.cryptor.encrypt(data + bytes(fill))
 
-    def decrypt(self, data, fill=0):
+    def decrypt(self, data):
         """
         data: `byte': 需解密数据
         fill: `int': 0~31 number
         return: `byte':
         """
 
+        data_len = len(data)
+
         # if fill != 0 说明这是最后一块，且有填充字节。
+        en_data_len, fill = divmod(data_len, AES_BLOCK)
+
         if fill != 0:
-            return self.cryptor.decrypt(data)
+            de_data = self.cryptor.decrypt(data[:-fill])
+            return de_data[:-fill]
         else:
-            data = self.cryptor.decrypt(data)
-            return data[0:-fill]
+            return self.cryptor.decrypt(data)
 
     def finish(self):
         pass
@@ -189,9 +197,9 @@ def main():
     parse.add_argument("-v",action="count", help="verbose")
 
     args = parse.parse_args()
-    print(args);#sys.exit(0)
+    #print(args);#sys.exit(0)
 
-    block = 1<<16 # 64k 块大小
+    block = 1<<16 # 64k 读取文件块大小
 
     if args.v == 1:
         logger.setLevel(logging.INFO)
@@ -206,14 +214,14 @@ def main():
         password = args.k
 
     if args.i == "-":
-        in_stream = sys.stdin.fileno()
+        in_stream = sys.stdin.buffer
     else:
-        in_stream = open(args.i, "rb").fileno()
+        in_stream = open(args.i, "rb")
 
     if args.o == "-":
-        out_stream = sys.stdout.fileno()
+        out_stream = sys.stdout.buffer
     else:
-        out_stream = open(args.o, "wb").fileno()
+        out_stream = open(args.o, "wb")
 
 
     if args.d:
@@ -230,52 +238,51 @@ def main():
         key = salt_key(password, header.salt)
         aes = AES256(key, header.iv)
 
-        #data = True
-        data = os.read(in_stream, block)
+        data = True
+        #data = os.read(in_stream, block)
 
         while data:
 
+            data = in_stream.read(block)
+
             en_data = aes.encrypt(data)
 
-            os.write(out_stream, en_data)
-
-            data = os.read(in_stream, block)
+            out_stream.write(en_data)
 
         
-        os.write(out_stream, pack("!B", aes.fill))
+        out_stream.write(pack("!B", aes.fill))
 
-        os.close(in_stream)
+        in_stream.close()
 
-        os.close(out_stream)
+        out_stream.close()
 
     else:
 
         header = FileFormat()
+
         file_version, prompt_len, iv, salt, prompt = header.getHeader(in_stream)
 
-        prompt = os.read(in_stream, prompt)
-
+        key = salt_key(password, salt)
         aes = AES256(key, iv)
 
         #data = True
-        data = os.read(in_stream, block)
-
+        data = in_stream.read(block)
         while data:
 
-            data_len, fill = divmod(len(data),32)
+            #data_len, fill = divmod(len(data), AES_BLOCK)
 
-            en_data = aes.decrypt(data, fill)
+            de_data = aes.decrypt(data)
 
-            out_stream.write(en_data)
+            out_stream.write(de_data)
 
             data = in_stream.read(block)
 
         
-        os.write(out_stream, pack("!B",fill))
+        #out_stream.write(pack("!B",fill))
 
-        os.close(in_stream)
+        in_stream.close()
 
-        os.close(out_stream)
+        out_stream.close()
         
 
 if __name__ == "__main__":

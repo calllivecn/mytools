@@ -47,10 +47,10 @@ else:
 BUF = 4*(1<<20)
 
 if args.files == "-" or args.files[0] == "-":
-    stdin = sys.stdin.fileno()
+    stdin = sys.stdin.buffer
     data=True
     while data:
-        data = os.read(stdin,BUF)
+        data = stdin.read(BUF)
         data = data
         s.update(data)
     print(s.hexdigest(),"-",sep="  ")
@@ -58,7 +58,7 @@ if args.files == "-" or args.files[0] == "-":
 else:
     for f in args.files:
         s_tmp=s.copy()
-        with open(f,'rb')as f_in:
+        with open(f, 'rb') as f_in:
             data=True
             while data:
                 data=f_in.read(BUF)
