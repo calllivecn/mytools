@@ -9,11 +9,12 @@ io.sh
 ip-query.py
 libsh.sh
 netio.py
-random-password.py
+randpw.py
 srm.py
 ssl-crypto.sh
 youtube-dl.sh
-ztar.py'
+ztar.py
+aes.py'
 
 install_libs='libpy
 sh'
