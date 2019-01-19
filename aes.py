@@ -10,6 +10,7 @@ import getpass
 import logging
 import argparse
 from hashlib import sha256
+from binascii import b2a_hex
 from os.path import split,join,isfile,isdir,exists,abspath,islink
 from struct import Struct, pack, unpack
 from threading import Thread
@@ -83,7 +84,7 @@ class FileFormat:
     def getHeader(self, fp):
         logger.debug("get file header")
         file_version, prompt_len = self.file_fmt.unpack(fp.read(4))
-        iv = fp.read(AES_BLOCK)
+        iv = fp.read(16)
         salt = fp.read(32)
         prompt = fp.read(prompt_len)
         return file_version, prompt_len, iv, salt, prompt.decode("utf-8")
@@ -120,9 +121,13 @@ class AES256:
         """
         data_len = len(data)
 
+        if data_len == 0:
+            return b''
+
         blocks, rema = divmod(data_len, AES_BLOCK)
 
         if rema == 0:
+            self.fill = 0
             return self.cryptor.encrypt(data)
         else:
             fill = AES_BLOCK - rema
@@ -132,29 +137,28 @@ class AES256:
     def decrypt(self, data):
         """
         data: `byte': 需解密数据
-        fill: `int': 0~31 number
+        fill: `int': 0~15 number
         return: `byte':
         """
 
         data_len = len(data)
 
+        if data_len == 0:
+            return b''
+
+        blocks, fill = divmod(data_len, AES_BLOCK)
+        logger.debug("blocks, fill：{} {}".format(blocks, fill))
+
         # if fill != 0 说明这是最后一块，且有填充字节。
-        en_data_len, fill = divmod(data_len, AES_BLOCK)
-
-        if fill != 0:
-            de_data = self.cryptor.decrypt(data[:-fill])
-            return de_data[:-fill]
-        else:
+        if fill == 0:
             return self.cryptor.decrypt(data)
-
-    def finish(self):
-        pass
-
-    def encode_header(self):
-        pass
-
-    def decode_header(self):
-        pass
+        else:
+            fill_number = unpack("!B",data[-1:])[0]
+            de_data = self.cryptor.decrypt(data[:-1])
+            if fill_number == 0:
+                return de_data
+            else:
+                return de_data[:-fill_number]
 
 
 def isregulerfile(filename):
@@ -180,6 +184,20 @@ def salt_key(password, salt):
     key = sha256(salt + password.encode("utf-8")).digest()
     return key
 
+def fileinfo(filename):
+    header = FileFormat()
+    with open(filename,"rb") as fp:
+        file_version, prompt_len, iv, salt, prompt = header.getHeader(fp)
+    
+    print("File Version: {}".format(file_version))
+
+    print("IV: {}".format(b2a_hex(iv).decode()))
+
+    print("Salt: {}".format(b2a_hex(salt).decode()))
+
+    print("Password Prompt: {}".format(prompt))
+
+
 def main():
     parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-i in_filename|-] [-o out_filename|-] [-I filenme] [-dc]",
                                    description="AES 加密",
@@ -200,6 +218,10 @@ def main():
     #print(args);#sys.exit(0)
 
     block = 1<<16 # 64k 读取文件块大小
+
+    if args.I:
+        fileinfo(args.I)
+        sys.exit(0)
 
     if args.v == 1:
         logger.setLevel(logging.INFO)
@@ -226,6 +248,8 @@ def main():
 
     if args.d:
 
+        logger.debug("开始加密...")
+
         header = FileFormat()
 
         if args.p is None:
@@ -239,8 +263,6 @@ def main():
         aes = AES256(key, header.iv)
 
         data = True
-        #data = os.read(in_stream, block)
-
         while data:
 
             data = in_stream.read(block)
@@ -251,12 +273,14 @@ def main():
 
         
         out_stream.write(pack("!B", aes.fill))
+        logger.debug("fill lenght: {}".format(aes.fill))
 
         in_stream.close()
 
         out_stream.close()
 
     else:
+        logger.debug("开始解密...")
 
         header = FileFormat()
 
@@ -265,20 +289,13 @@ def main():
         key = salt_key(password, salt)
         aes = AES256(key, iv)
 
-        #data = True
-        data = in_stream.read(block)
+        data = True
         while data:
 
-            #data_len, fill = divmod(len(data), AES_BLOCK)
-
-            de_data = aes.decrypt(data)
-
-            out_stream.write(de_data)
-
             data = in_stream.read(block)
-
+            de_data = aes.decrypt(data)
+            out_stream.write(de_data)
         
-        #out_stream.write(pack("!B",fill))
 
         in_stream.close()
 
