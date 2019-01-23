@@ -231,11 +231,15 @@ def main():
         logger.setLevel(logging.INFO)
 
     if args.k is None:
-        password = getpass.getpass("Password:")
-        password2 = getpass.getpass("Password(again):")
-        if password != password2:
-            print("password mismatches.",file=sys.stderr)
-            sys.exit(2)
+        if args.d:
+            password = getpass.getpass("Password:")
+            password2 = getpass.getpass("Password(again):")
+            if password != password2:
+                print("password mismatches.",file=sys.stderr)
+                sys.exit(2)
+        else:
+            password = getpass.getpass("Password:")
+            
     else:
         password = args.k
 
