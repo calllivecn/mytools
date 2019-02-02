@@ -23,13 +23,13 @@ except ModuleNotFoundError:
     print("请运行pip install pycrypto 以安装依赖")
     sys.exit(2)
 
-FILE_VERSION = 1
+FILE_VERSION = 0x01
 
 AES_BLOCK = 16
 
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s",datefmt="%Y-%m-%d-%H:%M:%S")
-    stream = logging.StreamHandler(sys.stdout)
+    stream = logging.StreamHandler(sys.stderr)
     stream.setFormatter(fmt)
     logger = logging.getLogger("AES--stdout")
     logger.setLevel(level)
@@ -189,7 +189,7 @@ def fileinfo(filename):
     with open(filename,"rb") as fp:
         file_version, prompt_len, iv, salt, prompt = header.getHeader(fp)
     
-    print("File Version: {}".format(file_version))
+    print("File Version: 0x{}".format(b2a_hex(pack("!H",file_version)).decode()))
 
     print("IV: {}".format(b2a_hex(iv).decode()))
 
@@ -231,7 +231,15 @@ def main():
         logger.setLevel(logging.INFO)
 
     if args.k is None:
-        password = getpass.getpass()
+        if args.d:
+            password = getpass.getpass("Password:")
+            password2 = getpass.getpass("Password(again):")
+            if password != password2:
+                print("password mismatches.",file=sys.stderr)
+                sys.exit(2)
+        else:
+            password = getpass.getpass("Password:")
+            
     else:
         password = args.k
 
