@@ -8,7 +8,7 @@ t=0
 while :;
 do
 
-	ssh -N -R 1222:localhost:22 -p 8886 linux@calllive.cc && t=0
+	ssh -o "ServerAliveInterval 55" -N -R 1222:localhost:22 -p 8886 linux@calllive.cc && t=0
 	
 	if [ $t -gt 5 ];then
 		:
