@@ -15,7 +15,6 @@ from os.path import split,join,isfile,isdir,exists,abspath,islink
 from struct import Struct, pack, unpack
 from threading import Thread
 
-__all__ = ["AES256", "FileFormat"]
 
 try:
     from Crypto.Cipher import AES
@@ -24,8 +23,6 @@ except ModuleNotFoundError:
     sys.exit(2)
 
 FILE_VERSION = 0x01
-
-AES_BLOCK = 16
 
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s",datefmt="%Y-%m-%d-%H:%M:%S")
@@ -52,7 +49,7 @@ class FileFormat:
         out_fp: `fp': 类文件对象
         """
 
-        logger.debug("files format build")
+        logger.debug("file header format build")
         self.version = FILE_VERSION  # 2byte
         self.prompt_len = bytes(2)   # 2bytes 提示信息字节长度
         self.iv = os.urandom(16)     # 16byte
@@ -61,7 +58,6 @@ class FileFormat:
         #self.sha256 = bytes(32)     # 32byte 加密后数据部分校验和
         self.prompt = bytes()        # 定长，utf-8编码串, 之后填写，可为空
         # 以上就格式顺序
-        self.fill = 0                # 1byte , (最后一块的填充字节数)放在数据流的最后
 
         self.file_fmt = Struct("!HH")
 
@@ -71,7 +67,7 @@ class FileFormat:
         self.prompt_len = len(prompt)
 
         if self.prompt_len > 65536:
-            raise PromptTooLong("你给的密码提示信息太长。(需要<=21845中文字符)")
+            raise PromptTooLong("你给的密码提示信息太长。(需要 <=65536字节 或 <=21845中文字符)")
         else:
             self.prompt = prompt
 
@@ -88,77 +84,6 @@ class FileFormat:
         salt = fp.read(32)
         prompt = fp.read(prompt_len)
         return file_version, prompt_len, iv, salt, prompt.decode("utf-8")
-
-class AES256:
-    """mehtod:
-    encrypto() --> block data
-    decrypto() --> block data
-    
-    attribute:
-    self.key
-    self.key_salt 
-    self.iv
-    """
-
-    def __init__(self, key, iv):
-        """
-        key 洒
-        """
-        self.key = key
-        self.iv = iv 
-        self.mode = AES.MODE_CBC
-
-        self.fill = 0
-
-        self.cryptor = AES.new(self.key, self.mode, self.iv)
-        
-    def encrypt(self, data):
-        """
-        data: `byte': 由于AES 256加密块为16字节
-            当数据结尾加密块不足16字节时，
-            填充空字节。
-        return: `byte': 加密字节
-        """
-        data_len = len(data)
-
-        if data_len == 0:
-            return b''
-
-        blocks, rema = divmod(data_len, AES_BLOCK)
-
-        if rema == 0:
-            self.fill = 0
-            return self.cryptor.encrypt(data)
-        else:
-            fill = AES_BLOCK - rema
-            self.fill = fill
-            return self.cryptor.encrypt(data + bytes(fill))
-
-    def decrypt(self, data):
-        """
-        data: `byte': 需解密数据
-        fill: `int': 0~15 number
-        return: `byte':
-        """
-
-        data_len = len(data)
-
-        if data_len == 0:
-            return b''
-
-        blocks, fill = divmod(data_len, AES_BLOCK)
-        logger.debug("blocks, fill：{} {}".format(blocks, fill))
-
-        # if fill != 0 说明这是最后一块，且有填充字节。
-        if fill == 0:
-            return self.cryptor.decrypt(data)
-        else:
-            fill_number = unpack("!B",data[-1:])[0]
-            de_data = self.cryptor.decrypt(data[:-1])
-            if fill_number == 0:
-                return de_data
-            else:
-                return de_data[:-fill_number]
 
 
 def isregulerfile(filename):
@@ -199,25 +124,26 @@ def fileinfo(filename):
 
 
 def main():
-    parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-i in_filename|-] [-o out_filename|-] [-I filenme] [-dc]",
+    parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-d ] [-p prompt] [-I filename] [-k password] [-v] [-i in_filename|-] [-o out_filename|-]",
                                    description="AES 加密",
                                    )
-    parse.add_argument("-i", action="store", default="-", type=isregulerfile, help="in file")
-    parse.add_argument("-o",action="store", default="-", type=notexists, help="out file")
     
     groups = parse.add_mutually_exclusive_group()
-    groups.add_argument("-p",action="store", help="password prompt")
     groups.add_argument("-d",action="store_false",help="decrypto (default: encrypto)")
-
-    parse.add_argument("-I",action="store", type=isregulerfile, help="AES crypto file")
+    groups.add_argument("-p",action="store", help="password prompt")
+    groups.add_argument("-I",action="store", type=isregulerfile, help="AES crypto file")
 
     parse.add_argument("-k",action="store", type=isstring, help="password")
     parse.add_argument("-v",action="count", help="verbose")
 
+    parse.add_argument("-i", action="store", default="-", type=isregulerfile, help="in file")
+    parse.add_argument("-o",action="store", default="-", type=notexists, help="out file")
+
+
     args = parse.parse_args()
     #print(args);#sys.exit(0)
 
-    block = 1<<16 # 64k 读取文件块大小
+    block = 1<<20 # 1M 读取文件块大小
 
     if args.I:
         fileinfo(args.I)
@@ -268,7 +194,7 @@ def main():
         header.setHeader(out_stream)
 
         key = salt_key(password, header.salt)
-        aes = AES256(key, header.iv)
+        aes = AES.new(key, AES.MODE_CFB, header.iv)
 
         data = True
         while data:
@@ -279,9 +205,6 @@ def main():
 
             out_stream.write(en_data)
 
-        
-        out_stream.write(pack("!B", aes.fill))
-        logger.debug("fill lenght: {}".format(aes.fill))
 
         in_stream.close()
 
@@ -295,7 +218,7 @@ def main():
         file_version, prompt_len, iv, salt, prompt = header.getHeader(in_stream)
 
         key = salt_key(password, salt)
-        aes = AES256(key, iv)
+        aes = AES.new(key, AES.MODE_CFB, iv)
 
         data = True
         while data:
