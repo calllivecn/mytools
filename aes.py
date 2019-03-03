@@ -23,19 +23,18 @@ from ctypes import CDLL
 from ctypes import c_char_p, c_int, c_long, byref, create_string_buffer, c_void_p
 from ctypes.util import find_library
 
-
+"""
 try:
     from Crypto.Cipher import AES
 except ModuleNotFoundError:
     print("请运行pip install pycrypto 以安装依赖")
     sys.exit(2)
-
+"""
 
 CIPHER = 1 # 加密
 DECIPHER = 0 # 解密
 
 FILE_VERSION = 0x01
-
 
 
 def getlogger(level=logging.INFO):
@@ -120,7 +119,6 @@ class OpenSSLCrypto:
             raise Exception('can not initialize cipher context')
 
     def update(self, data):
-        #global self.buf_size, self.buf
 
         cipher_out_len = c_long(0)
         l = len(data)
@@ -135,7 +133,7 @@ class OpenSSLCrypto:
 
     def __load_cipher(self, cipher_name):
         func_name = 'EVP_' + cipher_name.replace('-', '_')
-        cipher = getattr(LIBCRYPTO, func_name, None)
+        cipher = getattr(self.libcrypto, func_name, None)
         if cipher:
             cipher.restype = c_void_p
             return cipher()
@@ -145,7 +143,7 @@ class OpenSSLCrypto:
         if not self.loaded:
             self.__load_openssl()
         self.buf = create_string_buffer(length)
-        r = LIBCRYPTO.RAND_bytes(self.buf, length)
+        r = self.libcrypto.RAND_bytes(self.buf, length)
         if r <= 0:
             raise Exception('RAND_bytes return error')
         return self.buf.raw
@@ -168,7 +166,7 @@ class OpenSSLCrypto:
         return results
     
     
-    def __find_library_notnt(self, possible_lib_names, search_symbol, library_name):
+    def __find_library(self, possible_lib_names, search_symbol, library_name):
         # move to file head.
         #import ctypes.util
         #from ctypes import CDLL
@@ -217,17 +215,16 @@ class OpenSSLCrypto:
                     logging.info('loading {} from {}'.format(library_name, path))
                     return lib
                 else:
-                    logging.warn('can\'t find symbol {} in {}'.format(search_symbol, path))
-            except Exception:
+                    logging.warn("can't find symbol {} in {}".format(search_symbol, path))
+            except Exception as e:
                 if path == paths[-1]:
-                    raise
+                    raise e
         return None
     
 
     def __load_openssl(self):
-        #global LOADED, LIBCRYPTO, self.buf
     
-        self.libcrypto = self.__find_library_notnt(('crypto', 'eay32'),
+        self.libcrypto = self.__find_library(('crypto', 'eay32'),
                                       'EVP_get_cipherbyname',
                                       'libcrypto')
         if self.libcrypto is None:
