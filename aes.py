@@ -199,10 +199,10 @@ class OpenSSLCrypto:
     
             for name in lib_names:
                 patterns = [
-                    f'/usr/local/lib*/lib{name}.*',
-                    f'/usr/lib*/lib{name}.*',
-                    f'lib{name}.*',
-                    f'{name}.dll']
+                    '/usr/local/lib*/lib{}.*'.format(name),
+                    '/usr/lib*/lib{}.*'.format(name),
+                    'lib{}.*'.format(name),
+                    '{}.dll'.format(name)]
     
                 for pat in patterns:
                     files = glob.glob(pat)
@@ -306,7 +306,7 @@ class FileFormat:
             self.prompt = prompt
 
     def setHeader(self, fp):
-        logger.debug(f"set file header {fp}")
+        logger.debug("set file header {}".format(fp))
         headers = self.file_fmt.pack(self.version, self.prompt_len)
         self.HEAD = headers + self.iv + self.salt + self.prompt
         return fp.write(self.HEAD)
@@ -328,7 +328,7 @@ def isregulerfile(filename):
 
 def notexists(filename):
     if exists(filename) and filename != "-":
-        raise argparse.ArgumentTypeError(f"already file {filename}")
+        raise argparse.ArgumentTypeError("already file {}".format(filename))
     else:
         return filename
 
