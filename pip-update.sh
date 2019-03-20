@@ -14,7 +14,7 @@ do
 		$PIP install --upgrade "$pack"
 	elif [ $EUID -ne 0 ];then
 		sudo $PIP install --upgrade "$pack"
-	elif [ $UID -eq -];then
+	elif [ $UID -eq 0 ];then
 		$PIP install --upgrade "$pack"
 	else
 		echo "你这好像不行啊。"
