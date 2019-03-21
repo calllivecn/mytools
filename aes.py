@@ -155,13 +155,13 @@ class OpenSSLCrypto:
         # because on Windows, users may have both 32bit and 64bit version installed
         results = []
         for directory in os.environ['PATH'].split(os.pathsep):
-            fname = os.path.join(directory, name)
-            if os.path.isfile(fname):
+            fname = join(directory, name)
+            if isfile(fname):
                 results.append(fname)
             if fname.lower().endswith(".dll"):
                 continue
             fname = fname + ".dll"
-            if os.path.isfile(fname):
+            if isfile(fname):
                 results.append(fname)
         return results
     
