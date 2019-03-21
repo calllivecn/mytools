@@ -30,7 +30,7 @@ group1.add_argument('-x','--extract',action='store_true',help='extract files fro
 
 group1.add_argument('-t','--list',action='store_true',help='list the contents of an archive')
 
-parse.add_argument('-f','--file',action='store',required=True,help='use archive file or device ARCHIVE')
+parse.add_argument('-f','--file',action='store', default="-",help='use archive file or device ARCHIVE')
 
 parse.add_argument('-v','--verbose',action='count', default=0,help='verbosely list files processed')
 
@@ -51,7 +51,7 @@ groups.add_argument('-J','--xz',dest='xz',action='store_true',help='filter the a
 
 args = parse.parse_args()
 
-print(args)
+#print(args, file=sys.stderr)
 
 def compress_safe_path(filename):
     # 它会自动去掉路径，/ 和C:\这样的开头。
@@ -79,13 +79,21 @@ if args.create and args.files:
     elif args.xz:
         compress='w:xz'
 
-    fp = tarfile.open(args.file, compress, debug=args.verbose)
+    if args.file == "-":
+        try:
+            fp = tarfile.TarFile(mode=compress, fileobj=sys.stdout.buffer, debug=args.verbose)
+        except OSError as e:
+            print("无法向终端写入归档内容(缺少 -f 选项? or 添加重定向，管道符。)", file=sys.stderr)
+            sys.exit(2)
+    else:
+        fp = tarfile.TarFile(name=args.file, mode=compress, debug=args.verbose)
+
     for f in args.files:
         memberpath = compress_safe_path(f)
         fp.add(f, memberpath)
         #print("add({}, {})".format(f, memberpath))
 
-    fp.close()         
+    fp.close()
 
 elif args.extract:
     decompress='r'
@@ -97,11 +105,21 @@ elif args.extract:
     elif args.xz:
         decompress='r:xz'
 
-    fp=tarfile.open(args.file,decompress, debug=args.verbose)
+    if args.file == "-":
+        try:
+            fp = tarfile.TarFile(mode=decompress, fileobj=sys.stdin.buffer, debug=args.verbose)
+        except OSError as e:
+            print("无法向终端读取归档内容(缺少 -f 选项? or 添加重定向，管道符。)", file=sys.stderr)
+            raise e
+            sys.exit(3)
+    else:
+        fp=tarfile.TarFile(name=args.file,mode=decompress, debug=args.verbose)
 
     #fp.extract(f,args.directory)
-    safe_path = decompress_safe_path(
-    fp.extractall()
+    if args.file == "-":
+        fp.extractall(path=sys.stdout.buffer)
+    else:
+        fp.extractall()
 
     fp.close()
 
@@ -115,7 +133,10 @@ elif args.list:
     elif args.xz:
         decompress='r:xz'
 
-    fp=tarfile.open(args.file, decompress, debug=args.verbose)
+    if args.file == "-":
+        fp = tarfile.TarFile(mode="r", fileobj=sys.stdin.buffer, debug = args.verbose)
+    else:
+        fp = tarfile.open(args.file, decompress, debug=args.verbose)
 
     fp.list(verbose=args.verbose)
 
