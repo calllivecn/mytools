@@ -2,19 +2,23 @@
 #coding=utf-8
 
 
-import time,sys
+import time
+import sys
 import fileinput
 import random
 
-S=' '.join(sys.argv[1:])
-#print(S)
+if len(sys.argv) <= 1:
+    S = sys.stdin.buffer.read()
+    S = S.decode()
+else:
+    S = ' '.join(sys.argv[1:])
 
 def randint(char):
     len_char = len(char.encode())
     #print(char,len_char,file=sys.stderr)
     if len_char <= 1:
         return random.randint(10,30)/100
-    elif 1 < len_char <=2:
+    elif len_char <=2:
         return random.randint(20,40)/100
     else:
         return random.randint(30,60)/100
