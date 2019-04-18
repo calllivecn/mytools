@@ -120,10 +120,12 @@ def rm_dir_tree(dir__):
 
         for dir_ in d:
             clear_filename(join(r,dir_))
+
+    clear_filename(r)
     
 
 for f in args.files:
-    f.rstrip('/')
+    f = f.rstrip('/')
     if isfile(f) or islink(f):
         remove(f)
     elif isdir(f):
