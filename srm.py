@@ -14,6 +14,7 @@ parse = argparse.ArgumentParser(description='secure file deletion')
 
 parse.add_argument('files',nargs='+',help='files and dirs')
 parse.add_argument('-v','--verbose',action="store_true", help='DEBUG mode')
+parse.add_argument('-f','--force',action="store_true", help='try force delete')
 
 args=parse.parse_args()
 #print(args)
@@ -61,16 +62,20 @@ def clear_filename(filename):
             char = chr(char_id)
             clear_fn = char * fn_len
     
-    logger.debug(f"{filename} --> " + join(path,clear_fn))
+    logger.debug("{} --> ".format(join(path,filename)) + join(path,clear_fn))
 
     os.rename(join(path,filename),join(path,clear_fn))
 
-    logger.debug("remove :" + join(path,clear_fn))
+    logger.debug("remove: " + join(path,clear_fn))
 
     if isfile(join(path,clear_fn)):
         os.remove(join(path,clear_fn))
     if isdir(join(path,clear_fn)):
-        os.rmdir(join(path,clear_fn))
+        try:
+            os.rmdir(join(path,clear_fn))
+        except OSError:
+            logger.info("cannot delete Directory not empty: " + join(path,clear_fn))
+
     if islink(join(path,clear_fn)):
         os.remove(join(path,clear_fn))
 
@@ -83,7 +88,20 @@ def remove(file__):
         return
 
     file_size = getsize(file__)
-    count=file_size//4096+1
+
+    count, c = divmod(file_size, 4096)
+    if c > 0:
+        count += 1
+
+
+    if not os.access(file__, os.R_OK | os.W_OK):
+        mode = os.stat(file__).st_mode
+        try:
+            os.chmod(file__, mode | 0o600)
+        except PermissionError:
+            logger.info("cannot delete {}: ".format(file__) + "not permission")
+            return
+
     fp = open(file__,'r+b')
     
     for tmp in range(count):
@@ -103,13 +121,12 @@ def rm_dir_tree(dir__):
         for dir_ in d:
             clear_filename(join(r,dir_))
     
-    clear_filename(dir__.rstrip('/'))
-
 
 for f in args.files:
+    f.rstrip('/')
     if isfile(f) or islink(f):
         remove(f)
     elif isdir(f):
         rm_dir_tree(f)
     else:
-        print(f,'not is dir or normal file,not delete')
+        logger.info(f + 'not is dir or normal file,not delete')
