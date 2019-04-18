@@ -61,7 +61,7 @@ def clear_filename(filename):
             char = chr(char_id)
             clear_fn = char * fn_len
     
-    logger.debug(f"{filename} -->" + join(path,clear_fn))
+    logger.debug(f"{filename} --> " + join(path,clear_fn))
 
     os.rename(join(path,filename),join(path,clear_fn))
 
