@@ -68,10 +68,10 @@ safe_exit(){
 
 trap "safe_exit" SIGINT SIGTERM
 
-echo "test writing ..."
+echo -e "\033[31mtest writing ...\033[0m"
 #dd if=/dev/zero of="$filename" bs=$block count=$count oflag=direct conv=fsync status=progress 2>&1 |tail -n 1
 dd if=/dev/zero of="$filename" bs=$block count=$count oflag=direct conv=fsync status=progress
-echo "test reading ..."
+echo -e "\033[31mtest reading ...\033[0m"
 #dd if="$filename" of=/dev/null ibs=$block iflag=direct status=progress 2>&1 |tail -n 1
 dd if="$filename" of=/dev/null ibs=$block iflag=direct status=progress
 
