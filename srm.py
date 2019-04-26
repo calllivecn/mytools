@@ -19,7 +19,7 @@ parse.add_argument('-f','--force',action="store_true", help='try force delete')
 args=parse.parse_args()
 #print(args)
 
-logger = logging.getLogger()
+logger = logging.Logger(sys.argv[0])
 stream = logging.StreamHandler(sys.stdout)
 fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 stream.setFormatter(fmt)
@@ -52,7 +52,7 @@ def clear_filename(filename):
 
     path , filename = split(filename)
 
-    fn_len = len(filename)
+    fn_len = len(filename.encode("utf-8"))
     clear_fn = char * fn_len
 
     while exists(join(path,clear_fn)):
@@ -74,7 +74,7 @@ def clear_filename(filename):
         try:
             os.rmdir(join(path,clear_fn))
         except OSError:
-            logger.info("cannot delete Directory not empty: " + join(path,clear_fn))
+            logger.warning("cannot delete Directory not empty: " + join(path,clear_fn))
 
     if islink(join(path,clear_fn)):
         os.remove(join(path,clear_fn))
@@ -99,7 +99,7 @@ def remove(file__):
         try:
             os.chmod(file__, mode | 0o600)
         except PermissionError:
-            logger.info("cannot delete {}: ".format(file__) + "not permission")
+            logger.warning("cannot delete {}: ".format(file__) + "not permission")
             return
 
     fp = open(file__,'r+b')
@@ -131,4 +131,4 @@ for f in args.files:
     elif isdir(f):
         rm_dir_tree(f)
     else:
-        logger.info(f + 'not is dir or normal file,not delete')
+        logger.warning(f + 'not is dir or normal file,not delete')

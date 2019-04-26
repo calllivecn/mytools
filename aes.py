@@ -39,9 +39,9 @@ FILE_VERSION = 0x01
 
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s",datefmt="%Y-%m-%d-%H:%M:%S")
-    stream = logging.StreamHandler(sys.stderr)
+    stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(fmt)
-    logger = logging.getLogger("AES--stdout")
+    logger = logging.Logger("AES--stdout")
     logger.setLevel(level)
     logger.addHandler(stream)
     return logger
@@ -395,7 +395,7 @@ def main():
             password = getpass.getpass("Password:")
             password2 = getpass.getpass("Password(again):")
             if password != password2:
-                print("password mismatches.",file=sys.stderr)
+                logger.info("password mismatches.")
                 sys.exit(2)
         else:
             password = getpass.getpass("Password:")
