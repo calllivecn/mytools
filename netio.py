@@ -154,7 +154,7 @@ def main():
     parse = argparse.ArgumentParser(usage='Usage: %(prog)s [-t <1>] [ -i <iface> ] [-k|-m|-g] ')
                                 #add_help=True)
     parse.add_argument('-i','--ifname',metavar='',nargs='+')
-    parse.add_argument('-t',default=1,type=int)
+    parse.add_argument('-t',default=1,type=float)
     group = parse.add_mutually_exclusive_group()
     group.add_argument('-k',action="store_true")
     group.add_argument('-m',action="store_true")
