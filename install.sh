@@ -24,7 +24,8 @@ if [ "$EUID"x != "0"x ];then
 	exit 2
 fi
 
-prefix_dir='/opt/calllivecn'
+prefix_dir='/usr/local/stow/calllivecn'
+
 bin="$prefix_dir/bin"
 
 mkdir -p "$bin"
