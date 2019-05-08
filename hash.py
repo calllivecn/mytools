@@ -4,10 +4,10 @@
 # author calllivecn <c-all@qq.com>
 
 
-import hashlib
-import argparse
-import sys
 import os
+import sys
+import argparse
+import hashlib
 
 parse = argparse.ArgumentParser()
 
@@ -21,11 +21,15 @@ groups.add_argument('--sha256',action="store_true",help="sha256 (default)")
 groups.add_argument('--sha384',action="store_true",help="sha384")
 groups.add_argument('--sha512',action="store_true",help="sha512")
 
-parse.add_argument('files',nargs="*",default="-",help="files")
+g2 = parse.add_mutually_exclusive_group()
+
+g2.add_argument('-c', "--check", action="store", help="从文件中读取SHA256 的校验值并予以检查")
+
+g2.add_argument('files',nargs="*",default="-",help="files")
 
 args = parse.parse_args()
 
-#print(args)
+print(args);exit(0)
 
 if args.md5:
     s = hashlib.md5()
