@@ -3,8 +3,9 @@
 # date 2017-10-12 08:19:53
 # https://github.com/calllivecn
 
-import sys
 import os
+import sys
+import mmap
 import argparse
 import logging
 from pprint import pprint,pformat
@@ -80,7 +81,13 @@ def clear_filename(filename):
         os.remove(join(path,clear_fn))
 
 
-l=bytes(4096)
+# blksize is 1M
+def memory_alingment(blksize=1048576):
+    m = mmap.mmap(-1, blksize)
+    m.write(bytes(blksize))
+    return m
+
+
 def remove(file__):
 
     if islink(file__):
@@ -88,11 +95,6 @@ def remove(file__):
         return
 
     file_size = getsize(file__)
-
-    count, c = divmod(file_size, 4096)
-    if c > 0:
-        count += 1
-
 
     if not os.access(file__, os.R_OK | os.W_OK):
         mode = os.stat(file__).st_mode
@@ -102,13 +104,22 @@ def remove(file__):
             logger.warning("cannot delete {}: ".format(file__) + "not permission")
             return
 
-    fp = open(file__,'r+b')
-    
-    for tmp in range(count):
-        fp.write(l)
-        fp.flush()
+    BUF = memory_alingment()
+    count, c = divmod(file_size, len(BUF))
+    if c > 0:
+        count += 1
+
+    try:
+        fp = os.open(file__, os.O_RDWR | os.O_DIRECT)
         
-    fp.close()
+        for tmp in range(count):
+            os.write(fp, BUF)
+    except Exception:
+        logger.error("write {} Error.".format(file__))
+
+    finally:
+        os.close(fp)
+        BUF.close()
     
     clear_filename(file__)
 
