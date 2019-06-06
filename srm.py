@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2017-10-12 08:19:53
+# update 2019-06-06-12:55:07
 # https://github.com/calllivecn
 
 import os
@@ -120,6 +121,8 @@ def remove(file__):
 
     for tmp in range(count):
         os.write(fp, BUF)
+
+    os.fsync(fp)
 
     os.close(fp)
     BUF.close()
