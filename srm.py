@@ -110,16 +110,19 @@ def remove(file__):
         count += 1
 
     try:
-        fp = os.open(file__, os.O_RDWR | os.O_DIRECT)
-        
-        for tmp in range(count):
-            os.write(fp, BUF)
-    except Exception:
-        logger.error("write {} Error.".format(file__))
+        if hasattr(os, "O_DIRECT"):
+            fp = os.open(file__, os.O_RDWR | os.O_DIRECT)
+        else:
+            fp = os.open(file__, os.O_RDWR)
+    except Exception as e:
+        logger.error(e)
+        return 
 
-    finally:
-        os.close(fp)
-        BUF.close()
+    for tmp in range(count):
+        os.write(fp, BUF)
+
+    os.close(fp)
+    BUF.close()
     
     clear_filename(file__)
 
