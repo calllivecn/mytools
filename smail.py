@@ -3,7 +3,11 @@
 
 
 
-import getopt,sys,os,smtplib,base64,argparse
+import os
+import sys
+import smtplib
+import base64
+import argparse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
