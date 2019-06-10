@@ -64,7 +64,7 @@ def clear_filename(filename):
             char = chr(char_id)
             clear_fn = char * fn_len
     
-    logger.debug("{} --> ".format(join(path,filename)) + join(path,clear_fn))
+    logger.debug("rename: {} --> {}".format(join(path,filename), join(path,clear_fn)))
 
     os.rename(join(path,filename),join(path,clear_fn))
 
@@ -79,6 +79,7 @@ def clear_filename(filename):
             logger.warning("cannot delete Directory not empty: " + join(path,clear_fn))
 
     if islink(join(path,clear_fn)):
+        logger.debug("remove link file: {}".format(join(path,clear_fn)))
         os.remove(join(path,clear_fn))
 
 
