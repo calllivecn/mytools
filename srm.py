@@ -86,10 +86,25 @@ def clear_filename(filename):
 def memory_alingment(blksize=1048576):
     m = mmap.mmap(-1, blksize)
     m.write(bytes(blksize))
-    return m
+    mv = memoryview(m)
+    return mv
 
+
+def getfsblksize(filename):
+
+    if hasattr(os, "statvfs"):
+        fs_blksize = os.statvfs(filename).f_bsize
+    else:
+        fs_blksize = 4096
+
+    return fs_blksize
+
+def fswrite(fp, blksize):
+    os.write(fp, BUF[0:blksize])
 
 def remove(file__):
+
+    global BUF
 
     if islink(file__):
         clear_filename(file__)
@@ -105,11 +120,6 @@ def remove(file__):
             logger.warning("cannot delete {}: ".format(file__) + "not permission")
             return
 
-    BUF = memory_alingment()
-    count, c = divmod(file_size, len(BUF))
-    if c > 0:
-        count += 1
-
     try:
         if hasattr(os, "O_DIRECT"):
             fp = os.open(file__, os.O_RDWR | os.O_DIRECT)
@@ -119,13 +129,31 @@ def remove(file__):
         logger.error(e)
         return 
 
-    for tmp in range(count):
-        os.write(fp, BUF)
+    if file_size <= len(BUF):
+
+        fsblksize = getfsblksize(file__)
+
+        count, c = divmod(file_size, fsblksize)
+
+        if count == 0:
+            os.write(fp, BUF[0:fsblksize])
+        elif c > 0:
+            count += 1
+            os.write(fp, BUF[0:fsblksize*count])
+        
+    else:
+
+        count, c = divmod(file_size, len(BUF))
+
+        if c > 0:
+            count += 1
+
+        for tmp in range(count):
+            os.write(fp, BUF)
 
     os.fsync(fp)
 
     os.close(fp)
-    BUF.close()
     
     clear_filename(file__)
 
@@ -141,6 +169,8 @@ def rm_dir_tree(dir__):
     clear_filename(r)
     
 
+BUF = memory_alingment()
+
 for f in args.files:
     f = f.rstrip('/')
     if isfile(f) or islink(f):
@@ -149,3 +179,4 @@ for f in args.files:
         rm_dir_tree(f)
     else:
         logger.warning(f + 'not is dir or normal file,not delete')
+
