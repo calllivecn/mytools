@@ -23,7 +23,7 @@ args=parse.parse_args()
 
 logger = logging.Logger(sys.argv[0])
 stream = logging.StreamHandler(sys.stdout)
-fmt = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+fmt = logging.Formatter("%(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 stream.setFormatter(fmt)
 logger.addHandler(stream)
 
