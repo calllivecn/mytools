@@ -29,7 +29,7 @@ g2.add_argument('files',nargs="*",default="-",help="files")
 
 args = parse.parse_args()
 
-print(args);exit(0)
+#print(args);exit(0)
 
 if args.md5:
     s = hashlib.md5()
