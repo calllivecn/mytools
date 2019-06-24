@@ -8,6 +8,7 @@ import os
 import sys
 import argparse
 import hashlib
+from functools import partial
 
 parse = argparse.ArgumentParser()
 
@@ -48,23 +49,20 @@ elif args.sha512:
 else:
     s = hashlib.sha256()
 
-BUF = (1<<20)
+BUF = 1<<14 # 16k
 
 if args.files == "-" or args.files[0] == "-":
     stdin = sys.stdin.buffer
-    data = True
-    while data:
-        data = stdin.read(BUF)
-        data = data
+    for data in iter(partial(stdin.read, BUF), b""):
         s.update(data)
+
     print(s.hexdigest(),"-",sep="  ")
 
 else:
     for f in args.files:
         s_tmp = s.copy()
         with open(f, 'rb') as f_in:
-            data = True
-            while data:
-                data = f_in.read(BUF)
+            for data in iter(partial(f_in.read, BUF), b""):
                 s_tmp.update(data)
+
             print(s_tmp.hexdigest(),f,sep="  ")
