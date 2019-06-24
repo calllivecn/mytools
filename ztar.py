@@ -2,7 +2,10 @@
 #coding=utf-8
 
 
-import tarfile,sys,os,argparse
+import tarfile
+import sys
+import os
+import argparse
 
 parse=argparse.ArgumentParser(
 description=r'''GNU %(prog)s saves many files together into a single tape or disk archive,
@@ -57,7 +60,7 @@ if args.create and args.files :
     elif args.xz:
         compress='w:xz'
 
-    fp=tarfile.open(args.file,compress)
+    fp=tarfile.open(args.file, compress, format=tarfile.PAX_FORMAT)
     for f in args.files:
         if os.path.isfile(f):
             if args.verbose: print(f)
@@ -83,7 +86,7 @@ elif args.extract :
     elif args.xz:
         decompress='r:xz'
 
-    fp=tarfile.open(args.file,decompress)
+    fp=tarfile.open(args.file, decompress)
     for f in fp.getnames():
         if os.path.isdir(args.directory):
             if args.verbose:
@@ -108,7 +111,7 @@ elif args.list :
     elif args.xz:
         decompress='r:xz'
 
-    fp=tarfile.open(args.file,decompress)
+    fp=tarfile.open(args.file, decompress)
 
     fp.list(verbose=args.verbose)
 
