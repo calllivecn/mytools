@@ -30,6 +30,18 @@ clean(){
 	TRAP=1
 }
 
+show_speed(){
+	local PV CMD
+	PV=$(type -p pv)
+	if [ -z "$PV" ];then
+		CMD=cat
+	else
+		CMD="pv -ba"
+	fi
+
+$CMD
+}
+
 using(){
 echo "Using: ${0##*/} [[-b <split block>] | <output diectory name> ] | <filename>"
 exit 0
@@ -94,9 +106,8 @@ excludes="$sys_excludes $user_excludes"
 
 
 if [ $SPLIT = 0 ];then
-	tar -C / -pc ${excludes} . 2> /dev/null |pxz |tee $out_file | sha512sum > ${out_file}.sha512sum
+	tar -C / -pc ${excludes} . 2> /dev/null |pxz |show_speed |tee $out_file | sha512sum > ${out_file}.sha512sum
 elif [ $SPLIT = 1 ];then
-	tar -C / -pc ${excludes} . 2>/dev/null |pxz |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
-	PID=$!
+	tar -C / -pc ${excludes} . 2>/dev/null |pxz |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
 	sha512sum $FIFO | awk -v filename=${out_filename} '{print $1,filename}' > "${out_dir}"/"${out_filename}".sha512sum
 fi
