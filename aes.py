@@ -15,6 +15,7 @@ import random
 
 from hashlib import sha256
 from binascii import b2a_hex
+from functools import partial
 from os.path import split,join,isfile,isdir,exists,abspath,islink
 from struct import Struct, pack, unpack
 from threading import Thread
@@ -433,10 +434,8 @@ def main():
         #aes = OpenSSLCrypto("aes-256-cfb1", key, header.iv, CIPHER) # 这个好慢？？？
         #aes = OpenSSLCrypto("aes-256-cfb8", key, header.iv, CIPHER)
 
-        data = True
-        while data:
 
-            data = in_stream.read(block)
+        for data in iter(partial(in_stream.read, block), b""):
 
             #en_data = aes.encrypt(data)
             en_data = aes.update(data)
@@ -461,10 +460,7 @@ def main():
         #aes = OpenSSLCrypto("aes-256-cfb1", key, iv, DECIPHER) # 这个好慢？？？
         #aes = OpenSSLCrypto("aes-256-cfb8", key, iv, DECIPHER)
 
-        data = True
-        while data:
-
-            data = in_stream.read(block)
+        for data in iter(partial(in_stream.read, block), b""):
             #de_data = aes.decrypt(data)
             de_data = aes.update(data)
             out_stream.write(de_data)
