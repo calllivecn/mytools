@@ -68,8 +68,6 @@ def clear_filename(filename):
 
     os.rename(join(path,filename),join(path,clear_fn))
 
-    logger.debug("remove: " + join(path,clear_fn))
-
     if isfile(join(path,clear_fn)):
         os.remove(join(path,clear_fn))
     if isdir(join(path,clear_fn)):
@@ -106,6 +104,8 @@ def fswrite(fp, blksize):
 def remove(file__):
 
     global BUF
+
+    logger.debug("remove: " + file__)
 
     if islink(file__):
         clear_filename(file__)
