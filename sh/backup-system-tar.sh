@@ -31,21 +31,36 @@ clean(){
 }
 
 show_speed(){
-	local PV CMD
-	PV=$(type -p pv)
-	if [ -z "$PV" ];then
-		CMD=cat
-	else
+	
+	if type -p pv 2>&1 > /dev/null;then
 		CMD="pv -ba"
+	else
+		CMD=cat
 	fi
 
 $CMD
+}
+
+xz_tool(){
+	# pxz 命令从ubuntu 19.04 改为 pixz 
+	if type -p pxz 2>&1 > /dev/null;then
+		XZ=pxz
+	elif type -p pixz 2>&1 > /dev/null;then
+		XZ=pixz
+	elif type -p xz 2>&1 > /dev/null;then
+		XZ=xz
+	else
+		echo "需要xz-utils"
+		exit 1
+	fi
 }
 
 using(){
 echo "Using: ${0##*/} [[-b <split block>] | <output diectory name> ] | <filename>"
 exit 0
 }
+
+xz_tool
 
 trap "clean" SIGTERM SIGINT ERR
 
@@ -106,8 +121,8 @@ excludes="$sys_excludes $user_excludes"
 
 
 if [ $SPLIT = 0 ];then
-	tar -C / -pc ${excludes} . 2> /dev/null |pxz |show_speed |tee $out_file | sha512sum > ${out_file}.sha512sum
+	tar -C / -pc ${excludes} . 2> /dev/null |$XZ |show_speed |tee $out_file | sha512sum > ${out_file}.sha512sum
 elif [ $SPLIT = 1 ];then
-	tar -C / -pc ${excludes} . 2>/dev/null |pxz |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
+	tar -C / -pc ${excludes} . 2>/dev/null |$XZ |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
 	sha512sum $FIFO | awk -v filename=${out_filename} '{print $1,filename}' > "${out_dir}"/"${out_filename}".sha512sum
 fi
