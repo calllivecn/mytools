@@ -5,6 +5,7 @@
 
 
 import os
+import re
 import sys
 import argparse
 import hashlib
@@ -32,6 +33,8 @@ args = parse.parse_args()
 
 #print(args);exit(0)
 
+BUF = 1<<14 # 16k
+
 if args.md5:
     s = hashlib.md5()
 elif args.sha1:
@@ -49,20 +52,49 @@ elif args.sha512:
 else:
     s = hashlib.sha256()
 
-BUF = 1<<14 # 16k
+resep = re.compile(r"\t| +")
 
-if args.files == "-" or args.files[0] == "-":
+def shafile(filename):
+    s_tmp = s.copy()
+    with open(filename, 'rb') as f_in:
+        for data in iter(partial(f_in.read, BUF), b""):
+            s_tmp.update(data)
+
+    return s_tmp.hexdigest()
+
+
+def readshafile(checksumfile):
+    with open(checksumfile) as f:
+        c = 0
+        for line in iter(partial(f.readline), ""):
+            c += 1
+            try:
+                fvalue, fname = resep.split(line.rstrip("\r\n"), maxsplit=1)
+            except Exception as e:
+                print("{} line:{} {} 错误".formt(checksumfile, c, line))
+                continue
+
+            try:
+                value = shafile(fname)
+            except FileNotFoundError as e:
+                print("{} line:{} 没有文件：{}".format(checksumfile, c, fname))
+                continue
+
+            if fvalue == value:
+                print(fname, ": ok")
+            else:
+                print(fname, ": failed")
+
+
+if args.check:
+    readshafile(args.check)
+
+elif args.files == "-" or args.files[0] == "-":
     stdin = sys.stdin.buffer
     for data in iter(partial(stdin.read, BUF), b""):
         s.update(data)
-
-    print(s.hexdigest(),"-",sep="  ")
+    print(s.hexdigest(),"-",sep="\t")
 
 else:
     for f in args.files:
-        s_tmp = s.copy()
-        with open(f, 'rb') as f_in:
-            for data in iter(partial(f_in.read, BUF), b""):
-                s_tmp.update(data)
-
-            print(s_tmp.hexdigest(),f,sep="  ")
+        print(shafile(f),f,sep="\t")
