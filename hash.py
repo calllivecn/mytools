@@ -90,9 +90,10 @@ if args.check:
     readshafile(args.check)
 
 elif args.files == "-" or args.files[0] == "-":
-    stdin = sys.stdin.buffer
-    for data in iter(partial(stdin.read, BUF), b""):
+    stdin = sys.stdin.buffer.fileno()
+    for data in iter(partial(os.read, stdin, BUF), b""):
         s.update(data)
+
     print(s.hexdigest(),"-",sep="\t")
 
 else:
