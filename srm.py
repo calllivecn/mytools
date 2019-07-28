@@ -9,8 +9,7 @@ import sys
 import mmap
 import argparse
 import logging
-from pprint import pprint,pformat
-from os.path import getsize,join,exists,isdir,isfile,islink,split
+from os.path import getsize, join, exists, isdir, isfile, islink, split
 
 parse = argparse.ArgumentParser(description='secure file deletion')
 
