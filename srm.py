@@ -41,7 +41,7 @@ def check_files():
 
     if len(not_exists_lists) > 0:
         for f in not_exists_lists:
-            logger.info(f"{f} file not exists")
+            logger.warn(f"{f} file not exists")
 
         sys.exit(1)
 
@@ -73,7 +73,7 @@ def clear_filename(filename):
         try:
             os.rmdir(join(path,clear_fn))
         except OSError:
-            logger.warning("cannot delete Directory not empty: " + join(path,clear_fn))
+            logger.warn("cannot delete Directory not empty: " + join(path,clear_fn))
 
     if islink(join(path,clear_fn)):
         logger.debug("remove link file: {}".format(join(path,clear_fn)))
@@ -117,7 +117,7 @@ def remove(file__):
         try:
             os.chmod(file__, mode | 0o600)
         except PermissionError:
-            logger.warning("cannot delete {}: ".format(file__) + "not permission")
+            logger.warn("cannot delete {}: ".format(file__) + "not permission")
             return
 
     try:
@@ -178,5 +178,5 @@ for f in args.files:
     elif isdir(f):
         rm_dir_tree(f)
     else:
-        logger.warning(f + 'not is dir or normal file,not delete')
+        logger.warn(f + 'not is dir or normal file,not delete')
 
