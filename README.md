@@ -17,7 +17,7 @@
 ### netio.py:
 * linux网速查看工具。
 
-### ch-bl.py:
+### adjbacklight.py:
 * 调整显示器亮度
 
 ### youtube-dl.sh:
