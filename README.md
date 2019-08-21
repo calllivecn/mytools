@@ -55,6 +55,9 @@
 ### smail.py:
 * 安全邮件发送。（更多--help)
 
+### wakeonlan.py:
+* wake on LAN
+
 ### my\_gzip.py:
 *写个gzip练练手。（更多--help)
 
