@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-#coding=utf-8
+# coding=utf-8
 # date 2018-03-08 17:38:41
 # author calllivecn <c-all@qq.com>
 
 
 import sys
-from base64 import encodebytes,decodebytes
+from base64 import encodebytes, decodebytes
 from argparse import ArgumentParser
+
 
 def thunder(thunder1):
     thunder2 = thunder1.lstrip('thunder://')
@@ -21,14 +22,13 @@ def thunder(thunder1):
     print(thunder4)
 
 
-parse = ArgumentParser(usage="Using: %(prog)s <thunder ...>",description="解析thunder下载地址",add_help=True,)
+parse = ArgumentParser(usage="Using: %(prog)s <thunder ...>",
+                       description="解析thunder下载地址", add_help=True,)
 
-parse.add_argument("thunder",nargs="+",help="迅雷专用下载链接")
+parse.add_argument("thunder", nargs="+", help="迅雷专用下载链接")
 
 args = parse.parse_args()
 
 
 for th in args.thunder:
     thunder(th)
-
-

@@ -23,7 +23,7 @@ from struct import pack
 
 
 BROADCAST_IP = '255.255.255.255'
-DEFAULT_PORT = 9 # 9 or 7
+DEFAULT_PORT = 9  # 9 or 7
 
 
 def magic_packet(macaddress):
@@ -69,11 +69,15 @@ def send_packet(*macs, **kwargs):
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Wake one or more computers using the wake on lan protocol.')
-    parser.add_argument('-i', metavar='ip', default=BROADCAST_IP, help='The ip address of the host to send the magic packet to.(default {})'.format(BROADCAST_IP))
-    parser.add_argument('-p', metavar='port', type=int, default=DEFAULT_PORT, help='The port of the host to send the magic packet to (default 9)')
+    parser = argparse.ArgumentParser(
+        description='Wake one or more computers using the wake on lan protocol.')
+    parser.add_argument('-i', metavar='ip', default=BROADCAST_IP,
+                        help='The ip address of the host to send the magic packet to.(default {})'.format(BROADCAST_IP))
+    parser.add_argument('-p', metavar='port', type=int, default=DEFAULT_PORT,
+                        help='The port of the host to send the magic packet to (default 9)')
 
-    parser.add_argument('macs', metavar='mac address', nargs='+', help='The mac addresses or of the computers you are trying to wake.')
+    parser.add_argument('macs', metavar='mac address', nargs='+',
+                        help='The mac addresses or of the computers you are trying to wake.')
 
     args = parser.parse_args()
 
