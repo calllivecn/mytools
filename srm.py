@@ -13,16 +13,18 @@ from os.path import getsize, join, exists, isdir, isfile, islink, split
 
 parse = argparse.ArgumentParser(description='secure file deletion')
 
-parse.add_argument('files',nargs='+',help='files and dirs')
-parse.add_argument('-v','--verbose',action="store_true", help='DEBUG mode')
-parse.add_argument('-f','--force',action="store_true", help='try force delete')
+parse.add_argument('files', nargs='+', help='files and dirs')
+parse.add_argument('-v', '--verbose', action="store_true", help='DEBUG mode')
+parse.add_argument('-f', '--force', action="store_true",
+                   help='try force delete')
 
-args=parse.parse_args()
-#print(args)
+args = parse.parse_args()
+# print(args)
 
 logger = logging.Logger(sys.argv[0])
 stream = logging.StreamHandler(sys.stdout)
-fmt = logging.Formatter("%(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+fmt = logging.Formatter(
+    "%(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 stream.setFormatter(fmt)
 logger.addHandler(stream)
 
@@ -33,7 +35,7 @@ else:
 
 
 def check_files():
-    not_exists_lists=[]
+    not_exists_lists = []
     for f_d in args.files:
         logger.debug(f"check : {f_d}")
         if not exists(f_d):
@@ -45,39 +47,43 @@ def check_files():
 
         sys.exit(1)
 
+
 check_files()
+
 
 def clear_filename(filename):
     char_id = 48
     char = chr(char_id)
 
-    path , filename = split(filename)
+    path, filename = split(filename)
 
     fn_len = len(filename.encode("utf-8"))
     clear_fn = char * fn_len
 
-    while exists(join(path,clear_fn)):
+    while exists(join(path, clear_fn)):
         clear_fn += char
         if len(clear_fn) > 128:
-            char_id +=1
+            char_id += 1
             char = chr(char_id)
             clear_fn = char * fn_len
-    
-    logger.debug("rename: {} --> {}".format(join(path,filename), join(path,clear_fn)))
 
-    os.rename(join(path,filename),join(path,clear_fn))
+    logger.debug(
+        "rename: {} --> {}".format(join(path, filename), join(path, clear_fn)))
 
-    if isfile(join(path,clear_fn)):
-        os.remove(join(path,clear_fn))
-    if isdir(join(path,clear_fn)):
+    os.rename(join(path, filename), join(path, clear_fn))
+
+    if isfile(join(path, clear_fn)):
+        os.remove(join(path, clear_fn))
+    if isdir(join(path, clear_fn)):
         try:
-            os.rmdir(join(path,clear_fn))
+            os.rmdir(join(path, clear_fn))
         except OSError:
-            logger.warn("cannot delete Directory not empty: " + join(path,clear_fn))
+            logger.warn("cannot delete Directory not empty: " +
+                        join(path, clear_fn))
 
-    if islink(join(path,clear_fn)):
-        logger.debug("remove link file: {}".format(join(path,clear_fn)))
-        os.remove(join(path,clear_fn))
+    if islink(join(path, clear_fn)):
+        logger.debug("remove link file: {}".format(join(path, clear_fn)))
+        os.remove(join(path, clear_fn))
 
 
 # blksize is 1M
@@ -97,8 +103,10 @@ def getfsblksize(filename):
 
     return fs_blksize
 
+
 def fswrite(fp, blksize):
     os.write(fp, BUF[0:blksize])
+
 
 def remove(file__):
 
@@ -127,7 +135,7 @@ def remove(file__):
             fp = os.open(file__, os.O_RDWR)
     except Exception as e:
         logger.error(e)
-        return 
+        return
 
     if file_size <= len(BUF):
 
@@ -140,7 +148,7 @@ def remove(file__):
         elif c > 0:
             count += 1
             os.write(fp, BUF[0:fsblksize*count])
-        
+
     else:
 
         count, c = divmod(file_size, len(BUF))
@@ -148,26 +156,26 @@ def remove(file__):
         if c > 0:
             count += 1
 
-        for tmp in range(count):
+        for _ in range(count):
             os.write(fp, BUF)
 
     os.fsync(fp)
 
     os.close(fp)
-    
+
     clear_filename(file__)
 
 
 def rm_dir_tree(dir__):
-    for r,d,f in os.walk(dir__,topdown=False):
+    for r, d, f in os.walk(dir__, topdown=False):
         for f2 in f:
-            remove(join(r,f2))
+            remove(join(r, f2))
 
         for dir_ in d:
-            clear_filename(join(r,dir_))
+            clear_filename(join(r, dir_))
 
     clear_filename(r)
-    
+
 
 BUF = memory_alingment()
 
@@ -179,4 +187,3 @@ for f in args.files:
         rm_dir_tree(f)
     else:
         logger.warn(f + 'not is dir or normal file,not delete')
-
