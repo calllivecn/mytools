@@ -5,14 +5,17 @@
 ### randpw.py:
 * 生成高强度的随机密码
 
+### randpw-v2.py:
+* 生成符合MySQL MEDIUM 密码强度的随机密码
+
 ### cpuonoff.sh:
-* 开启或关闭CPU core来省电(几次测试，貌似并不会省电。)
+* 开启或关闭CPU core来省电(几次测试，貌似并不会省电。只在x86架构下有效)
 
 ### io.sh:
 * 测试硬盘读写速度
 
 ### libsh.sh:
-* 累积的库
+* 库
 
 ### netio.py:
 * linux网速查看工具。
@@ -25,6 +28,9 @@
 
 ### ztar.py:
 * py版tar。
+
+### aes.py:
+* 加密小工具
 
 ### ssl-crypto.sh:
 * 文件加密脚本。
@@ -50,5 +56,5 @@
 * 安全邮件发送。（更多--help)
 
 ### my\_gzip.py:
-* 写个gzip练练手。（更多--help)
+*写个gzip练练手。（更多--help)
 
