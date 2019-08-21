@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#coding=utf-8
+# coding=utf-8
 # date 2018-06-13 08:12:03
 # author calllivecn <c-all@qq.com>
 
@@ -15,25 +15,25 @@ parse = argparse.ArgumentParser()
 
 groups = parse.add_mutually_exclusive_group()
 
-groups.add_argument('--md5',action="store_true",help="md5")
-groups.add_argument('--sha1',action="store_true",help="sha1")
-groups.add_argument('--sha128',action="store_true",help="sha128")
-groups.add_argument('--sha224',action="store_true",help="sha224")
-groups.add_argument('--sha256',action="store_true",help="sha256 (default)")
-groups.add_argument('--sha384',action="store_true",help="sha384")
-groups.add_argument('--sha512',action="store_true",help="sha512")
+groups.add_argument('--md5', action="store_true", help="md5")
+groups.add_argument('--sha1', action="store_true", help="sha1")
+groups.add_argument('--sha128', action="store_true", help="sha128")
+groups.add_argument('--sha224', action="store_true", help="sha224")
+groups.add_argument('--sha256', action="store_true", help="sha256 (default)")
+groups.add_argument('--sha384', action="store_true", help="sha384")
+groups.add_argument('--sha512', action="store_true", help="sha512")
 
 g2 = parse.add_mutually_exclusive_group()
 
 g2.add_argument('-c', "--check", action="store", help="从文件中读取SHA256 的校验值并予以检查")
 
-g2.add_argument('files',nargs="*",default="-",help="files")
+g2.add_argument('files', nargs="*", default="-", help="files")
 
 args = parse.parse_args()
 
-#print(args);exit(0)
+# print(args);exit(0)
 
-BUF = 1<<14 # 16k
+BUF = 1 << 14  # 16k
 
 if args.md5:
     s = hashlib.md5()
@@ -53,6 +53,7 @@ else:
     s = hashlib.sha256()
 
 resep = re.compile(r"\t| +")
+
 
 def shafile(filename):
     s_tmp = s.copy()
@@ -94,8 +95,8 @@ elif args.files == "-" or args.files[0] == "-":
     for data in iter(partial(os.read, stdin, BUF), b""):
         s.update(data)
 
-    print(s.hexdigest(),"-",sep="\t")
+    print(s.hexdigest(), "-", sep="\t")
 
 else:
     for f in args.files:
-        print(shafile(f),f,sep="\t")
+        print(shafile(f), f, sep="\t")

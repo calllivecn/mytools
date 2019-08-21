@@ -24,8 +24,9 @@ punctuation = "".join(punctuation)
 
 password_lenght = 16
 
-Cryptographic_elements = {"upper": uppercase, "lower": lowercase, "digets": digets, "punctuation": punctuation}
-CE_KEYS = ("upper","lower", "digets", "punctuation")
+Cryptographic_elements = {"upper": uppercase, "lower": lowercase,
+                          "digets": digets, "punctuation": punctuation}
+CE_KEYS = ("upper", "lower", "digets", "punctuation")
 
 
 def randpw(password_lenght=16):
@@ -38,28 +39,28 @@ def randpw(password_lenght=16):
         char = random.choice(chars)
         password += char
         password_lenght -= 1
-    
-    
+
     # 生成剩下char
     for _ in range(password_lenght):
         key = random.choice(CE_KEYS)
         #print("key:", key)
         chars = Cryptographic_elements.get(key)
         #print("chars:", chars)
-    
+
         char = random.choice(chars)
-    
+
         #print("char:", char)
-    
+
         password += char
-    
+
     PW = list(password)
-    
+
     random.shuffle(PW)
-    
+
     password = "".join(PW)
 
     return password
+
 
 if __name__ == "__main__":
     print(randpw())
