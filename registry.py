@@ -3,6 +3,9 @@
 # date 2018-09-14 15:38:09
 # author calllivecn <c-all@qq.com>
 
+
+
+import os
 import sys
 import json
 import pprint
@@ -20,7 +23,6 @@ def urlmethod(url, method="GET"):
     result = request.urlopen(req).read()
 
     b = result.rstrip(b"\n")
-
     return json.loads(b)
 
 def checkapiv2():
@@ -45,19 +47,20 @@ def getimageinfo(url, image, tag):
     j = urlmethod(url + "/v2/{}/manifests/{}".format(image, tag))
     pprint.pprint(j)
 
-def deletetag(url, image, tag):
+def deleteimage(url, image, tag):
     j = urlmethod(url + "/v2/{}/manifests/{}".format(image, tag), method="DELETE")
     pprint.pprint(j)
 
 
-parse = argparse.ArgumentParser(usage="%(prog)s <url> [-2|--apiv2] [-i <image>] [-t <tag>] [-I|--info]")
+parse = argparse.ArgumentParser(usage="%(prog)s <url> [-2|--apiv2] [-i <image>] [-t <tag>] [-d|--delete]")
 
-parse.add_argument("-2", "--apiv2", help="check API v2")
+parse.add_argument("-2", "--apiv2", action="store_true", help="check API v2")
 parse.add_argument("-i", "--image", help="list registry images. (default)")
 parse.add_argument("-t", "--tag", help="list images tags")
-parse.add_argument("-I", "--info", action="store_true", help="info image:tag")
+#parse.add_argument("-I", "--info", action="store_true", help="info image:tag")
+parse.add_argument("-d", "--delete", action="store_true", help="delete image:tag")
 
-parse.add_argument("url", help="registry address")
+parse.add_argument("url", nargs="?", default=False, help="registry address")
 
 args = parse.parse_args()
 #print(args);sys.exit(0)
@@ -70,14 +73,25 @@ if args.apiv2:
     sys.exit(0)
 
 
-if args.info and args.image and args.tag:
-    getimageinfo(args.url)
+REGISTRY = os.getenv("REGISTRY")
+if args.url:
+    REGISTRY = args.url
+elif not REGISTRY:
+    print("需要url参数，或者REGISTRY环境变量", file=sys.stderr)
+    sys.exit(1)
+
+
+#if args.info and args.image and args.tag:
+#    getimageinfo(REGISTRY, args.image, args.tag)
+
+if args.delete and args.image and args.tag:
+    deleteimage(REGISTRY, args.image, args.tag)
 
 elif args.image and args.tag:
-    getimageinfo(args.url, args.image, args.tag)
+    getimageinfo(REGISTRY, args.image, args.tag)
 
 elif args.image:
-    gettaglist(args.url, args.image)
+    gettaglist(REGISTRY, args.image)
 
 else:
-    getimages(args.url)
+    getimages(REGISTRY)
