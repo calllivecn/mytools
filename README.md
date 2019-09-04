@@ -1,7 +1,5 @@
 # mytools 一些小工具和bash、py函数
 
----
-
 ### randpw.py:
 * 生成高强度的随机密码
 
@@ -58,6 +56,5 @@
 ### wakeonlan.py:
 * wake on LAN
 
-### my\_gzip.py:
-*写个gzip练练手。（更多--help)
-
+### myzip.py:
+* 写个gzip练练手。（更多--help)

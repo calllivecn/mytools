@@ -14,4 +14,4 @@ ps1(){
 	echo "$recode"
 }
 
-PS1="$(ps1 $?)-\u@\h:\W☘ "
+PS1='$(ps1 $?)-\u@\h:\W☘ '

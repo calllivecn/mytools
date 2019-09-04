@@ -6,10 +6,15 @@
 
 import sys
 
-OK_RECODE = "✓ "
-ERR_RECODE = ""
+OK_RECODE = "✔ "
+ERR_RECODE = "✗ "
 
 OK_RECODE = "☺ "
 ERR_RECODE = "☹ "
+
+if sys.argv[1] == "0":
+    print(OK_RECODE)
+else:
+    print(ERR_RECODE)
 
 PROMPT = "☘ "
