@@ -60,7 +60,7 @@ parse.add_argument("-t", "--tag", help="list images tags")
 #parse.add_argument("-I", "--info", action="store_true", help="info image:tag")
 parse.add_argument("-d", "--delete", action="store_true", help="delete image:tag")
 
-parse.add_argument("url", nargs="?", default=False, help="registry address")
+parse.add_argument("url", nargs="?", default=False, help="registry address or export REGISTRY=http://127.0.0.1:5000")
 
 args = parse.parse_args()
 #print(args);sys.exit(0)
