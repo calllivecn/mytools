@@ -1,6 +1,6 @@
 #!/bin/bash
 
-install_lists='ch-bl.py
+install_lists='adjbacklight.py
 cpuonoff.sh
 dos2unix.py
 findcmp.py

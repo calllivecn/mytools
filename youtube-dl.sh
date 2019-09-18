@@ -11,7 +11,6 @@ YOU='youtube-dl --proxy '"$PROXY"
 program="${0##*/}"
 
 using(){
-    local str
 	echo "Using : $program queue"
 	echo "start download."
 	echo
@@ -25,6 +24,7 @@ using(){
 }
 
 YOUTUBE_QUEUE=
+
 check_YOUTUBE_QUEUE(){
 	if [ -w youtube.queue ];then
 		YOUTUBE_QUEUE=youtube.queue
@@ -85,6 +85,9 @@ if [ "$1"x = "queue"x ];then
 	YOUTUBE_QUEUE_download
 	exit 0
 fi
+
+if [ $# -eq 1 ];then
+	echo "$1" |grep -E "^https://"
 
 
 check_YOUTUBE_QUEUE
