@@ -37,6 +37,8 @@ DECIPHER = 0  # 解密
 
 FILE_VERSION = 0x01
 
+version = "v1.1.0"
+
 
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter(
@@ -366,9 +368,12 @@ def fileinfo(filename):
     print("Password Prompt: {}".format(prompt))
 
 
+
 def main():
     parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-d ] [-p prompt] [-I filename] [-k password] [-v] [-i in_filename|-] [-o out_filename|-]",
                                     description="AES 加密",
+                                    epilog="""%(prog)s {}
+                                    https://github.com/calllivecn/mytools""".format(version)
                                     )
 
     groups = parse.add_mutually_exclusive_group()
