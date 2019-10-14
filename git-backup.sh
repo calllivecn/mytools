@@ -8,7 +8,8 @@ PROGRAM=${0##*/}
 usage(){
 
 	echo "Usage: $PROGRAM [目录]"
-	echo "默认执行：${ROGRAM} $HOME/git-backup"
+	echo "默认执行：${PROGRAM} $HOME/git-backup"
+	echo "$HOM/git-backup 放入在备份的仓库"
 }
 
 
