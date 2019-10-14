@@ -14,7 +14,10 @@ srm.py
 ssl-crypto.sh
 youtube-dl.sh
 ztar.py
-aes.py'
+aes.py
+unmount.sh
+git-backup.sh
+'
 
 install_libs='libpy
 sh'
