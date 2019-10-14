@@ -15,7 +15,7 @@ usage(){
 
 case "$1" in
 	-h|--help)
-		uasge
+		usage
 		exit 0
 		;;
 esac
@@ -33,7 +33,7 @@ if [ -d "$GIT" ];then
 	:
 else
 	echo "$GIT 不存在，请创建 $GIT"
-	echo "并将仓库目录放入${GIT}目录下"
+	echo "并将要备份的仓库放入${GIT}目录"
 	exit 1
 fi
 
