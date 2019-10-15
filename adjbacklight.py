@@ -28,7 +28,7 @@ videos = []
 ####################
 if os.geteuid() != 0:
     print("need the root user.")
-    exit(1)
+    sys.exit(1)
 
 #######################
 #
@@ -56,7 +56,7 @@ def input_check(lenght):
             continue
         except KeyboardInterrupt:
             print()
-            exit(0)
+            sys.exit(0)
         if n < 1 or n > lenght:
             print('please input number [1-{}]'.format(lenght))
             continue
@@ -124,7 +124,7 @@ def main():
         video = select_video(videos)
     elif len(videos) < 1:
         print('not found display device.')
-        exit(0)
+        sys.exit(0)
 
     max_light, current_light, step = read_light(video)
 
@@ -142,7 +142,7 @@ def main():
             change_light(current_light, video)
         elif ch == b'\x1b' or ch == b'q':
             print('\nexit...')
-            exit(0)
+            sys.exit(0)
 
 
 if __name__ == "__main__":
