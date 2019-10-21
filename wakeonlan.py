@@ -52,16 +52,20 @@ def magic_packet(macaddress):
 
 def send_packet(macs, ipv4=True):
 
+    if ipv4:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    else:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+
     for mac in macs:
         packet = magic_packet(mac)
 
         print(packet)
 
         if ipv4:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(packet, (BROADCAST_IPv4, DEFAULT_PORT))
         else:
-            sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
             sock.sendto(packet, (LOCAL_LINK_IPv6, DEFAULT_PORT))
 
     sock.close()
