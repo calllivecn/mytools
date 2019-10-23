@@ -12,11 +12,8 @@ import pprint
 import argparse
 from urllib import request
 
-URL="http://hub.bnq.com.cn"
-URL="http://ap01.bnq.in:5000"
 
 headers = {"Context-Type": "application/json"}
-
 
 def urlmethod(url, method="GET"):
     req = request.Request(url, method=method, headers=headers)
