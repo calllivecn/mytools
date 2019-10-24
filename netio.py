@@ -148,10 +148,14 @@ def getiface():
 
 
 def clear():
-    CLEAR = 0x1b63.to_bytes(2, 'big')
-    fd = sys.stdout.fileno()
-    os.write(fd, CLEAR)
+    # old method
 
+    #CLEAR = 0x1b63.to_bytes(2, 'big')
+    #fd = sys.stdout.fileno()
+    #os.write(fd, CLEAR)
+
+    # new method
+    print("\x1b\x63")
 
 def main():
     import argparse
