@@ -222,7 +222,7 @@ class OpenSSLCrypto:
                         library_name, path))
                     return lib
                 else:
-                    logging.warn("can't find symbol {} in {}".format(
+                    logging.warning("can't find symbol {} in {}".format(
                         search_symbol, path))
             except Exception as e:
                 if path == paths[-1]:
