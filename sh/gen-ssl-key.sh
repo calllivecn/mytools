@@ -15,6 +15,7 @@ DAYS=3650
 
 OPENSSL_CNF=/etc/ssl/openssl.cnf
 
+# Root CA
 generateRootCertificate() {
     openssl genrsa -out ca.key 2048
     openssl req -new -x509 -days ${DAYS} -key ca.key -out ca.crt #\
