@@ -34,14 +34,24 @@ DNS.4=127.0.0.1' > "$1"
 #
 ##########################
 
-# 同时生成 RSA私钥和自签名证书, CA:False, x509v3
+####
+# openssl x509 选项。
+# -signkey filename：使用这个option同时必须提供私有密钥文件。
+# 这样把输入的文件变成字签名的证书。如果输入的文件是一个证书，
+# 那么它的颁发者会被set成其拥有者.其他相关的项也会被改成符合自签名特征的证书项。
+# 如果输入的文件是CSR, 那么就生成自签名文件。
+###
+
+# 一步完成。
+# 同时生成 RSA私钥和自签名证书, CA:True, x509v3
 keySelfCA(){
-	openssl req -newkey rsa:2048 -nodes -extensions v3_req -keyout ca.key -x509 -days 5000 -out ca.crt \
-	-subj "/C=$C/ST=$ST/O=$O/OU=$OU/CN=$CN"
+	openssl req  -newkey rsa:2048 -x509 -nodes -keyout ca.key -days 5000 -out ca.crt #\
+	#-subj "/C=$C/ST=$ST/O=$O/OU=$OU/CN=$CN"
 }
 
 
-# x509v3， CA:True
+# 二步完成。
+# x509v3， CA:True , 
 keyRootCA(){
 	openssl genrsa -out ca.key 2048
 
@@ -49,21 +59,21 @@ keyRootCA(){
 }
 
 
-# 使用已有私钥生成自签名证书
-keySelfSginCrt(){
-	openssl req -new -x509 -days 5000 -key rsa_private-1.key -out cert-2.crt
+
+# 一步，生成csr。
+# 此后输入密码、server证书信息完成，也可以命令行指定各类参数
+gen2csr(){
+	openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr
 }
 
-# 此后输入密码、server证书信息完成，也可以命令行指定各类参数
-key2csr(){
+# 二步，生成csr
+# 使用已有私钥生成自签名证书
+keySelfSginCrt(){
+	openssl genrsa -out server.key 2048
 	openssl req -new -key server.key -out server.csr
 }
 
-
-
-# openssl req -new -key server.key -passin pass:111111 -out server.csr \
-# -subj "/C=CN/ST=GD/L=SZ/O=vihoo/OU=dev/CN=vivo.com/emailAddress=yy@vivo.com"
-# *** 此时生成的 csr签名请求文件可提交至 CA进行签发 ***
+# *** 此时生成的 csr 签名请求文件可提交至 CA进行签发 ***
 
 
 # 使用 CA 证书及CA密钥 对请求签发证书进行签发，生成 x509v1证书
@@ -71,8 +81,8 @@ CA2crt_x509v1(){
 	openssl x509 -req -CA ca.crt -CAkey ca.key -CAcreateserial -days 3650 -in server.csr -out server.crt
 }
 
-# 生成 x509v3 证书
-CA2crt_x509v1(){
+# 生成 x509v3 证书, 多域名版。
+CA2crt_x509(){
 	local EXT_FILE_CNF=$(mktemp)
 
 	make_extfile "$EXT_FILE_CNF"
