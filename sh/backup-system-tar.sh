@@ -121,8 +121,8 @@ excludes="$sys_excludes $user_excludes"
 
 
 if [ $SPLIT = 0 ];then
-	tar -C / -pc ${excludes} . 2> /dev/null |$XZ |show_speed |tee $out_file | sha512sum > ${out_file}.sha512sum
+	tar -C / --acls -pc ${excludes} . 2> /dev/null |$XZ |show_speed |tee $out_file | sha512sum > ${out_file}.sha512sum
 elif [ $SPLIT = 1 ];then
-	tar -C / -pc ${excludes} . 2>/dev/null |$XZ |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
+	tar -C / --acls -pc ${excludes} . 2>/dev/null |$XZ |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
 	sha512sum $FIFO | awk -v filename=${out_filename} '{print $1,filename}' > "${out_dir}"/"${out_filename}".sha512sum
 fi
