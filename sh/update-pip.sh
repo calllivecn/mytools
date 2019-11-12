@@ -6,7 +6,7 @@ set -xe
 
 PIP="pip3"
 
-for pip in $($PIP list --not-required --format freeze |awk -F'=' '{print $1}')
+for pip in $($PIP list --user --not-required --format freeze |awk -F'=' '{print $1}')
 do
-	sudo $PIP install --upgrade "$pip"
+	$PIP install --user --upgrade "$pip"
 done
