@@ -31,6 +31,10 @@ stty icanon echo
 
 }
 
+getmem(){
+	grep -E 'MemTotal: +([0-9]+) kB' /proc/meminfo |grep -oE '[0-9]+'
+}
+
 selector(){
 
 	local SELECT=$1

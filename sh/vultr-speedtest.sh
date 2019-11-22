@@ -5,4 +5,4 @@
 
 Frankfurt_DE='https://fra-de-ping.vultr.com/vultr.com.100MB.bin'
 
-
+wget -O- $Frankfurt_DE > /dev/null
