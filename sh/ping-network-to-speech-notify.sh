@@ -6,11 +6,12 @@
 
 if [ "$1"x = "-q"x -o "$1"x = "quiet"x ];then
 	cmd(){
-		notify-send "${USER} ...来网啦"
+		notify-send "时间：$(date +%F-%R) ${USER} ...来网啦"
 		sleep 10
 		}
 else
 	cmd(){
+		notify-send "时间：$(date +%F-%R) ${USER} ...来网啦"
 		espeak -v zh -s 100 -p 99 "${USER} ...来网la" 2> /dev/null
 		sleep 1
 		}
@@ -22,7 +23,7 @@ say(){
 
 	for i in {1..3}
 	do
-		echo "${USER} ...来网le" 
+		echo "时间：$(date +%F-%R) ${USER} ...来网le" 
 		cmd
 	done
 }
@@ -39,7 +40,7 @@ do
 		continue
 	fi
 
-	ping -c 1 -W 3 www.baidu.com &> /dev/null && ping -c 1 -W 3 1.1.1.1 &> /dev/null
+	ping -c 1 -W 3 www.baidu.com 2>&1 > /dev/null && ping -c 1 -W 3 1.1.1.1 2>&1 > /dev/null
 
 	if [ $? -eq 0 ];then
 		network=1

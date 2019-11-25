@@ -31,39 +31,42 @@ stty icanon echo
 
 }
 
-getmem(){
+getmemory(){
 	grep -E 'MemTotal: +([0-9]+) kB' /proc/meminfo |grep -oE '[0-9]+'
 }
 
 selector(){
 
-	local SELECT=$1
-
-	array_len=${#SELECT[@]}
+	# 中文变量名也行
 	
-	ps3=$PS3
+	吃饭(){
+		echo "执行: one"
+	}
 	
-	PS3='input number : '
+	two(){
+		echo "执行: two"
+	}
 	
-	select var in "${SELECT[@]:1:${array_len}}"
-	do
-	#PS3=$ps3
-		case "$var" in
-			${SELECT[1]})
-				echo your ${SELECT[1]}
-				;;
-			${SELECT[2]})
-				echo your ${SELECT[2]}
-				;;
-			${SELECT[3]})
-				echo your ${SELECT[3]}
-				;;
-			${SELECT[4]})
-				echo exit
-				break
-				;;
-		esac
+	three(){
+		echo "执行: three"
+	}
 	
-	done
+	
+	selector(){
+	
+		local var
+	
+		select var in ${SELECT[@]}
+		do
+			"$var"
+			return 0
+		done
+	
+	}
+	
+	
+	SELECT=(吃饭 two three)
+	
+	selector ${SELECT[@]}
 }
 
