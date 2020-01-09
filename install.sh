@@ -11,10 +11,10 @@ libsh.sh
 netio.py
 randpw.py
 srm.py
-ssl-crypto.sh
 youtube-dl.sh
 ztar.py
 aes.py
+jsonfmt.py
 unmount.sh
 git-backup.sh
 '
