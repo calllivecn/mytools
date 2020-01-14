@@ -7,10 +7,23 @@ import os
 import sys
 import time
 import socket
+import struct
 import threading
 
 import argparse
 
+
+BUF=8*(1<<20) # 8K
+
+PROTO_PACK = struct.Struct("!HHL")
+# H 操作类型
+# H packsize
+# L 要发送的数据包的数量
+
+PROTO_LEN = PROTO_PACK.size
+
+RECV = 0x0001
+SEND = 0x0002
 
 class Nettest:
 
@@ -41,26 +54,6 @@ class Nettest:
 
         conn = self._sock.connect((self.address, self.port))
 
-    def server(self):
-        
-
-    def __server_tcp(self):
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.bind((self.address, self.port))
-        self._sock.listen(5)
-
-        while True:
-            print("TCP: {self.address}:{self.port} 等待连接...")
-            client, addr = self._sock.accept()
-            print(f"conn: {addr}")
-            self.__select_rs(client)
-
-    def __server_udp(self):
-
-        while True:
-            print("UDP: {self.address}:{self.port} 等待连接...")
-            self.__select_rs(self._sock)
 
     def __send(self):
 
@@ -112,6 +105,115 @@ class Nettest:
         self._sock.close()
 
 
+def tcp_server(address, port, ipv6):
+    """
+    ipv6: True or False
+    """
+
+    if ipv6:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+    sock.bind((address, port))
+    sock.listen(5)
+
+    while True:
+        print(f"TCP: {address}:{port} 等待连接...")
+        client, addr = sock.accept()
+
+        cmd = b"" #getpack(client.recv, PROTO_LEN)
+        size = PROTO_LEN
+        while size > 0:
+            c = client.recv(size)
+            size -= len(c)
+            cmd += c
+
+        type_, packsize, packcount = PROTO_PACK.unpack(cmd)
+
+        if type_ == RECV:
+            print("TCP: 开始测试接收...")
+            while True:
+                data = client.recv(BUF)
+                if not data :
+                    print("TCP: 开始接收测试完成...")
+                    break
+        elif type_ == SEND:
+            data = b"-" * packsize
+            for i in range(packcount):
+                data = client.send(data)
+                if not data :
+                    break
+        else:
+            print("未定义的操作类型。", file=sys.stderr)
+            client.close()
+
+
+def udp_server(address, port, ipv6):
+    """
+    ipv6: True or False
+    """
+
+    if ipv6:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    sock.bind((address, port))
+
+    while True:
+        print(f"UDP: {address}:{port} 等待接收...")
+
+        cmd = b""
+        size = PROTO_LEN
+        while size > 0:
+            c, addr = sock.recvfrom(size)
+            size -= len(c)
+            cmd += c
+
+        type_, packsize, packcount = PROTO_PACK.unpack(cmd)
+
+        if type_ == RECV:
+            while True:
+                data = client.recvfrom(BUF)
+                if not data :
+                    break
+        elif type_ == SEND:
+            data = b"-" * packsize
+            for i in range(packcount):
+                data = client.sendto(data, addr)
+                if not data :
+                    break
+        else:
+            print("未定义的操作类型。", file=sys.stderr)
+            client.close()
+
+
+def server(address="", port=6789, ipv6=False):
+
+    if ipv6:
+        tcp = threading.Thread(target=tcp_server, args=("", port, ipv6), daemon=True)
+        tcp.start()
+
+        udp = threading.Thread(target=udp_server, args=("", port, ipv6), daemon=True)
+        udp.start()
+
+        tcp.join()
+        udp.join()
+    
+    else:
+        tcp = threading.Thread(target=tcp_server, args=("", port, ipv6), daemon=True)
+        tcp.start()
+
+        udp = threading.Thread(target=udp_server, args=("", port, ipv6), daemon=True)
+        udp.start()
+
+        tcp.join()
+        udp.join()
+
+
+
 def main():
     parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-tu] [-Tc] [-s <package size>] [host]",
             description="test network",
@@ -127,16 +229,28 @@ def main():
 
     parse.add_argument("-s", "--size", type=int, default=1024, help="发送数据包大小(default: 1024 byte)")
 
-    parse.add_argument("--server", action="store_true", help="启动测试server。")
+    parse.add_argument("--ipv6", action="store_true", help="使用 ipv6 否则 ipv4 (default: ipv4)")
+
+    parse.add_argument("--port", type=int, help="指定端口")
+
+    parse.add_argument("--server", action="store_true", help="启动测试server。(如果设置这项，就只有ipv46选项有用)")
 
     parse.add_argument("--recv", action="store_true", help="测试接收数据")
 
     parse.add_argument("--send", action="store_true", help="测试发送数据")
 
-    parse.add_argument("host", required=True, help="target address")
+    parse.add_argument("host", nargs="?", help="target address")
 
-    args = parse.args_parse()
-    print(args);sys.exit(0)
+    args = parse.parse_args()
+    #print(args);sys.exit(0)
+
+    if args.server:
+        if args.ipv6:
+            server(port=args.port, ipv6=True)
+        else:
+            server(port=args.port)
+
+        sys.exit(0)
 
 
 
