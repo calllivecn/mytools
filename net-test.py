@@ -27,53 +27,59 @@ SEND = 0x0002
 
 class Nettest:
 
-    def __init__(self, address, packsize, count, time_, tcp=True):
-        self.port = 6789
+    def __init__(self, address, port, packsize, count, time_, tcp=True, ipv6=False):
+        self.port = port
         self.address = address
         self.packsize = packsize
         self.count = count
         self.time = time_
         self.tcp = tcp
+        self.ipv6 = ipv6
 
         self._datapack = b"-" * self.packsize
 
-        self._recv = b"recv"
-        self._send = b"send"
-
-        if tcp:
-            self._sock = socket.socket()
-            self._recv = self._sock.recv
-            self._send = self._sock.send
-        else:
-            self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._recv = self._sock.recvfrom
-            self._send = lambda x: self._sock.sendto((self.address, self.port), x)
-        
-
     def testing(self):
 
-        conn = self._sock.connect((self.address, self.port))
+        if self.tcp:
 
+            .connect((self.address, self.port))
+        else:
+            conn = socke
 
-    def __send(self):
+        size = PROTO_LEN
+        cmd = b""
+        while size > 0:
+            c = conn.read(PROTO_LEN)
+            size -= len(c)
+            cmd += c
+        
+        type_, packsize, packcount = PROTO_PACK.unpack(cmd)
 
+        if type_ == RECV:
+            self.recv()
+        elif type_ == SEND:
+            self.send()
+        else:
+            print("未定义的操作类型。", file=sys.stderr)
+            client.close()
+
+    def tcp_send(self, conn):
         print("测试发送。。。")
         c = 0 
         for _ in range(self.count):
             start = time.time()
-            self._send(self._datapack)
+            conn.send(self._datapack)
             end = time.time()
             c += 1
             t = end - start
             if 1 <= t:
-                print("接收速度：{} pack/s {} KB/s ".format(c, c * self.packsize))
+                print("发送速度：{} pack/s {}/s ".format(c, self.__data_unit(c * self.packsize)))
                 c = 0
             else:
-                print("接收速度：{} pack/s {} KB/s ".format(c, c * self.packsize / t))
+                print("发送速度：{} pack/s {}/s ".format(c, self.__data_unit(c * self.packsize / t)))
                 c = 0
 
-    def __recv(self):
-
+    def tcp_recv(self):
         print("测试接收。。。")
         c = 0 
         for _ in range(self.count):
@@ -83,26 +89,30 @@ class Nettest:
             c += 1
             t = end - start
             if 1 <= t:
-                print("接收速度：{} pack/s {} KB/s ".format(c, c * self.packsize))
+                print("接收速度：{} pack/s {}/s ".format(c, self.__data_unit(c * self.packsize)))
                 c = 0
             else:
-                print("接收速度：{} pack/s {} KB/s ".format(c, c * self.packsize / t))
+                print("接收速度：{} pack/s {}/s ".format(c, self.__data_unit(c * self.packsize / t)))
                 c = 0
 
-    def __select_rs(self, conn):
-
-        data = conn.read(4)
-
-        if self._recv == data:
-            self.recv()
-        elif self._send == data:
-            self.send()
-        else:
-            print(f"错误的标识头：{data}，关闭连接。")
-            client.close()
 
     def close(self):
         self._sock.close()
+
+    def __data_unit(self, size):
+        """
+        size: 数据量
+        return: 23K or 1M or 1021M or 1.23G
+        """
+        
+        if 0<= size < 1024: # B
+            return "{}B".format(size)
+        elif 1024 <= size <= 1048576: # KB
+            return "{}KB".format(round(size / 1024, 2))
+        elif 1048576<= size < 1073741824: # MB
+            return "{}MB".format(round(size / 1048576, 2))
+        elif 1048576 <= size: # < 1099511627776: # GB
+            return "{}GB".format(round(size / 1073741824, 2))
 
 
 def tcp_server(address, port, ipv6):
@@ -231,7 +241,7 @@ def main():
 
     parse.add_argument("--ipv6", action="store_true", help="使用 ipv6 否则 ipv4 (default: ipv4)")
 
-    parse.add_argument("--port", type=int, help="指定端口")
+    parse.add_argument("--port", type=int, default=6789, help="指定端口(default: 6789)")
 
     parse.add_argument("--server", action="store_true", help="启动测试server。(如果设置这项，就只有ipv46选项有用)")
 
@@ -239,7 +249,7 @@ def main():
 
     parse.add_argument("--send", action="store_true", help="测试发送数据")
 
-    parse.add_argument("host", nargs="?", help="target address")
+    parse.add_argument("address", nargs="?", help="target address")
 
     args = parse.parse_args()
     #print(args);sys.exit(0)
@@ -252,6 +262,9 @@ def main():
 
         sys.exit(0)
 
+    if args.tcp:
+        if args.ipv6:
+            net =Nettest(args.address, args.port, args.size, args.count, args.time)
 
 
 if __name__ == "__main__":
