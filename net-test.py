@@ -37,6 +37,9 @@ class Nettest:
         self.address = address
         self.packsize = packsize
         self.packcount = packcount
+
+        self.datasum = packsize * packcount
+
         self.time = time_
         self.tcp = tcp
         self.ipv6 = ipv6
@@ -79,21 +82,23 @@ class Nettest:
         self.sock.send(PROTO_PACK.pack(CLIENT_SEND, self.packsize, self.packcount))
 
         c = 0 
+        datasum = 0
         start = time.time()
         for _ in range(self.packcount):
             self.sock.send(self._datapack)
             end = time.time()
             c += 1
+            datasum += self.packsize
             t = end - start
             if t >= 1:
-                print("发送速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
                 c = 0
                 start = end
 
         # 如果上面在1秒钟内发送完成。这里可以补上。
         t = end - start
         if 0 < t <= 1:
-            print("发送速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
 
         self.sock.close()
 
@@ -107,6 +112,7 @@ class Nettest:
         self.sock.send(PROTO_PACK.pack(CLIENT_RECV, self.packsize, self.packcount))
 
         c = 0 
+        datasum = 0
         start = time.time()
         client_reset = False
         for _ in range(self.packcount):
@@ -120,21 +126,22 @@ class Nettest:
                     print("TCP: 接收测试完成...")
                     client_reset = True
                     break
-
+            
             if client_reset:
                 break
 
+            datasum += self.packsize
             end = time.time()
             c += 1
             t = end - start
             if t >= 1:
-                print("接收速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
                 c = 0
                 start = end
 
         t = end - start
         if 0 < t:
-            print("接收速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
 
 
         self.sock.close()
@@ -146,20 +153,22 @@ class Nettest:
         self.sock.sendto(PROTO_PACK.pack(CLIENT_SEND, self.packsize, self.packcount), (self.address, self.port))
 
         c = 0 
+        datasum = 0
         start = time.time()
         for _ in range(self.packcount):
             self.sock.sendto(self._datapack, (self.address, self.port))
             end = time.time()
             c += 1
+            datasum += self.packsize
             t = end - start
             if t >= 1:
-                print("接收速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
                 c = 0
                 start = end
 
         t = end - start
         if 0 < t:
-            print("接收速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
 
         self.sock.sendto(EOF, (self.address, self.port))
 
@@ -171,6 +180,7 @@ class Nettest:
 
         c = 0
         start = time.time()
+        datasum = 0
         client_reset = False
         for _ in range(self.packcount):
             # 接收一个完整的包
@@ -186,18 +196,19 @@ class Nettest:
             if client_reset:
                 break
 
+            datasum += self.packsize
             end = time.time()
 
             c += 1
             t = end - start
             if 1 >= t:
-                print("接收速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
                 start = end
                 c = 0
 
         t = end - start
         if 0 < t:
-            print("接收速度：{} pack/s {}/s ".format(round(c / t), self.__data_unit(c * self.packsize / t)))
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
 
 
     def close(self):
@@ -319,7 +330,7 @@ def udp_server(address, port, ipv6):
             size -= len(c)
             cmd += c
 
-        print(f"{addr}...已连接")
+        print(f"{addr}...")
 
         type_, packsize, packcount = PROTO_PACK.unpack(cmd)
         client_reset = False
@@ -351,6 +362,7 @@ def udp_server(address, port, ipv6):
             datapack = b"-" * packsize
             for i in range(packcount):
                 sock.sendto(datapack, addr)
+            print("UDP: 发送测试完成...")
         else:
             print("未定义的操作类型。", file=sys.stderr)
 
