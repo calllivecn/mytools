@@ -45,7 +45,8 @@ DNS.4=127.0.0.1' > "$1"
 # 一步完成。
 # 同时生成 RSA私钥和自签名证书, CA:True, x509v3
 keySelfCA(){
-	openssl req  -newkey rsa:2048 -x509 -nodes -keyout ca.key -days 5000 -out ca.crt #\
+	local ca_key="$1" ca_crt="$2"
+	openssl req  -newkey rsa:2048 -x509 -nodes -keyout "$ca_key" -days 5000 -out "$ca_crt" #\
 	#-subj "/C=$C/ST=$ST/O=$O/OU=$OU/CN=$CN"
 }
 
@@ -93,5 +94,35 @@ CA2crt_x509(){
 	rm -f "$EXT_FILE_CNF"
 }
 
-#keySelfCA
-keyRootCA
+
+using(){
+	echo "Uasge: ${0##*/} -c certificate.crt -k certificate.key"
+}
+
+
+while getopts ":hc:k:" opt
+do
+	case "$opt" in
+		h)
+			using
+			exit 0
+			;;
+		c)
+			cert="$OPTARG"
+			;;
+		k)
+			key="$OPTARG"
+			;;
+		?)
+			echo "Error option."
+			using
+			exit 0
+			;;
+	esac
+done
+
+shift $OPTIND
+
+keySelfCA "$key" "$cert"
+echo "$cert $key"
+#keyRootCA
