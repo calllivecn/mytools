@@ -49,8 +49,8 @@ def main():
             os.remove(args.jsonfile + "-bak")
 
     else:
-        pprint.pprint(json_data)
-
+        #pprint.pprint(json_data)
+        print(json.dumps(json_data, ensure_ascii=False, indent=4))
 
 
 if __name__ == "__main__":
