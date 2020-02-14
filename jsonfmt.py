@@ -25,15 +25,19 @@ def main():
     args = parse.parse_args()
     #print(args);sys.exit(0)
 
-    if args.jsonfile == "-":
-        json_data = json.load(sys.stdin.buffer)
-    else:
-        if os.path.isfile(args.jsonfile):
-            with open(args.jsonfile) as j:
-                json_data = json.load(j)
+    try:
+        if args.jsonfile == "-":
+            json_data = json.load(sys.stdin.buffer)
         else:
-            print("需要一个json文件.")
-            sys.exit(1)
+            if os.path.isfile(args.jsonfile):
+                with open(args.jsonfile) as j:
+                    json_data = json.load(j)
+            else:
+                print("需要一个json文件.")
+                sys.exit(1)
+    except json.decoder.JSONDecodeError:
+        print("Json 格式错误。")
+        sys.exit(1)
 
     if args.i:
         os.rename(args.jsonfile, args.jsonfile + "-bak")
