@@ -45,7 +45,7 @@ def getlogger(level=logging.INFO):
         "%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(fmt)
-    logger = logging.Logger("AES--stdout")
+    logger = logging.getLogger("AES")
     logger.setLevel(level)
     logger.addHandler(stream)
     return logger
@@ -313,7 +313,7 @@ class FileFormat:
             self.prompt = prompt
 
     def setHeader(self, fp):
-        logger.debug("set file header {}".format(fp))
+        logger.debug("set file header {}".format(fp.name))
         headers = self.file_fmt.pack(self.version, self.prompt_len)
         self.HEAD = headers + self.iv + self.salt + self.prompt
         return fp.write(self.HEAD)
