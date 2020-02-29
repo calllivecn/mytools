@@ -51,7 +51,7 @@ def input_check(lenght):
     while True:
         try:
             n = int(input('select your video [1-{}] :'.format(lenght)))
-        except ValueError as e:
+        except ValueError:
             print('please input number [1-{}]'.format(lenght))
             continue
         except KeyboardInterrupt:
