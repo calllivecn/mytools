@@ -7,7 +7,6 @@
 import os
 import sys
 import json
-import pprint
 
 import argparse
 
@@ -53,7 +52,6 @@ def main():
             os.remove(args.jsonfile + "-bak")
 
     else:
-        #pprint.pprint(json_data)
         print(json.dumps(json_data, ensure_ascii=False, indent=4))
 
 
