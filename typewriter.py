@@ -4,13 +4,35 @@
 # author calllivecn <c-all@qq.com>
 
 import re
-from selectors import DefaultSelector, EVENT_READ
+import sys
 import wave
+import logging
+from os import path
 from base64 import encodebytes, decodebytes
+from selectors import DefaultSelector, EVENT_READ
 
-import evdev
-from evdev import InputDevice
+import libevdev as ev
+from libevdev import (
+        Device,
+        InputEvent,
+        evbit,
+        )
 import pyaudio
+
+
+def getlogger(level=logging.DEBUG):
+    fmt = logging.Formatter(
+        "%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setFormatter(fmt)
+    logger = logging.getLogger("AES")
+    logger.setLevel(level)
+    logger.addHandler(stream)
+    return logger
+
+
+logger = getlogger()
+
 
 
 class Play:
@@ -20,9 +42,11 @@ class Play:
         self.CHANNELS = 1
         self.RATE = 16000
 
-        self._readWave(wave_file)
-
         self.pa = pyaudio.PyAudio()
+        self.__readWave(wave_file)
+
+        logger.debug(f"self.pa info: {self.pa}")
+
         self.stream = self.pa.open(
             format=self.FORMAT,
             channels=self.CHANNELS,
@@ -47,10 +71,10 @@ class Play:
         self.stream.close()
         self.pa.terminate()
 
-    def _readWave(self, wave_file):
+    def __readWave(self, wave_file):
+
         with wave.open(wave_file, 'rb') as wf:
-            self.FORMAT = self.pa.get_format_from_width(
-                wf.getsampwidth())
+            self.FORMAT = self.pa.get_format_from_width(wf.getsampwidth())
             self.CHANNELS = wf.getchannels()
             self.RATE = wf.getframerate()
 
@@ -64,10 +88,18 @@ class TouchKey:
     touchkey.start()
     '''
 
-    def __init__(self):
-        keyboards = self.checkKeyboard()
+    def __init__(self, keyboard=None):
+
+        self.keyboards = []
+
+        if keyboard is None:
+            self.getKeyboard()
+        else:
+            self.keyboards.append(keyboard)
+
         self.selector = DefaultSelector()
-        for kb in keyboards:
+
+        for kb in self.keyboards:
             self.selector.register(kb, EVENT_READ)
 
     def start(self, playFunc=None):
@@ -90,12 +122,32 @@ class TouchKey:
         else:
             return False
 
-    def checkKeyboard(self):
-        keyboards = []
-        for dev in [evdev.InputDevice(fn) for fn in evdev.list_devices()]:
-            if self.__re_true(dev.name):
-                keyboards.append(dev)
-        return keyboards
+    def __getKeyboard(self, baseinput="/dev/input"):
+        KEYBOARD = [EV_KEY.KEY_ESC, EV_KEY.KEY_SPACE,
+                EV_KEY.KEY_BACKSPACE, EV_KEY.KEY_0,
+                EV_KEY.KEY_A, EV_KEY.KEY_Z, EV_KEY.KEY_9, EV_KEY.KEY_F2]
+
+        for dev in os.listdir(baseinput):
+
+            devpath = path.join(baseinput, dev)
+            if not path.isdir(devpath):
+                devfd = open(devpath, 'rb')
+            else:
+                continue
+
+            try:
+                device = Device(devfd)
+            except (OSError, Exception) as e :
+                logger.debug("打开 {} 异常：{}".format(dev, e))
+                continue
+        
+            if all(map(device.has, KEYBOARD)):
+                logger.info("应该是键盘了: {} 路径：{}".format(device.name, device.fd))
+                self.keyboards.append(devpath)
+            #else:
+                #print("其他输入设备：", device.name, "路径：",device.fd)
+        
+            devfd.close()
 
     def audio(self, dev):
         for event in dev.read_loop():
@@ -110,6 +162,9 @@ class TouchKey:
 
 
 def main():
+
+    #logger.setLevel(logging.DEBUG)
+
     try:
         play = Play('1.wav')
         touchkey = TouchKey()
@@ -125,6 +180,6 @@ def main2():
 
 if __name__ == "__main__":
     try:
-        main2()
+        main()
     except KeyboardInterrupt:
         print("exit")
