@@ -56,5 +56,5 @@
 ### wakeonlan.py:
 * wake on LAN
 
-### myzip.py:
+### mygzip.py:
 * 写个gzip练练手。（更多--help)
