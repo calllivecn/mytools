@@ -61,7 +61,7 @@ def send_packet(macs, ipv4=True):
     for mac in macs:
         packet = magic_packet(mac)
 
-        print(packet)
+        #print(packet)
 
         if ipv4:
             sock.sendto(packet, (BROADCAST_IPv4, DEFAULT_PORT))
