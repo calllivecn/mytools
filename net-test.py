@@ -462,7 +462,7 @@ def main():
     else:
         op = 3
 
-    net = Nettest(args.address, args.port, args.size, args.count, args.time, proto)
+    net = Nettest(args.address, args.port, args.size, args.count, args.time, proto, args.ipv6)
 
     # 交换了 args.send args.recv
     net.testing(op) 
