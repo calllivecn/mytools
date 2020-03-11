@@ -24,11 +24,11 @@ class Interface:
     tx_speed = 0
     rx_packets = 0
     tx_packets = 0
-
-    TB = 1 << 40
-    GB = 1 << 30
-    MB = 1 << 20
-    KB = 1 << 10
+    
+    KB = 1<<10
+    MB = 1<<20
+    GB = 1<<30
+    TB = 1<<40
 
     def __init__(self, ifname, time=1, unit=KB):
         '''
@@ -104,23 +104,18 @@ class Interface:
         )
 
     def statistic_unit(self, num):
-        if num >= self.TB:
-            value = round(num/self.TB, 2)
-            unit = 'TB'
-        elif num >= self.GB:
-            value = round(num/self.GB, 2)
-            unit = 'GB'
-        elif num >= self.MB:
-            value = round(num/self.MB, 2)
-            unit = 'MB'
-        elif num >= self.KB:
-            value = round(num/self.KB, 2)
-            unit = 'KB'
-        else:
-            value = num
-            unit = 'B'
 
-        return str(value) + unit
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+
+            if num < 1024:
+                h = round(num, 2)
+                return f"{h}{unit}"
+            else:
+                num /= 1024
+
+        h = round(num, 2)
+        return f"{h}TB"
+
 
     def mod(self, s):
         if self.unit == self.KB:
