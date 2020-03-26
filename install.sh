@@ -11,12 +11,13 @@ libsh.sh
 netio.py
 randpw.py
 srm.py
-youtube-dl.sh
 ztar.py
 aes.py
 jsonfmt.py
 unmount.sh
 git-backup.sh
+'
+HOME_BIN='youtube-dl.sh
 '
 
 install_libs='libpy
