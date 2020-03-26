@@ -5,7 +5,7 @@
 
 PIP="pip3"
 
-manual_installed_packages=$($PIP list --not-required --format=freeze |awk -F'=' '{print $1}')
+manual_installed_packages=$($PIP list --user --not-required --format=freeze |awk -F'=' '{print $1}')
 
 for pack in $manual_installed_packages
 do
