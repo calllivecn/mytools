@@ -5,7 +5,7 @@
 set -e
 
 
-PROXY='socks5://127.0.0.1:1080'
+PROXY='socks5://127.0.0.1:10000'
 YOU='youtube-dl --proxy '"$PROXY"
 
 program="${0##*/}"
@@ -88,6 +88,7 @@ fi
 
 if [ $# -eq 1 ];then
 	echo "$1" |grep -E "^https://"
+fi
 
 
 check_YOUTUBE_QUEUE
