@@ -103,7 +103,7 @@ def remove_graph(names_depend_graph, depend_in_depend_graph):
     return removes
 
 
-# pip list --not-required
+# print pip list --not-required
 def pip_not_required(not_required):
     for n in sorted(not_required, key=lambda x: x.project_name.lower()):
         print("{}=={}".format(n.project_name,n.version))
