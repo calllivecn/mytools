@@ -298,7 +298,7 @@ def tcp_server(address, port, ipv6):
             for i in range(packcount):
                 try:
                     client.send(datapack)
-                except brokenPipeError:
+                except BrokenPipeError:
                     break
 
             print("TCP: 发送测试完成...")
