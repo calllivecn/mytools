@@ -113,7 +113,6 @@ def send_cmd(sock, cmd_number, cmd=None):
     logger.info(log)
 
     broadcast = ("<broadcast>",6789)
-    broadcast = ("225.255.255.255",6789)
     sock.sendto(data + cmd_byte, broadcast)
 
     return cmd_number, cmd
@@ -123,7 +122,7 @@ def send_cmd(sock, cmd_number, cmd=None):
 def broadcast_cmd(cmd_number, cmd):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(3)
+    sock.settimeout(1)
     send_cmd(sock, cmd_number, cmd)
     data, addr = sock.recvfrom(bufsize)
     logger.info(f"server: {addr} -- confirm: {data.decode()}")
@@ -178,23 +177,25 @@ def server():
     #    server.serve_forever()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     sock.bind(("", 6789))
 
-    data, addr = sock.recvfrom(bufsize)
-    # reply ok
-    sock.sendto(b"ok", addr)
+    while True:
+        data, addr = sock.recvfrom(bufsize)
+        # reply ok
+        sock.sendto(b"ok", addr)
 
-    versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
-    cmd = data[6:]
-    cmd = cmd.decode()
-    if cmd_number == 1:
-        logger.info(f"收到的shell指令：{cmd}")
-        shell(cmd)
-    else:
-        logger.info(f"收到指令号：{cmd_number}")
-
+        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
+        cmd = data[6:]
+        cmd = cmd.decode()
+        if cmd_number == 1:
+            logger.info(f"收到的shell指令：{cmd}")
+            shell(cmd)
+        else:
+            logger.info(f"收到指令号：{cmd_number}")
+    
+    sock.close()
 
 
 # server end
