@@ -113,7 +113,20 @@ def send_cmd(sock, cmd_number, cmd=None):
     logger.info(log)
 
     broadcast = ("<broadcast>",6789)
-    sock.sendto(data + cmd_byte, broadcast)
+
+    # retry 3 次
+    for i in range(1, 4):
+        sock.sendto(data + cmd_byte, broadcast)
+        try:
+            data, addr = sock.recvfrom(bufsize)
+        except socket.timeout:
+            logger.info(f"超时重试: {i}/3")
+            continue
+
+        logger.info(f"server: {addr} -- confirm: {data.decode()}")
+        break
+    
+    #logger.error(f"指定可能发送失败。")
 
     return cmd_number, cmd
 
@@ -124,8 +137,6 @@ def broadcast_cmd(cmd_number, cmd):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.settimeout(1)
     send_cmd(sock, cmd_number, cmd)
-    data, addr = sock.recvfrom(bufsize)
-    logger.info(f"server: {addr} -- confirm: {data.decode()}")
 
 # client end
 
@@ -148,54 +159,48 @@ class ThreadUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
 class UDPHandler(socketserver.DatagramRequestHandler):
 
-    def setup(self):
-        self.socket.setsocktop(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.socket.bind(("", 6789))
-
     def handle(self):
         logger.info(f"client: {self.client_address}")
-        data = self.request[0]
-        sock = self.request[1]
+
+        # self.packet 接收到的数据, self.socket 套接字。
 
         # reply ok
-        sock.sendto(b"ok", self.client_address)
+        self.socket.sendto(b"ok", self.client_address)
 
-        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
-        cmd = data[6:]
+        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(self.packet[:6])
+        cmd = self.packet[6:]
         cmd = cmd.decode()
         if cmd_number == 1:
             logger.info(f"收到的shell指令：{cmd}")
             shell(cmd)
         else:
             logger.info(f"收到指令号：{cmd_number}")
-
 
 
 def server():
-    #with ThreadUDPServer(("", 6789), UDPHandler) as server:
-    #    server.request_queue_size = 128
-    #    server.serve_forever()
+    with ThreadUDPServer(("", 6789), UDPHandler) as server:
+        server.request_queue_size = 128
+        server.serve_forever()
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
-    sock.bind(("", 6789))
+    #sock.bind(("", 6789))
 
-    while True:
-        data, addr = sock.recvfrom(bufsize)
-        # reply ok
-        sock.sendto(b"ok", addr)
+    #while True:
+    #    data, addr = sock.recvfrom(bufsize)
+    #    # reply ok
+    #    sock.sendto(b"ok", addr)
 
-        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
-        cmd = data[6:]
-        cmd = cmd.decode()
-        if cmd_number == 1:
-            logger.info(f"收到的shell指令：{cmd}")
-            shell(cmd)
-        else:
-            logger.info(f"收到指令号：{cmd_number}")
+    #    versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
+    #    cmd = data[6:]
+    #    cmd = cmd.decode()
+    #    if cmd_number == 1:
+    #        logger.info(f"收到的shell指令：{cmd}")
+    #        shell(cmd)
+    #    else:
+    #        logger.info(f"收到指令号：{cmd_number}")
     
-    sock.close()
+    #sock.close()
 
 
 # server end
