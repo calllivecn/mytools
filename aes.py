@@ -52,8 +52,8 @@ except ModuleNotFoundError:
     sys.exit(2)
 """
 
-CIPHER = 1  # 加密
-DECIPHER = 0  # 解密
+ENCRYPTO = 1  # 加密
+DECRYPTO = 0  # 解密
 
 FILE_VERSION = 0x01
 
@@ -565,9 +565,9 @@ def main():
 
         key = salt_key(password, header.salt)
         #aes = AES.new(key, AES.MODE_CFB, header.iv)
-        aes = OpenSSLCrypto("aes-256-cfb", key, header.iv, CIPHER)
-        # aes = OpenSSLCrypto("aes-256-cfb1", key, header.iv, CIPHER) # 这个好慢？？？
-        #aes = OpenSSLCrypto("aes-256-cfb8", key, header.iv, CIPHER)
+        aes = OpenSSLCrypto("aes-256-cfb", key, header.iv, ENCRYPTO)
+        # aes = OpenSSLCrypto("aes-256-cfb1", key, header.iv, ENCRYPTO) # 这个好慢？？？
+        #aes = OpenSSLCrypto("aes-256-cfb8", key, header.iv, ENCRYPTO)
 
         for data in iter(partial(in_stream.read, block), b""):
 
@@ -590,9 +590,9 @@ def main():
 
         key = salt_key(password, salt)
         #aes = AES.new(key, AES.MODE_CFB, iv)
-        aes = OpenSSLCrypto("aes-256-cfb", key, iv, DECIPHER)
-        # aes = OpenSSLCrypto("aes-256-cfb1", key, iv, DECIPHER) # 这个好慢？？？
-        #aes = OpenSSLCrypto("aes-256-cfb8", key, iv, DECIPHER)
+        aes = OpenSSLCrypto("aes-256-cfb", key, iv, DECRYPTO)
+        # aes = OpenSSLCrypto("aes-256-cfb1", key, iv, DECRYPTO) # 这个好慢？？？
+        #aes = OpenSSLCrypto("aes-256-cfb8", key, iv, DECRYPTO)
 
         for data in iter(partial(in_stream.read, block), b""):
             #de_data = aes.decrypt(data)

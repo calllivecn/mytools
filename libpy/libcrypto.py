@@ -4,34 +4,6 @@
 # author calllivecn <c-all@qq.com>
 
 
-import os
-import sys
-import time
-import getpass
-import logging
-import argparse
-import glob
-from hashlib import sha256
-from binascii import b2a_hex
-from functools import partial
-from threading import Thread
-
-from os.path import (
-                    split, 
-                    join, 
-                    isfile, 
-                    isdir, 
-                    exists, 
-                    abspath, 
-                    islink
-                )
-
-from struct import (
-                    Struct, 
-                    pack, 
-                    unpack
-                )
-
 from ctypes import CDLL
 from ctypes.util import find_library
 from ctypes import (
