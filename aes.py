@@ -109,25 +109,19 @@ class OpenSSLCrypto:
     4. 加解密初始化操作
 
         4.1. 执行加密初始化
-
-        int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl, const unsigned char *in, int inl)
+        int EVP_EncryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, ENGINE *impl, const unsigned char *key, const unsigned char *iv)
         返回值为1表示成功，0表示失败，可以使用上述错误处理中的函数打印错误信息
 
         参数	描述
         ctx	    加密上下文对象
-        out	    保存输出结果（密文）的缓冲区
-        outl	接收输出结果长度的指针
-        in	    包含输入数据（明文）的缓冲区
-        inl	    输入数据的长度
+        type	加密算法类型，在openssl/evp.h中定义了许多以算法命名的函数, 这些函数的返回值作为此参数使用，比如EVP_aes_256_cbc()
+        impl	利用硬件加密的接口，本文不讨论，设置为NULL
+        key	    用于加密的密钥
+        iv	    某些加密模式如cbc需要使用的初始化向量，如果加密模式不需要可以设置为NULL
 
         4.2. 执行解密初始化
         int EVP_DecryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, ENGINE *impl, const unsigned char *key, const unsigned char *iv)
         该函数对解密操作进行初始化，参数与返回值上述加密初始化函数描述相同
-
-        参数    描述
-        ctx	    加密上下文对象
-        out	    保存输出结果（密文）的缓冲区（注意这个指针要指向之前已经保存的加密数据的尾部）
-        outl	接收输出结果长度的指针
 
     5. 执行加解密操作
         注意, 输出缓冲区的长度需要比输入缓冲区大一个加密块，否则会出现错误。
@@ -190,6 +184,7 @@ class OpenSSLCrypto:
             out	    保存输出的密钥的缓冲区
 
     """
+
     ciphers = {
         'aes-128-cbc': (16, 16),
         'aes-192-cbc': (24, 16),
@@ -269,14 +264,14 @@ class OpenSSLCrypto:
             return cipher()
         return None
 
-    def __rand_bytes(self, length):
-        if not self.loaded:
-            self.__load_openssl()
-        self.buf = create_string_buffer(length)
-        r = self.libcrypto.RAND_bytes(self.buf, length)
-        if r <= 0:
-            raise Exception('RAND_bytes return error')
-        return self.buf.raw
+    #def __rand_bytes(self, length):
+    #    if not self.loaded:
+    #        self.__load_openssl()
+    #    self.buf = create_string_buffer(length)
+    #    r = self.libcrypto.RAND_bytes(self.buf, length)
+    #    if r <= 0:
+    #        raise Exception('RAND_bytes return error')
+    #    return self.buf.raw
 
     def __find_library_nt(self, name):
         # modified from ctypes.util
