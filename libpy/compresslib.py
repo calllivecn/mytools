@@ -43,7 +43,7 @@ class ReturnBlock:
             size += len(data)
             if size < self.block:
                 continue
-            elif size => self.block:
+            elif size >= self.block:
                 data, self.last = data[:self.block], data[self.block:]
                 return data
             #elif size == self.block:
