@@ -9,7 +9,7 @@ usage(){
 
 	echo "Usage: $PROGRAM [目录]"
 	echo "默认执行：${PROGRAM} $HOME/git-backup"
-	echo "$HOM/git-backup 放入在备份的仓库"
+	echo "$HOME/git-backup 放入在备份的仓库"
 }
 
 
