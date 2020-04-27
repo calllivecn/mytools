@@ -22,8 +22,8 @@ from ctypes import (
 ##################################
 
 
-ENCRYPTO = 1  # 加密
-DECRYPTO = 0  # 解密
+ENCRYPT = 1  # 加密
+DECRYPT = 0  # 解密
 
 
 class CryptoError(Exception):
@@ -161,7 +161,7 @@ class Crypto:
         'seed-cfb': (16, 16),
     }
 
-    def __init__(self, cipher_name, key, iv, op=1):
+    def __init__(self, cipher_name, key, iv, op=ENCRYPT):
 
         self._libcrypto = None
         self._loaded = False
@@ -180,7 +180,7 @@ class Crypto:
         if not cipher:
             cipher = self.__load_cipher(cipher_name)
         if not cipher:
-            raise CryptoError('cipher {} not found in libcrypto'.format(cipher_name))
+            raise CryptoError(f'cipher {cipher_name} not found in libcrypto')
 
         key_ptr = c_char_p(key)
         iv_ptr = c_char_p(iv)
@@ -190,12 +190,16 @@ class Crypto:
         if not self._ctx:
             raise CryptoError('can not create cipher context')
 
-        r = self._libcrypto.EVP_CipherInit_ex(self._ctx, cipher, None, key_ptr, iv_ptr, c_int(self.op))
+        if self.op == ENCRYPT:
+            r = self._libcrypto.EVP_EncryptInit_ex(self._ctx, cipher, None, key_ptr, iv_ptr)
+        else:
+            r = self._libcrypto.EVP_DecryptInit_ex(self._ctx, cipher, None, key_ptr, iv_ptr)
+
         if not r:
             self.__clean()
-            raise CryptoError('can not initialize cipher context')
+            raise CryptoError(f"can not initialize {cipher} cipher context")
 
-    def update(self, data):
+    def EncryptUpdate(self, data):
 
         cipher_out_len = c_long(0)
         l = len(data)
@@ -203,10 +207,26 @@ class Crypto:
         if self._buf_size < l:
             self._buf_size = l * 2
             self._buf = create_string_buffer(self._buf_size)
-        self._libcrypto.EVP_CipherUpdate(self._ctx, byref(self._buf),
+
+        self._libcrypto.EVP_EncryptUpdate(self._ctx, byref(self._buf),
                                         byref(cipher_out_len), c_char_p(data), l)
+
         # self.buf is copied to a str object when we access self.buf.raw
         return self._buf.raw[:cipher_out_len.value]
+
+    def DecryptUpdate(self, data):
+        cipher_out_len = c_long(0)
+        l = len(data)
+
+        if self._buf_size < l:
+            self._buf_size = l * 2
+            self._buf = create_string_buffer(self._buf_size)
+
+        self._libcrypto.EVP_DecryptUpdate(self._ctx, byref(self._buf),
+                                        byref(cipher_out_len), c_char_p(data), l)
+
+        return self._buf.raw[:cipher_out_len.value]
+
 
     def __load_cipher(self, cipher_name):
         func_name = 'EVP_' + cipher_name.replace('-', '_')
@@ -215,7 +235,6 @@ class Crypto:
             cipher.restype = c_void_p
             return cipher()
         return None
-
 
 
     def __load_openssl(self):
@@ -229,13 +248,16 @@ class Crypto:
             raise CryptoError('libcrypto(OpenSSL) not found')
 
         self._libcrypto.EVP_get_cipherbyname.restype = c_void_p
+
         self._libcrypto.EVP_CIPHER_CTX_new.restype = c_void_p
 
-        self._libcrypto.EVP_CipherInit_ex.argtypes = (c_void_p, c_void_p, c_char_p,
-                                                     c_char_p, c_char_p, c_int)
+        self._libcrypto.EVP_EncryptInit_ex.argtypes = (c_void_p, c_void_p, c_char_p, c_char_p)
 
-        self._libcrypto.EVP_CipherUpdate.argtypes = (c_void_p, c_void_p, c_void_p,
-                                                    c_char_p, c_int)
+        self._libcrypto.EVP_DecryptInit_ex.argtypes = (c_void_p, c_void_p, c_char_p, c_char_p)
+
+        self._libcrypto.EVP_EncryptUpdate.argtypes = (c_int, )
+
+        self._libcrypto.EVP_DecryptUpdate.argtypes = (c_int, )
 
         if hasattr(self._libcrypto, "EVP_CIPHER_CTX_cleanup"):
             self._libcrypto.EVP_CIPHER_CTX_cleanup.argtypes = (c_void_p,)
@@ -247,8 +269,8 @@ class Crypto:
         self._libcrypto.RAND_bytes.restype = c_int
         self._libcrypto.RAND_bytes.argtypes = (c_void_p, c_int)
 
-        if hasattr(self._libcrypto, 'OpenSSL_add_all_ciphers'):
-            self._libcrypto.OpenSSL_add_all_ciphers()
+        #if hasattr(self._libcrypto, 'OpenSSL_add_all_ciphers'):
+        #    self._libcrypto.OpenSSL_add_all_ciphers()
 
         self._buf = create_string_buffer(self._buf_size)
         self._loaded = True
@@ -286,15 +308,15 @@ def test():
 
     iv = b"fedcba987654321"
 
-    aes1 = Crypto("aes-256-cfb", key, iv, ENCRYPTO)
+    aes1 = Crypto("aes-256-cfb", key, iv, ENCRYPT)
 
-    en_data = aes1.update(data)
+    en_data = aes1.EncryptUpdate(data)
 
     print("数据长度：", len(data), "加密数据：", en_data)
 
-    aes2 = Crypto("aes-256-cfb", key, iv, DECRYPTO)
+    aes2 = Crypto("aes-256-cfb", key, iv, DECRYPT)
 
-    de_data = aes2.update(en_data)
+    de_data = aes2.DecryptUpdate(en_data)
 
     print("数据长度：", len(data), "解密数据：", de_data)
 
