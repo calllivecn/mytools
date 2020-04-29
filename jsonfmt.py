@@ -10,20 +10,15 @@ import json
 import argparse
 
 
-key_index = re.compile(r"(.*)\[([0-9]+)\]$")
+key_index = re.compile(r"([\w\d]+)(?:\[(\d+)\])?")
 
 def get_key_and_index(params):
-    keys = params.split(".")
-    lastkey = keys.pop()
+    key, index = key_index.match(params).groups()
 
-    result = key_index.match(lastkey)
-    if result is None:
+    if index is None:
         index = None
-    else:
-        lastkey, index = result.groups()
 
-    keys.append(lastkey)
-    return keys, index
+    return key, index
 
 
 def main():
@@ -38,14 +33,15 @@ def main():
 
     parse_exclusive.add_argument("-d", "--dot", action="append", default=[], help="拿到一个key的value.")
 
-    parse.add_argument("jsonfile", nargs="?", default="-", help="filename json")
-
     parse.add_argument("--debug",action="store_true", help="debug parse")
+
+    parse.add_argument("jsonfile", nargs="?", default="-", help="filename json")
 
     args = parse.parse_args()
     
     if args.debug:
-        print(args);sys.exit(0)
+        print(args)
+        sys.exit(0)
 
     try:
         if args.jsonfile == "-":
@@ -78,26 +74,27 @@ def main():
         if 0 >= len(args.dot):
             print(json.dumps(json_data, ensure_ascii=False, indent=4))
         else:
-
             #print(f"json: {json_data}")
+            for dots in args.dot:
 
-            for dot in args.dot:
-                keys, index = get_key_and_index(dot)
                 value = json_data
-                try:
-                    for key in keys:
+
+                for dot in dots.split("."):
+
+                    key, index = get_key_and_index(dot)
+
+                    try:
+
                         value = value[key]
 
-                    if index:
-                        value = value[int(index)]
-                    
-                    if isinstance(value, dict):
-                        print(f"{dot}: {json.dumps(value, ensure_ascii=False, indent=4)}")
-                    else:
-                        print(f"{dot}: {value}")
+                        if index:
+                            value = value[int(index)]
 
-                except Exception as e:
-                    print(f"解析 {dot}: key or index error.")
+                    except Exception as e:
+                        print(f"解析 {dot}: key or index error.")
+
+                    print(f"{json.dumps(value, ensure_ascii=False, indent=4)}")
+
 
 
 if __name__ == "__main__":
