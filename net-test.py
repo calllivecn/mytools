@@ -268,13 +268,16 @@ def tcp_server(address, port, ipv6):
         size = PROTO_LEN
         while size > 0:
             c = client.recv(size)
-            if c == b"":
+
+            if not c:
                 recv_empty = True
                 break
+
             size -= len(c)
             cmd += c
 
         if recv_empty:
+            client.close()
             continue
 
         type_, packsize, packcount = PROTO_PACK.unpack(cmd)
