@@ -120,7 +120,7 @@ def main():
 
     if len(videos) == 1:
         video = video_list()[0]
-    elif len(video) > 1:
+    elif len(videos) > 1:
         video = select_video(videos)
     elif len(videos) < 1:
         print('not found display device.')
