@@ -263,12 +263,19 @@ def tcp_server(address, port, ipv6):
         client, addr = sock.accept()
         print(f"{addr}...已连接")
 
+        recv_empty = False
         cmd = b"" #getpack(client.recv, PROTO_LEN)
         size = PROTO_LEN
         while size > 0:
             c = client.recv(size)
+            if c == b"":
+                recv_empty = True
+                break
             size -= len(c)
             cmd += c
+
+        if recv_empty:
+            continue
 
         type_, packsize, packcount = PROTO_PACK.unpack(cmd)
 
