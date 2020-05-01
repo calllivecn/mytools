@@ -199,7 +199,13 @@ class Crypto:
             self.__clean()
             raise CryptoError(f"can not initialize {cipher} cipher context")
 
-    def EncryptUpdate(self, data):
+    def Update(self, data):
+        if self.op == 1:
+            return self.__EncryptUpdate(data)
+        elif self.op == 0:
+            return self.__DecryptUpdate(data)
+
+    def __EncryptUpdate(self, data):
 
         cipher_out_len = c_long(0)
         l = len(data)
@@ -214,7 +220,7 @@ class Crypto:
         # self.buf is copied to a str object when we access self.buf.raw
         return self._buf.raw[:cipher_out_len.value]
 
-    def DecryptUpdate(self, data):
+    def __DecryptUpdate(self, data):
         cipher_out_len = c_long(0)
         l = len(data)
 
@@ -310,13 +316,13 @@ def test():
 
     aes1 = Crypto("aes-256-cfb", key, iv, ENCRYPT)
 
-    en_data = aes1.EncryptUpdate(data)
+    en_data = aes1.Update(data)
 
     print("数据长度：", len(data), "加密数据：", en_data)
 
     aes2 = Crypto("aes-256-cfb", key, iv, DECRYPT)
 
-    de_data = aes2.DecryptUpdate(en_data)
+    de_data = aes2.Update(en_data)
 
     print("数据长度：", len(data), "解密数据：", de_data)
 
