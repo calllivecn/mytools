@@ -326,6 +326,33 @@ def test():
 
     print("数据长度：", len(data), "解密数据：", de_data)
 
+    # 加密一段随机数据 5M
+    data_size = 5*(1<<20)
+    chunk = 1<<10
+
+    # 生成原始数据
+    c = data_size
+    with open("/dev/urandom" ,"rb") as f, open("source_data", "wb") as f2:
+        while c > 0:
+            f2.write(f.read(chunk))
+            c -= chunk
+    
+    # 加密原始数据
+    Encrypt = Crypto("aes-256-cfb", key, iv, ENCRYPT)
+    c = data_size
+    with open("source_data", "rb") as f, open("encrypt_data", "wb") as f2:
+        while c > 0:
+            f2.write(Encrypt.Update(f.read(chunk)))
+            c -= chunk
+
+    # 解密原始数据
+    Decrypt = Crypto("aes-256-cfb", key, iv, DECRYPT)
+    c = data_size
+    with open("encrypt_data", "rb") as f, open("decrypt_data", "wb") as f2:
+        while c > 0:
+            f2.write(Decrypt.Update(f.read(chunk)))
+            c -= chunk
+
 
 if __name__ == "__main__":
     test()
