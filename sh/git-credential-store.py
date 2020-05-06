@@ -5,13 +5,14 @@
 
 
 import sys
+import json
 import logging
 from os import path
-from urllib import parse
+from urllib import parse, request
 from socketserver import ThreadingMixIn
 from http.server import (
                         HTTPServer,
-                        BaseHTTPRequestHander,
+                        BaseHTTPRequestHandler,
                         )
 
 def getlogger(level=logging.INFO):
@@ -65,7 +66,7 @@ class Store:
     def __init__(self, cfg=None):
 
         if cfg is None:
-            filename, ext = path.splitext(filename)
+            filename, ext = path.splitext(path.basename(sys.argv[0]))
             filename += ".json"
             self._cfg = path.join(path.expanduser("~"), ".config", filename)
         else:
@@ -78,8 +79,9 @@ class Store:
             with open(self._cfg) as f:
                 try:
                     self._store_js = json.load(f)
-                except Exception:
+                except Exception as e:
                     logger.warning(f"{self._cfg}: 不是一个json文件。")
+                    #logger.warning(f"{e}")
                     sys.exit(1)
         else:
             logger.error(f"请配置 {self._cfg} 配置文件")
@@ -97,10 +99,12 @@ class Store:
             for index, credential in enumerate(self._store_js[token]):
                 if protocol == credential["protocol"] and host == credential["host"]:
                     return index, credential
+            return -1, {}
         else:
-            for index, credential in self._store_js[token]:
+            for index, credential in enumerate(self._store_js[token]):
                 if protocol == credential["protocol"] and host == credential["host"] and username == credential["username"]:
                     return index, credential
+            return -1, {}
 
     def store(self, token, protocol, host, username, password):
         d = {
@@ -113,7 +117,7 @@ class Store:
         self._store_js[token].append(d)
     
     def erase(self, token, protocol, host, username):
-        index, _ self.get(token, protocol, host, username)
+        index, _ = self.get(token, protocol, host, username)
         self._store_js.pop(index)
         self.__save()
 
@@ -130,61 +134,63 @@ class Handler(BaseHTTPRequestHandler):
     """
 
     def do_POST(self):
-        self.__authorization()
+        if not self.__authorization():
+            return
 
         #pr = parse.urlparse(self.path)
         #print(pr)
 
-        js = self.rfile.read(int(self.headers["Content-Length"]))
+        js = self.__get_body_js()
 
         try:
-            proto = js_data["protocol"]
-            host = js_data["host"]
-            username = js_data.get("username")
+            proto = js["protocol"]
+            host = js["host"]
+            username = js.get("username")
         except KeyError:
             self.send_response(400)
             self.end_headers()
             return 
 
-        index, credential = self._store.get(self.headers["AUTH"], proto, host, username)
+        index, credential = store.get(self.headers["AUTH"], proto, host, username)
 
-        self__response(credential)
+        self.__response(credential)
     
 
     def do_PUT(self):
-        self.__authorization()
+        if not self.__authorization():
+            return
 
-        js = self.rfile.read(int(self.headers["Content-Length"]))
-        js_data = json.loads(js)
+        js = self.__get_body_js()
 
         try:
             token = self.headers["AUTH"]
-            proto = js_data["protocol"]
-            host = js_data["host"]
-            username = js_data["username"]
-            password = js_data["password"]
+            proto = js["protocol"]
+            host = js["host"]
+            username = js["username"]
+            password = js["password"]
         except KeyError:
-            self.send_response(400)
-            self.end_headers()
+            self.send_error(400, "Params Error")
             return 
 
-        self._store.store(token, proto, host, username, password)
+        store.store(token, proto, host, username, password)
     
 
     def do_DELETE(self):
-        self.__authorization()
 
+        if not self.__authorization():
+            return
+
+        js = self.__get_body_js()
         try:
             token = self.headers["AUTH"]
-            proto = js_data["protocol"]
-            host = js_data["host"]
-            username = js_data["username"]
+            proto = js["protocol"]
+            host = js["host"]
+            username = js["username"]
         except KeyError:
-            self.send_response(400)
-            self.end_headers()
+            self.send_error(400, "Delete Error")
             return
         
-        self._store.erase(token, proto, host, username)
+        store.erase(token, proto, host, username)
 
         self.send_response(200)
         self.end_headers()
@@ -202,24 +208,80 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", length)
         self.end_headers()
 
-        self.wfile.write(js)
+        self.wfile.write(js.encode("utf-8"))
+
+    def __get_body_js(self):
+
+        length = self.headers.get("Content-Length")
+
+        if length is None:
+            return None
+        else:
+            js = json.loads(self.rfile.read(int(length)))
+            return js
 
     def __authorization(self):
         self.protocol_version = "HTTP/1.1"
 
         auth = self.headers.get("AUTH") 
-        if auth in self._store:
-            pass
+        if auth in store._store_js:
+            return True
         else:
-            self.send_response(401)
-            self.end_headers()
+            self.send_error(401, "authorization Error")
+            return False
 
-    def add_store(self, store):
-        self._store = store
+    #def add_store(self, store):
+    #    self._store = store
 
 
+# client struct
+class client:
 
-def server(port, cfg):
+
+    def __init__(self, token, url):
+
+        self.token = token
+        self.url = url
+
+        self.protocol = protocol
+        self.host = host
+        self.username = username
+
+    def get(self, protocol, host, username=None):
+
+        js = {
+                "protocol": protocol,
+                "host": host,
+                }
+
+        if username is not None:
+            js["userame"] = username
+
+        self.__request(js, "POST")
+
+    def store(self, protocol, host, username, passwrod):
+        js = {
+                "protocol": protocol,
+                "host": host,
+                "username": username,
+                "password": password,
+                }
+
+        self.__request(js, "PUT")
+
+    def erase(self):
+        js
+
+    def __request(self, js, method):
+        js = json.dumps(js, ensure_ascii=False)
+        req = request.Request(self.url, js, method=method)
+
+        reuslt = rquest.urlopen(req)
+
+        self.credential = json.loads(result.read())
+
+
+def server(port, cfg=None):
     store = Store(cfg)
 
     httpd = ThreadHTTPServer(("", port), Handler)
@@ -229,6 +291,15 @@ def server(port, cfg):
         httpd.server_close()
         logger.info("Close server.")
 
+
+def client():
+    
+
+
+if __name__ == "__main__":
+    store = Store()
+    server(6789)
+    sys.exit(0)
 
 
 for arg in sys.argv:
