@@ -342,7 +342,7 @@ def stdin_in():
     stdin = sys.stdin
     d = {}
     for param in iter(partial(stdin.readline), "\n"):
-        print(f"param: {param.encode()}")
+        #print(f"param: {param.encode()}")
         k, v = param.rsplit("\n")[0].split("=")
         d[k] = v
 
