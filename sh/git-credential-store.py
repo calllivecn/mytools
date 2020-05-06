@@ -137,7 +137,7 @@ class Store:
 
     def __save(self):
         with open(self._cfg, "w") as f:
-            json.dump(f, ensure_ascii=False, indent=4)
+            json.dump(self._store_js , f, ensure_ascii=False, indent=4)
 
 
 class Handler(BaseHTTPRequestHandler):
