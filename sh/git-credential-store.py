@@ -146,8 +146,6 @@ class Handler(BaseHTTPRequestHandler):
     """
 
     def do_POST(self):
-        global store
-
         if not self.__authorization():
             return
 
@@ -187,6 +185,9 @@ class Handler(BaseHTTPRequestHandler):
             return 
 
         self.server.store.store(token, proto, host, username, password)
+
+        self.send_response(200)
+        self.end_headers()
     
 
     def do_DELETE(self):
@@ -271,7 +272,7 @@ class Client:
         for k, v in self.credential.items():
             print(f"{k}={v}")
 
-    def store(self, protocol, host, username, passwrod):
+    def store(self, protocol, host, username, password):
         js = {
                 "protocol": protocol,
                 "host": host,
@@ -304,7 +305,6 @@ class Client:
             sys.exit(1)
 
         self.credential = json.loads(result.read())
-
 
 
 def server(port, cfg=None):
@@ -346,6 +346,8 @@ def check_cfg(filepath):
     if path.exists(filepath):
         return filepath
     else:
+        with open(filepath, "w") as f:
+            f.write("""{"url": <url>, "token": <token>}""")
         raise argparse.ArgumentTypeError(f"初始化 {filepath} 配置，请按照提示修改。")
 
 def main():
