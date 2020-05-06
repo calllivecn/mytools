@@ -127,6 +127,8 @@ class Store:
         }
 
         self._store_js[token].append(d)
+
+        self.__save()
     
     def erase(self, token, protocol, host, username):
         index, _ = self.get(token, protocol, host, username)
