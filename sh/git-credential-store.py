@@ -294,6 +294,20 @@ class Client:
 
         self.__request(js, "DELETE")
 
+    
+    #def __chech_response(self, js, method):
+    #    js = json.dumps(js, ensure_ascii=False)
+    #    #logger.info(f"请求：{js}")
+    #    
+    #    req = request.Request(self.url, js.encode("utf-8"), headers={"AUTH": self.token}, method=method)
+
+    #    result = request.urlopen(req)
+
+    #    if result.getcode() != 200:
+    #        logger.error("请求服务器出错")
+    #        sys.exit(1)
+        
+
     def __request(self, js, method):
         js = json.dumps(js, ensure_ascii=False)
         #logger.info(f"请求：{js}")
@@ -306,7 +320,8 @@ class Client:
             logger.error("请求服务器出错")
             sys.exit(1)
 
-        self.credential = json.loads(result.read())
+        if result.headers.get("Content-Length"):
+            self.credential = json.loads(result.read())
 
 
 def server(port, cfg=None):
