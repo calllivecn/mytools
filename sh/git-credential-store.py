@@ -132,7 +132,7 @@ class Store:
     
     def erase(self, token, protocol, host, username):
         index, _ = self.get(token, protocol, host, username)
-        self._store_js.pop(index)
+        self._store_js[token].pop(index)
         self.__save()
 
     def __save(self):
@@ -284,13 +284,16 @@ class Client:
 
         self.__request(js, "PUT")
 
-    def erase(self, protocol, host, username=None):
+    def erase(self, protocol, host, username=None, password=None):
         js = {
                 "protocol": protocol,
                 "host": host,
                 }
         if username is not None:
             js["username"] = username
+
+        if password is not None:
+            js["password"] = password
 
         self.__request(js, "DELETE")
 
@@ -356,7 +359,7 @@ def client(operation, url, token):
     elif operation == "store":
         http.store(**js)
     elif operation == "erase":
-        https.erase(**js)
+        http.erase(**js)
 
 
 def check_cfg(filepath):
