@@ -4,10 +4,13 @@
 # author calllivecn <c-all@qq.com>
 
 
+import os
 import sys
 import json
 import logging
+import argparse
 from os import path
+from functools import partial
 from urllib import parse, request
 from socketserver import ThreadingMixIn
 from http.server import (
@@ -31,37 +34,44 @@ logger = getlogger()
 class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
+    store = None
+
+    def add_store(self, store):
+        self.store = store
+
 class Request:
 
     def __init__(self, path):
         pass
 
-class Store:
-    """
-    credential:
-    {
-        "<token>":[
+
+CFG_EXAMPLE="""{
+    "<token>":[
+        {
+            "protocol": "http",
+            "host": "github.com",
+            "username": "<username>",
+            "password": "<password>"
+        },
             {
-                "protocol": "http", # or https
-                "host": "github.com", # gihtub.com:443, 不同。
-                "username": "<username>",
-                "password": "<password>"
-            },
-                {
-                "protocol": "http", # or https
-                "host": "xxxx.com", # gihtub.com:443, 不同。
-                "username": "<username>",
-                "password": "<password>"
-            },
-        ]},
-        "<token2>":[
+            "protocol": "http",
+            "host": "xxxx.com",
+            "username": "<username>",
+            "password": "<password>"
+        }
+    ],
+    "<token2>":[
             {
-                "protocol": "<protocol3>"
-                ....
+                "protocol": "<protocol3>",
+                "host": "github.com",
+                "username": "username",
+                "password": "xxxxxx"
             }
-        ]
-    ]}
-    """
+    ]
+}
+"""
+
+class Store:
 
     def __init__(self, cfg=None):
 
@@ -81,10 +91,12 @@ class Store:
                     self._store_js = json.load(f)
                 except Exception as e:
                     logger.warning(f"{self._cfg}: 不是一个json文件。")
-                    #logger.warning(f"{e}")
+                    logger.warning(f"{e}")
                     sys.exit(1)
         else:
-            logger.error(f"请配置 {self._cfg} 配置文件")
+            with open(self._cfg, "w") as f:
+                f.write(CFG_EXAMPLE)
+                logger.error(f"请按 {self._cfg} 内容提示配置 。")
             sys.exit(1)
 
     def get(self, token, protocol, host, username=None):
@@ -134,6 +146,8 @@ class Handler(BaseHTTPRequestHandler):
     """
 
     def do_POST(self):
+        global store
+
         if not self.__authorization():
             return
 
@@ -151,7 +165,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return 
 
-        index, credential = store.get(self.headers["AUTH"], proto, host, username)
+        index, credential = self.server.store.get(self.headers["AUTH"], proto, host, username)
 
         self.__response(credential)
     
@@ -172,11 +186,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(400, "Params Error")
             return 
 
-        store.store(token, proto, host, username, password)
+        self.server.store.store(token, proto, host, username, password)
     
 
     def do_DELETE(self):
-
         if not self.__authorization():
             return
 
@@ -190,7 +203,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(400, "Delete Error")
             return
         
-        store.erase(token, proto, host, username)
+        self.server.store.erase(token, proto, host, username)
 
         self.send_response(200)
         self.end_headers()
@@ -224,7 +237,7 @@ class Handler(BaseHTTPRequestHandler):
         self.protocol_version = "HTTP/1.1"
 
         auth = self.headers.get("AUTH") 
-        if auth in store._store_js:
+        if auth in self.server.store._store_js:
             return True
         else:
             self.send_error(401, "authorization Error")
@@ -235,17 +248,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # client struct
-class client:
+class Client:
 
 
-    def __init__(self, token, url):
+    def __init__(self, url, token):
 
         self.token = token
         self.url = url
-
-        self.protocol = protocol
-        self.host = host
-        self.username = username
 
     def get(self, protocol, host, username=None):
 
@@ -259,6 +268,9 @@ class client:
 
         self.__request(js, "POST")
 
+        for k, v in self.credential.items():
+            print(f"{k}={v}")
+
     def store(self, protocol, host, username, passwrod):
         js = {
                 "protocol": protocol,
@@ -269,51 +281,123 @@ class client:
 
         self.__request(js, "PUT")
 
-    def erase(self):
-        js
+    def erase(self, protocol, host, username=None):
+        js = {
+                "protocol": protocol,
+                "host": host,
+                }
+        if username is not None:
+            js["username"] = username
+
+        self.__request(js, "DELETE")
 
     def __request(self, js, method):
         js = json.dumps(js, ensure_ascii=False)
-        req = request.Request(self.url, js, method=method)
+        #logger.info(f"请求：{js}")
+        
+        req = request.Request(self.url, js.encode("utf-8"), headers={"AUTH": self.token}, method=method)
 
-        reuslt = rquest.urlopen(req)
+        result = request.urlopen(req)
+
+        if result.getcode() != 200:
+            logger.error("请求服务器出错")
+            sys.exit(1)
 
         self.credential = json.loads(result.read())
+
 
 
 def server(port, cfg=None):
     store = Store(cfg)
 
     httpd = ThreadHTTPServer(("", port), Handler)
+    httpd.add_store(store)
     try:
         httpd.serve_forever()
     finally:
         httpd.server_close()
         logger.info("Close server.")
 
+def stdin_in():
+    stdin = sys.stdin
+    d = {}
+    for param in iter(partial(stdin.readline), "\n"):
+        print(f"param: {param.encode()}")
+        k, v = param.rsplit("\n")[0].split("=")
+        d[k] = v
 
-def client():
-    
+    return d
 
+def client(operation, url, token):
+
+    http = Client(url, token)
+
+    js = stdin_in()
+
+    if operation == "get":
+        http.get(**js)
+    elif operation == "store":
+        http.store(**js)
+    elif operation == "erase":
+        https.erase(**js)
+
+
+def check_cfg(filepath):
+    if path.exists(filepath):
+        return filepath
+    else:
+        raise argparse.ArgumentTypeError(f"初始化 {filepath} 配置，请按照提示修改。")
+
+def main():
+
+    parse = argparse.ArgumentParser(
+            usage="\n%(prog)s --server [config path]\n"
+            "%(prog)s --url <url>  --token <token>\n"
+            "%(prog)s --cfg <config path>",
+            epilog="author: calllivecn"
+            "<https://github.com/calllivecn/mytools/sh/%(prog)s>"
+            )
+    #group = parse.add_mutually_exclusive_group()
+
+    parse.add_argument("--server", default="not", help="启动server 模式")
+    parse.add_argument("--port", type=int, default=11540, help="启动server时的 port (default:11540)")
+
+    parse.add_argument("--url", help="git credential 服务器地址")
+    parse.add_argument("--token", help="git credential 服务器token")
+    parse.add_argument("--cfg", type=check_cfg, help="""client 配置文件。例如：{"url": "<https://my-git-credential.com/", "token": "token"}""")
+
+    parse.add_argument("operation", nargs="?", default=None, choices=["get", "store", "erase"], help="client 操作")
+
+    parse.add_argument("--parse", action="store_true", help="debug parse")
+
+    args = parse.parse_args()
+
+    if args.parse:
+        print(args)
+        sys.exit(0)
+
+    if args.server != "not":
+        server(args.port, args.server)
+
+    if args.operation is None:
+        logger.error(f"client模式，必需要有操作指令，choices: get, store, erase")
+        sys.exit(2)
+
+    if args.url is not None and args.token is not None:
+        client(args.operation, args.url, args.token)
+
+    elif args.cfg:
+        with open(args.cfg) as f:
+            try:
+                cfg = json.load(f)
+            except json.decoder.JSONDecodeError:
+                logger.error(f"{filepath}: 配置错误，请按照 --help 提示修改。")
+                sys.exit(1)
+
+        client(args.operation, cfg["url"], cfg["token"])
+    else:
+        logger.error("什么情况？？？")
+        sys.exit(6)
 
 if __name__ == "__main__":
-    store = Store()
-    server(6789)
-    sys.exit(0)
-
-
-for arg in sys.argv:
-    if arg == "--server":
-        server()
-        sys.exit(0)
-    elif arg == "--token":
-        token = arg
-    elif arg == "--token-cfg":
-        cfg = arg
-    elif arg == "get" or arg == "store" or arg == "erse":
-        cmd = arg
-    else:
-        _, PROGRAM = path.split(sys.argv[0])
-        usage = f"Usage: {PROGRAM} [ <--server> | [ --token | --token-cfg <filepath>] ]"
-        logger.error(usage)
-        sys.exit(1)
+    main()
