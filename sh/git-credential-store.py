@@ -341,9 +341,9 @@ def server(port, cfg=None):
 def stdin_in():
     stdin = sys.stdin
     d = {}
-    for param in iter(partial(stdin.readline), "\n"):
-        #print(f"param: {param.encode()}")
-        k, v = param.rsplit("\n")[0].split("=")
+    for param in iter(partial(stdin.readline), os.linesep):
+        #print(f"param: {param.encode()}", file=sys.stderr)
+        k, v = param.rsplit(os.linesep)[0].split("=")
         d[k] = v
 
     return d
