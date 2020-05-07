@@ -271,8 +271,11 @@ class Client:
 
         self.__request(js, "POST")
 
+        result = ""
         for k, v in self.credential.items():
-            print(f"{k}={v}")
+            result += f"{k}={v}\n"
+
+        print(result)
 
     def store(self, protocol, host, username, password):
         js = {
@@ -342,7 +345,7 @@ def stdin_in():
     stdin = sys.stdin
     d = {}
     for param in iter(partial(stdin.readline), os.linesep):
-        #print(f"param: {param.encode()}", file=sys.stderr)
+        #print(f"param: {param.encode()}") #, file=sys.stderr)
         k, v = param.rsplit(os.linesep)[0].split("=")
         d[k] = v
 
