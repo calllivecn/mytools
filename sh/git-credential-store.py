@@ -10,7 +10,6 @@ import json
 import logging
 import argparse
 from os import path
-from functools import partial
 from urllib import parse, request
 from socketserver import ThreadingMixIn
 from http.server import (
@@ -343,11 +342,11 @@ def server(port, cfg=None):
         logger.info("Close server.")
 
 def stdin_in():
-    stdin = sys.stdin
     d = {}
-    for param in iter(partial(stdin.readline), os.linesep):
-        #print(f"param: {param.encode()}", file=sys.stderr)
-        if param == "":
+    while True:
+        param = sys.stdin.readline()
+        # git credential 会以换行符，或NUL字符结束输入
+        if param == os.linesep or param == "":
             break
         k, v = param.rsplit(os.linesep)[0].split("=")
         d[k] = v
