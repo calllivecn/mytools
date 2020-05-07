@@ -21,9 +21,11 @@ from http.server import (
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter(
         "%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(fmt)
-    logger = logging.getLogger("AES")
+
+    logger = logging.getLogger()
     logger.setLevel(level)
     logger.addHandler(stream)
     return logger
@@ -271,11 +273,10 @@ class Client:
 
         self.__request(js, "POST")
 
-        result = ""
+        #logger.info(f"{self.credential}")
         for k, v in self.credential.items():
-            result += f"{k}={v}\n"
-
-        print(result)
+            print(f"{k}={v}")
+        print()
 
     def store(self, protocol, host, username, password):
         js = {
@@ -345,10 +346,11 @@ def stdin_in():
     stdin = sys.stdin
     d = {}
     for param in iter(partial(stdin.readline), os.linesep):
-        #print(f"param: {param.encode()}") #, file=sys.stderr)
+        #print(f"param: {param.encode()}", file=sys.stderr)
+        if param == "":
+            break
         k, v = param.rsplit(os.linesep)[0].split("=")
         d[k] = v
-
     return d
 
 def client(operation, url, token):
