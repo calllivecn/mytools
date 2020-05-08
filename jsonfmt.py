@@ -91,7 +91,10 @@ def main():
                     print(f"解析 {dot}: key or index error.")
                     sys.exit(1)
 
-            print(f"{json.dumps(value, ensure_ascii=False, indent=4)}")
+            if isinstance(value, dict):
+                print(f"{json.dumps(value, ensure_ascii=False, indent=4)}")
+            else:
+                print(value)
 
 
 
