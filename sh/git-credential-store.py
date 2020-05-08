@@ -191,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return 
 
-        index, credential = self.server.store.get(self.headers["AUTH"], proto, host, username)
+        credential = self.server.store.get(self.headers["AUTH"], proto, host, username)
 
         self.__response(credential)
     
@@ -272,9 +272,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(401, "authorization Error")
             return False
 
-    #def add_store(self, store):
-    #    self._store = store
-
 
 # client struct
 class Client:
@@ -325,19 +322,6 @@ class Client:
 
         self.__request(js, "DELETE")
 
-    
-    #def __chech_response(self, js, method):
-    #    js = json.dumps(js, ensure_ascii=False)
-    #    #logger.info(f"请求：{js}")
-    #    
-    #    req = request.Request(self.url, js.encode("utf-8"), headers={"AUTH": self.token}, method=method)
-
-    #    result = request.urlopen(req)
-
-    #    if result.getcode() != 200:
-    #        logger.error("请求服务器出错")
-    #        sys.exit(1)
-        
 
     def __request(self, js, method):
         js = json.dumps(js, ensure_ascii=False)
