@@ -295,8 +295,11 @@ class Client:
         self.__request(js, "POST")
 
         #logger.info(f"{self.credential}")
-        for k, v in self.credential.items():
-            print(f"{k}={v}")
+        if self.credential is None:
+            pass
+        else:
+            for k, v in self.credential.items():
+                print(f"{k}={v}")
         print()
 
     def store(self, protocol, host, username, password):
