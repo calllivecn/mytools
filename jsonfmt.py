@@ -92,6 +92,7 @@ def main():
 
                     except Exception as e:
                         print(f"解析 {dot}: key or index error.")
+                        sys.exit(1)
 
                     print(f"{json.dumps(value, ensure_ascii=False, indent=4)}")
 
