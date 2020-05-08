@@ -22,24 +22,24 @@ def get_key_and_index(params):
 
 
 def main():
-    parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-i]|[-d <key1.key2> ...] [filename.json]",
+    parse = argparse.ArgumentParser(usage="%(prog)s [-i]|[-d <key1.key2>] [filename.json]",
             description="格式化输出json文件。",
-            epilog="none"
+            epilog="author: calllivecn <https://github.com/calllivecn/mytools/"
             )
 
     parse_exclusive = parse.add_mutually_exclusive_group()
 
     parse_exclusive.add_argument("-i", action="store_true", help="直接格式后写回文件")
 
-    parse_exclusive.add_argument("-d", "--dot", action="append", default=[], help="拿到一个key的value.")
+    parse_exclusive.add_argument("-d", "--dot", metavar="", default="", help="拿到一个key的value.")
 
-    parse.add_argument("--debug",action="store_true", help="debug parse")
+    parse.add_argument("--parse", action="store_true", help="debug parse")
 
     parse.add_argument("jsonfile", nargs="?", default="-", help="filename json")
 
     args = parse.parse_args()
     
-    if args.debug:
+    if args.parse:
         print(args)
         sys.exit(0)
 
@@ -75,25 +75,26 @@ def main():
             print(json.dumps(json_data, ensure_ascii=False, indent=4))
         else:
             #print(f"json: {json_data}")
-            for dots in args.dot:
+            value = json_data
+            for dot in args.dot.split("."):
 
-                value = json_data
+                key, index = get_key_and_index(dot)
 
-                for dot in dots.split("."):
+                try:
 
-                    key, index = get_key_and_index(dot)
+                    value = value[key]
 
-                    try:
+                    if index:
+                        value = value[int(index)]
 
-                        value = value[key]
+                except Exception as e:
+                    print(f"解析 {dot}: key or index error.")
+                    sys.exit(1)
 
-                        if index:
-                            value = value[int(index)]
-
-                    except Exception as e:
-                        print(f"解析 {dot}: key or index error.")
-
-                    print(f"{json.dumps(value, ensure_ascii=False, indent=4)}")
+            if isinstance(value, dict):
+                print(f"{json.dumps(value, ensure_ascii=False, indent=4)}")
+            else:
+                print(value)
 
 
 
