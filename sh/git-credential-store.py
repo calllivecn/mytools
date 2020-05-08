@@ -18,11 +18,12 @@ from http.server import (
                         )
 
 def getlogger(level=logging.INFO):
-    fmt = logging.Formatter(
-        "%(asctime)s %(filename)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 
     stream = logging.StreamHandler(sys.stdout)
+
     stream.setFormatter(fmt)
+
 
     logger = logging.getLogger()
     logger.setLevel(level)
@@ -47,28 +48,28 @@ class Request:
 
 
 CFG_EXAMPLE="""{
-    "<token>":[
-        {
+    "<token>": {
+        "<protocol>+<host>+[usernam]":{
             "protocol": "http",
             "host": "github.com",
             "username": "<username>",
             "password": "<password>"
         },
-            {
+        "<protocol>+<host>+[usernam]":{
             "protocol": "http",
             "host": "xxxx.com",
             "username": "<username>",
             "password": "<password>"
         }
-    ],
-    "<token2>":[
-            {
+    },
+    "<token2>":{
+        "<protocol>+<host>+[usernam]":{
                 "protocol": "<protocol3>",
                 "host": "github.com",
                 "username": "username",
                 "password": "xxxxxx"
             }
-    ]
+    }
 }
 """
 
@@ -106,18 +107,20 @@ class Store:
         host: 是 github.com or github.com:443 这俩种是不同的。 对应你的 git remote -v
         username: 同一个地址的不同用户，（也许有用）
 
-        return: index, credential
+        return: {<info>} or None
         """
         if username is None:
-            for index, credential in enumerate(self._store_js[token]):
-                if protocol == credential["protocol"] and host == credential["host"]:
-                    return index, credential
-            return -1, {}
+            key = protocol + host
+            if key in self._store_js[token]:
+                return self._store_js[token][key]
+            else:
+                return
         else:
-            for index, credential in enumerate(self._store_js[token]):
-                if protocol == credential["protocol"] and host == credential["host"] and username == credential["username"]:
-                    return index, credential
-            return -1, {}
+            key = protocol + host + username
+            if key in self._store_js[token]:
+                return self._store_js[token][key]
+            else:
+                return
 
     def store(self, token, protocol, host, username, password):
         d = {
@@ -127,14 +130,36 @@ class Store:
             "password": password,
         }
 
-        self._store_js[token].append(d)
+        key1 = protocol + host
+        key2 = protocol + host + username
 
-        self.__save()
+        if key1 in self._store_js[token]:
+            pass
+        else:
+            self._store_js[token][key1] = d
+            self.__save()
+
+        if key2 in self._store_js[token]:
+            pass
+        else:
+            self._store_js[token][key2] = d
+            self.__save()
     
-    def erase(self, token, protocol, host, username):
-        index, _ = self.get(token, protocol, host, username)
-        self._store_js[token].pop(index)
-        self.__save()
+    def erase(self, token, protocol, host, username=None):
+
+
+        if username is None:
+            key = protocol + host
+            if key in self._store_js[token]:
+                self._store_js[token].pop(key)
+                self.__save()
+
+        else:
+            key = protocol + host + username
+
+            if key in self._store_js[token]:
+                self._store_js[token].pop(key)
+                self.__save()
 
     def __save(self):
         with open(self._cfg, "w") as f:
@@ -148,7 +173,6 @@ class Handler(BaseHTTPRequestHandler):
     method DELETE: 对应 git credential-store erase
     """
 
-    def do_POST(self):
         if not self.__authorization():
             return
 
