@@ -22,18 +22,18 @@ def get_key_and_index(params):
 
 
 def main():
-    parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-i]|[-d <key1.key2> ...] [filename.json]",
+    parse = argparse.ArgumentParser(usage="%(prog)s [-i]|[-d <key1.key2>] [filename.json]",
             description="格式化输出json文件。",
-            epilog="none"
+            epilog="author: calllivecn <https://github.com/calllivecn/mytools/"
             )
 
     parse_exclusive = parse.add_mutually_exclusive_group()
 
     parse_exclusive.add_argument("-i", action="store_true", help="直接格式后写回文件")
 
-    parse_exclusive.add_argument("-d", "--dot", default="", help="拿到一个key的value.")
+    parse_exclusive.add_argument("-d", "--dot", metavar="", default="", help="拿到一个key的value.")
 
-    parse.add_argument("--parse",action="store_true", help="debug parse")
+    parse.add_argument("--parse", action="store_true", help="debug parse")
 
     parse.add_argument("jsonfile", nargs="?", default="-", help="filename json")
 
