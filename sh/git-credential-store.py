@@ -173,6 +173,7 @@ class Handler(BaseHTTPRequestHandler):
     method DELETE: 对应 git credential-store erase
     """
 
+    def do_POST(self):
         if not self.__authorization():
             return
 
