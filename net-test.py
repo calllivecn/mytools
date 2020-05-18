@@ -292,7 +292,7 @@ def tcp_server(address, port, ipv6):
                     data = client.recv(size)
                     size -= len(data)
                     if not data:
-                        print("TCP: 接收测试完成...")
+                        print("TCP: 接收测试中断...")
                         client_reset = True
                         break
 
