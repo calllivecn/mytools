@@ -14,6 +14,7 @@ srm.py
 ztar.py
 aes.py
 jsonfmt.py
+registry.py
 unmount.sh
 git-backup.sh
 '
@@ -38,6 +39,7 @@ for f in $install_lists
 do
 	install -m755 "$f" "$bin/$f"
 done
+
 for d in $install_libs
 do
 	cp -av "$d" "$bin"
