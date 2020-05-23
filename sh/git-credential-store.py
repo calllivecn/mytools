@@ -6,6 +6,7 @@
 
 import os
 import sys
+import ssl
 import json
 import logging
 import argparse
@@ -17,8 +18,10 @@ from http.server import (
                         BaseHTTPRequestHandler,
                         )
 
-def getlogger(level=logging.INFO):
+def getlogger(level=logging.INFO, logfile=None):
+
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+
 
     stream = logging.StreamHandler(sys.stdout)
 
@@ -83,6 +86,8 @@ class Store:
             self._cfg = path.join(path.expanduser("~"), ".config", filename)
         else:
             self._cfg =  cfg
+
+        logger.debug(f"--cfg: {self._cfg}")
         
         self._store_js = {}
 
@@ -277,10 +282,17 @@ class Handler(BaseHTTPRequestHandler):
 class Client:
 
 
-    def __init__(self, url, token):
+    def __init__(self, url, token, unverify=False):
 
         self.token = token
         self.url = url
+
+        self._unverify = unverify
+
+        # 留着，以后给客户端 添加自定义 证书
+        #self._certfile = certfile
+        #self._keyfile = keyfile
+        #self._ca_cert = ca_cert
 
     def get(self, protocol, host, username=None):
 
@@ -329,10 +341,15 @@ class Client:
     def __request(self, js, method):
         js = json.dumps(js, ensure_ascii=False)
         #logger.info(f"请求：{js}")
-        
+
         req = request.Request(self.url, js.encode("utf-8"), headers={"AUTH": self.token}, method=method)
 
-        result = request.urlopen(req)
+        if self._unverify:
+            ctx = ssl.SSLContext()
+            result = request.urlopen(req, context=ctx)
+        else:
+            result = request.urlopen(req)
+
 
         if result.getcode() != 200:
             logger.error("请求服务器出错")
@@ -342,12 +359,21 @@ class Client:
             self.credential = json.loads(result.read())
 
 
-def server(port, cfg=None):
+def server(addr="0.0.0.0", port=11540, cfg=None, certfile=None, keyfile=None, ca_cert=None):
+
     store = Store(cfg)
 
-    httpd = ThreadHTTPServer(("", port), Handler)
+    httpd = ThreadHTTPServer((addr, port), Handler)
+
+    if certfile and keyfile:
+        httpd.socket = ssl.wrap_socket(httpd.socket, certfile=certfile, keyfile=keyfile,
+                                    server_side=True, ssl_version=ssl.PROTOCOL_TLS_SERVER,
+                                    ca_certs=ca_cert)
+
     httpd.add_store(store)
+
     try:
+        logger.info(f"listen: {addr}:{port}")
         httpd.serve_forever()
     finally:
         httpd.server_close()
@@ -364,9 +390,9 @@ def stdin_in():
         d[k] = v
     return d
 
-def client(operation, url, token):
+def client(operation, url, token, unverify):
 
-    http = Client(url, token)
+    http = Client(url, token, unverify)
 
     js = stdin_in()
 
@@ -383,25 +409,44 @@ def check_cfg(filepath):
         return filepath
     else:
         with open(filepath, "w") as f:
-            f.write("""{"url": <url>, "token": <token>}""")
+            f.write("""{"url": <url>, "token": <token>, "unverify": False}""")
         raise argparse.ArgumentTypeError(f"初始化 {filepath} 配置，请按照提示修改。")
+
+def fileexists(filename):
+    if path.exists(filename):
+        return filename
+    else:
+        raise argparse.ArgumentTypeError(f"{filename} 不是一个文件.")
 
 def main():
 
     parse = argparse.ArgumentParser(
-            usage="\n%(prog)s --server [config path]\n"
-            "%(prog)s --url <url>  --token <token>\n"
-            "%(prog)s --cfg <config path>",
+            usage="\n%(prog)s --server --cfg <config path>\n"
+            "%(prog)s --url <url>  --token <token> [--unverify]\n"
+            "%(prog)s --cfg <config path> [--unverify]",
             epilog="author: calllivecn"
             "<https://github.com/calllivecn/mytools/sh/%(prog)s>"
             )
     #group = parse.add_mutually_exclusive_group()
 
-    parse.add_argument("--server", default="not", help="启动server 模式")
+    parse.add_argument("--server", action="store_true", help="启动 server 模式")
+
+    parse.add_argument("--address", default="0.0.0.0", help="要监听的地址 default: 0.0.0.0")
+
     parse.add_argument("--port", type=int, default=11540, help="启动server时的 port (default:11540)")
 
+    parse.add_argument("--certfile", type=fileexists, help="证书文件")
+
+    parse.add_argument("--keyfile", type=fileexists, help="私钥文件")
+
+    parse.add_argument("--ca_cert", type=fileexists, help="ca文件")
+
+    parse.add_argument("--unverify", action="store_true", help="不验证https服务器")
+
     parse.add_argument("--url", help="git credential 服务器地址")
+
     parse.add_argument("--token", help="git credential 服务器token")
+
     parse.add_argument("--cfg", type=check_cfg, help="""client 配置文件。例如：{"url": "<https://my-git-credential.com/", "token": "token"}""")
 
     parse.add_argument("operation", nargs="?", default=None, choices=["get", "store", "erase"], help="client 操作")
@@ -414,15 +459,26 @@ def main():
         print(args)
         sys.exit(0)
 
-    if args.server != "not":
-        server(args.port, args.server)
+    if args.server:
+
+        if args.cfg is None:
+            print(f"服务器模式下， --cfg 是必须")
+            sys.exit(1)
+
+        if args.ca_cert:
+            server(args.address, args.port, args.cfg, certfile=args.certfile, keyfile=args.keyfile, ca_cert=args.ca_cert)
+        elif args.certfile and args.keyfile:
+            server(args.address, args.port, args.cfg, certfile=args.certfile, keyfile=args.keyfile)
+        else:
+            server(args.address, args.port, args.cfg)
+
 
     if args.operation is None:
         logger.error(f"client模式，必需要有操作指令，choices: get, store, erase")
         sys.exit(2)
 
     if args.url is not None and args.token is not None:
-        client(args.operation, args.url, args.token)
+        client(args.operation, args.url, args.token, args.unverify)
 
     elif args.cfg:
         with open(args.cfg) as f:
@@ -432,7 +488,7 @@ def main():
                 logger.error(f"{filepath}: 配置错误，请按照 --help 提示修改。")
                 sys.exit(1)
 
-        client(args.operation, cfg["url"], cfg["token"])
+        client(args.operation, cfg["url"], cfg["token"], cfg.get("unverify", False))
     else:
         logger.error("什么情况？？？")
         sys.exit(6)
