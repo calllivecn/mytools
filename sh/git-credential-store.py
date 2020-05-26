@@ -184,11 +184,28 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):
+        self.worker("POST")
+
+    def do_PUT(self):
+        self.worker("PUT")
+
+    def do_DELETE(self):
+        self.worker("DELETE")
+
+    def worker(self, method):
         if not self.__authorization():
             return
 
-        #pr = parse.urlparse(self.path)
-        #print(pr)
+        logger.info(f"client address: {self.client_address[0]} {method}")
+
+        if method == "POST":
+            self.post()
+        elif method == "PUT":
+            self.put()
+        elif method == "DELETE":
+            self.delete()
+
+    def post(self):
 
         js = self.__get_body_js()
 
@@ -206,9 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         self.__response(credential)
     
 
-    def do_PUT(self):
-        if not self.__authorization():
-            return
+    def put(self):
 
         js = self.__get_body_js()
 
@@ -228,10 +243,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
     
 
-    def do_DELETE(self):
-        if not self.__authorization():
-            return
-
+    def delete(self):
         js = self.__get_body_js()
         try:
             token = self.headers["AUTH"]
@@ -278,8 +290,6 @@ class Handler(BaseHTTPRequestHandler):
         auth = self.headers.get("AUTH") 
 
         logger.debug(f"HTTP header AUTH: {auth}")
-
-        logger.info(f"client address: {self.client_address[0]}")
 
         if auth in self.server.store._store_js:
             return True
