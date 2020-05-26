@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-from multiprocessing import Process, Queue
-from os import kill, remove
-from threading import Thread
-from hashlib import sha512
 import os
 import re
 import sqlite3 as sql
+from os import kill, remove
+from functools import partial
+from threading import Thread
+from hashlib import sha512
 from tempfile import mktemp
 from argparse import ArgumentParser
 from os.path import abspath, isdir, join, isfile, islink, getsize, basename
+from multiprocessing import Process, Queue
 SIGTERM = 15  # from signal import SIGTERM
 
 CPU_COUNT = os.cpu_count()
@@ -219,10 +220,9 @@ class Sql3():
 
     def __sha512(self, file_):
         sha = sha512()
-        READ_BUF = 4*1 << 20
+        READ_BUF = 1<<20
         with open(file_, 'rb') as f:
-            data = True
-            while data:
+            for data in iter(partial(f.read, READ_BUF), b""):
                 data = f.read(READ_BUF)
                 sha.update(data)
         # return sha.hexdigest()
