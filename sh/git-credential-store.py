@@ -8,6 +8,7 @@ import os
 import sys
 import ssl
 import json
+import socket
 import logging
 import argparse
 from os import path
@@ -22,11 +23,9 @@ def getlogger(level=logging.INFO, logfile=None):
 
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
 
-
     stream = logging.StreamHandler(sys.stdout)
 
     stream.setFormatter(fmt)
-
 
     logger = logging.getLogger()
     logger.setLevel(level)
@@ -43,6 +42,10 @@ class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
 
     def add_store(self, store):
         self.store = store
+
+    # 关闭自带的 sys.stderr log
+    def log_message(self):
+        pass
 
 class Request:
 
@@ -90,6 +93,8 @@ class Store:
         logger.debug(f"--cfg: {self._cfg}")
         
         self._store_js = {}
+
+        logger.debug(f"store json: {json.dumps(self._store_js, ensure_ascii=False, indent=4)}")
 
         if path.exists(self._cfg):
             
@@ -177,6 +182,10 @@ class Handler(BaseHTTPRequestHandler):
     method PUT: 对应 git credential-store store
     method DELETE: 对应 git credential-store erase
     """
+
+    # 关闭自带的 sys.stderr log
+    def log_message(self):
+        pass
 
     def do_POST(self):
         if not self.__authorization():
@@ -271,10 +280,17 @@ class Handler(BaseHTTPRequestHandler):
         self.protocol_version = "HTTP/1.1"
 
         auth = self.headers.get("AUTH") 
+
+        logger.debug(f"HTTP header AUTH: {auth}")
+
+        logger.info(f"{self.client_address}: {self.method}")
+
         if auth in self.server.store._store_js:
             return True
         else:
-            self.send_error(401, "authorization Error")
+            msg = "authorization Error"
+            self.send_error(401, msg)
+            logger.info(f"{self.client_address} {self.method} {msg}")
             return False
 
 
@@ -364,6 +380,9 @@ def server(addr="0.0.0.0", port=11540, cfg=None, certfile=None, keyfile=None, ca
     store = Store(cfg)
 
     httpd = ThreadHTTPServer((addr, port), Handler)
+
+    httpd.allow_reuse_address = True
+    httpd.request_queue_size = 512
 
     if certfile and keyfile:
         httpd.socket = ssl.wrap_socket(httpd.socket, certfile=certfile, keyfile=keyfile,
@@ -485,7 +504,7 @@ def main():
             try:
                 cfg = json.load(f)
             except json.decoder.JSONDecodeError:
-                logger.error(f"{filepath}: 配置错误，请按照 --help 提示修改。")
+                logger.error(f"{args.cfg}: 配置错误，请按照 --help 提示修改。")
                 sys.exit(1)
 
         client(args.operation, cfg["url"], cfg["token"], cfg.get("unverify", False))
