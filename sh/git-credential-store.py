@@ -196,7 +196,12 @@ class Handler(BaseHTTPRequestHandler):
         if not self.__authorization():
             return
 
-        logger.info(f"client address: {self.client_address[0]} {method}")
+        try:
+            client_address = self.headers["X-Real-IP"]
+        except Exception:
+            client_address = self.client_address[0]
+
+        logger.info(f"client address: {client_address} {method}")
 
         if method == "POST":
             self.post()
@@ -286,6 +291,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def __authorization(self):
         self.protocol_version = "HTTP/1.1"
+
+        logger.debug(f"request headers:\n{self.headers}")
 
         auth = self.headers.get("AUTH") 
 
@@ -478,11 +485,18 @@ def main():
 
     parse.add_argument("--parse", action="store_true", help="debug parse")
 
+    parse.add_argument("--debug", action="store_true", help="debug run")
+
     args = parse.parse_args()
 
     if args.parse:
         print(args)
         sys.exit(0)
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    #else:
+        #logger = getlogger()
 
     if args.server:
 
