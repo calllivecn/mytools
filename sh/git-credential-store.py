@@ -43,10 +43,6 @@ class ThreadHTTPServer(ThreadingMixIn, HTTPServer):
     def add_store(self, store):
         self.store = store
 
-    # 关闭自带的 sys.stderr log
-    def log_message(self):
-        pass
-
 class Request:
 
     def __init__(self, path):
@@ -184,7 +180,7 @@ class Handler(BaseHTTPRequestHandler):
     """
 
     # 关闭自带的 sys.stderr log
-    def log_message(self):
+    def log_message(self, *args):
         pass
 
     def do_POST(self):
