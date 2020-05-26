@@ -84,7 +84,7 @@ class Store:
     def __init__(self, cfg=None):
 
         if cfg is None:
-            filename, ext = path.splitext(path.basename(sys.argv[0]))
+            filename, _ = path.splitext(path.basename(sys.argv[0]))
             filename += ".json"
             self._cfg = path.join(path.expanduser("~"), ".config", filename)
         else:
@@ -283,14 +283,14 @@ class Handler(BaseHTTPRequestHandler):
 
         logger.debug(f"HTTP header AUTH: {auth}")
 
-        logger.info(f"{self.client_address}: {self.method}")
+        logger.info(f"client address: {self.client_address[0]}")
 
         if auth in self.server.store._store_js:
             return True
         else:
             msg = "authorization Error"
             self.send_error(401, msg)
-            logger.info(f"{self.client_address} {self.method} {msg}")
+            logger.info(f"{self.client_address[0]} {msg}")
             return False
 
 
