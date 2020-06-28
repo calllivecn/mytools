@@ -19,7 +19,13 @@ GITUSER="$1"
 
 REPO="$2"
 
-git clone "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
+BRANCH="$3"
+
+if [ -n "$BRANCH" ];then
+	git clone -b "$BRANCH" "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
+else
+	git clone "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
+fi
 
 cd "${REPO}"
 
