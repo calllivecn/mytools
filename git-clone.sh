@@ -23,5 +23,5 @@ git clone "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
 
 cd "${REPO}"
 
-git remote origin set-url "https://github.com/${GITUSER}/${REPO}.git"
+git remote set-url origin "https://github.com/${GITUSER}/${REPO}.git"
 
