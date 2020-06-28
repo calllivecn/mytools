@@ -1,4 +1,5 @@
-#!/bin/bash # date 2020-06-28 10:39:54
+#!/bin/bash 
+# date 2020-06-28 10:39:54
 # author calllivecn <c-all@qq.com>
 
 set -e
@@ -18,9 +19,15 @@ GITUSER="$1"
 
 REPO="$2"
 
-git clone "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
+BRANCH="$3"
+
+if [ -n "$BRANCH" ];then
+	git clone -b "$BRANCH" "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
+else
+	git clone "https://github.com.cnpmjs.org/${GITUSER}/${REPO}.git"
+fi
 
 cd "${REPO}"
 
-git remote origin set-url "https://github.com/${GITUSER}/${REPO}.git"
+git remote set-url origin "https://github.com/${GITUSER}/${REPO}.git"
 
