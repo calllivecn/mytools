@@ -31,5 +31,7 @@ else
 	git clone "https://github.com.cnpmjs.org${path}"
 fi
 
+cd "$REPO"
+
 git remote set-url origin "https://github.com${path}"
 
