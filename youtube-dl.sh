@@ -6,6 +6,7 @@ set -e
 
 
 PROXY='socks5://127.0.0.1:10000'
+PROXY='http://127.0.0.1:9999'
 YOU='youtube-dl --proxy '"$PROXY"
 
 program="${0##*/}"
