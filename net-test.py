@@ -8,9 +8,10 @@ import sys
 import time
 import socket
 import struct
+import signal
 import threading
-
 import argparse
+from itertools import count
 
 
 BUF=8*(1<<20) # 8K
@@ -32,7 +33,7 @@ EOF = struct.pack(">H", 0xffff)
 
 class Nettest:
 
-    def __init__(self, address, port, packsize, packcount, time_, tcp=True, ipv6=False):
+    def __init__(self, address, port, packsize, packcount, time_=False, tcp=True, ipv6=False):
         self.port = port
         self.address = address
         self.packsize = packsize
@@ -81,10 +82,15 @@ class Nettest:
 
         self.sock.send(PROTO_PACK.pack(CLIENT_SEND, self.packsize, self.packcount))
 
+        if self.time:
+            iterator = count()
+        else:
+            iterator = range(self.packcount)
+
         c = 0 
         datasum = 0
         start = time.time()
-        for _ in range(self.packcount):
+        for _ in iterator:
             self.sock.send(self._datapack)
             end = time.time()
             c += 1
@@ -111,12 +117,18 @@ class Nettest:
 
         self.sock.send(PROTO_PACK.pack(CLIENT_RECV, self.packsize, self.packcount))
 
+        if self.time:
+            iterator = count()
+        else:
+            iterator = range(self.packcount)
+
+
         c = 0 
         datasum = 0
         start = time.time()
         client_reset = False
-        for _ in range(self.packcount):
 
+        for _ in iterator:
             # 接收一个完整的包
             pack = self.packsize
             while pack > 0:
@@ -399,6 +411,8 @@ def server(address, port=6789, ipv6=False):
         tcp.join()
         udp.join()
 
+def countdown():
+    sys.exit(0)
 
 def integer(number):
     i = int(number)
@@ -443,7 +457,13 @@ def main():
     args = parse.parse_args()
 
     if args.parse:
-        print(args);sys.exit(0)
+        print(args)
+        sys.exit(0)
+    
+    if args.time > 0:
+        signal.signal(signal.SIGALRM, countdown)
+        signal.alarm(args.time)
+        print(f"{args.time} 秒钟后退出")
 
     if args.server:
         try:
