@@ -3,45 +3,61 @@
 # date 2020-01-09 00:19:05
 # author calllivecn <c-all@qq.com>
 
+"""
+TCP:
+    发送测试：
+        client --> struct.pack("!HH", typ=TCP_SEND, packsize)
+        server --> 一直接收。直到收到typ = EOF时。结束
+    
+    接收测试：
+        情形1（使用 --datasum 时，也是默认选项）：
+            client --> struct.pack("!HHI", typ=TCP_SEND, packsize, datasum)
+            server --> 在发送完数据后，向client发送EOF结束。
+
+        情形2（使用 --time 时）： 这种。。。。先算了，使用数据总量来跑吧
+            client --> struct.pack("!HHI", typ=TCP_SEND_TIME, packsize, time)
+            server --> 在时间到后，向client发送EOF结束。
+"""
+
 import os
 import sys
 import time
 import socket
 import struct
-import signal
+#import signal
 import threading
 import argparse
-from itertools import count
 
 
 BUF=8*(1<<20) # 8K
 
-PROTO_PACK = struct.Struct(">HHI")
+CMD_PACK = struct.Struct("!HHI")
+PROTO_PACK = struct.Struct(">HH")
+PROTO_LEN = PROTO_PACK.size
 # H 操作类型
 # H packsize
-# L 要发送的数据包的数量
 
-PROTO_LEN = PROTO_PACK.size
+# 这里的定义都是相对于client来说的
+# typ 字段
+TCP_SEND = 0x0001
+TCP_RECV = 0x0002
 
-SERVER_RECV = 0x0001
-SERVER_SEND = 0x0002
-CLIENT_RECV = SERVER_SEND
-CLIENT_SEND = SERVER_RECV
+TCP_RECV_TIME = 0x0003
 
-EOF = struct.pack(">H", 0xffff)
-# UDP 一个数据包的开头2byte为 0xffff 表示，连接结束。
+END = 0xffff
+# 一个数据包的开头2byte为 0xffff 表示，接收或者发送结束。 0x0000为填充数据
+EOF = struct.pack(">HH", 0xffff, 0x0000)
 
 class Nettest:
 
-    def __init__(self, address, port, packsize, packcount, time_=False, tcp=True, ipv6=False):
+    def __init__(self, address, port, packsize, datasum, tcp=True, ipv6=False):
         self.port = port
         self.address = address
         self.packsize = packsize
-        self.packcount = packcount
 
-        self.datasum = packsize * packcount
+        self.datasum = datasum
 
-        self.time = time_
+        #self.time = time_
         self.tcp = tcp
         self.ipv6 = ipv6
 
@@ -80,26 +96,26 @@ class Nettest:
 
         self.sock.connect((self.address, self.port))
 
-        self.sock.send(PROTO_PACK.pack(CLIENT_SEND, self.packsize, self.packcount))
-
-        if self.time:
-            iterator = count()
-        else:
-            iterator = range(self.packcount)
+        # 指令包
+        self.sock.send(CMD_PACK.pack(TCP_SEND, self.packsize, self.datasum))
 
         c = 0 
-        datasum = 0
+        datasum = self.datasum
+        playload = PROTO_PACK.pack(TCP_SEND, self.packsize) + self._datapack
         start = time.time()
-        for _ in iterator:
-            self.sock.send(self._datapack)
+        while datasum > 0:
+            self.sock.send(playload)
             end = time.time()
             c += 1
-            datasum += self.packsize
+            # 告诉 server 数据发送完～ break
+            datasum -= self.packsize
             t = end - start
             if t >= 1:
                 print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
                 c = 0
                 start = end
+
+        self.sock.send(EOF)
 
         # 如果上面在1秒钟内发送完成。这里可以补上。
         t = end - start
@@ -107,6 +123,7 @@ class Nettest:
             print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
 
         self.sock.close()
+    
 
     def tcp_recv(self):
         print("测试接收。。。")
@@ -115,48 +132,59 @@ class Nettest:
 
         self.sock.connect((self.address, self.port))
 
-        self.sock.send(PROTO_PACK.pack(CLIENT_RECV, self.packsize, self.packcount))
+        # 告诉server端开始测试接收, 需要参数： typ, packsize, datasum
+        self.sock.send(CMD_PACK.pack(TCP_RECV, self.packsize, self.datasum))
 
-        if self.time:
-            iterator = count()
-        else:
-            iterator = range(self.packcount)
-
-
+        # 接收协议头
         c = 0 
-        datasum = 0
+        datasum = self.datasum
+        recv_empty = False        
         start = time.time()
-        client_reset = False
-
-        for _ in iterator:
-            # 接收一个完整的包
-            pack = self.packsize
-            while pack > 0:
-                data = self.sock.recv(pack)
-                pack -= len(data)
-                if not data:
-                    print("TCP: 接收测试完成...")
-                    client_reset = True
+        while True:
+            # 先接协议头
+            proto_head = b""
+            lenght = PROTO_PACK.size
+            while lenght > 0:
+                d = self.sock.recv(lenght)
+                if not d:
+                    print("TCP: 接收测试中断... 接收协议头时")
+                    recv_empty = True
                     break
+                lenght -= len(d)
+                proto_head += d
             
-            if client_reset:
+            if recv_empty:
                 break
 
-            datasum += self.packsize
+            if proto_head == EOF:
+                break
+
+            # 接收一个完整的包
+            lenght = self.packsize
+            while lenght > 0:
+                d = self.sock.recv(lenght)
+                if not d:
+                    print("TCP: 接收测试中断... 接收数据时")
+                    recv_empty = True
+                    break
+                lenght -= len(d)
+            
+            datasum -= self.packsize
+
             end = time.time()
             c += 1
             t = end - start
             if t >= 1:
-                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
+                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round((1 - (datasum / self.datasum)) * 100)))
                 c = 0
                 start = end
 
         t = end - start
         if 0 < t:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
-
+            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round((1 - (datasum / self.datasum)) * 100)))
 
         self.sock.close()
+
 
     def udp_send(self):
 
@@ -226,6 +254,7 @@ class Nettest:
     def close(self):
         if not self.tcp:
             self.sock.close()
+    
 
     def __getsock(self):
         if self.ipv6:
@@ -270,58 +299,84 @@ def tcp_server(address, port, ipv6):
     sock.bind((address, port))
     sock.listen(5)
 
+
     while True:
         print(f"Listen TCP: {address}:{port} 等待连接...")
         client, addr = sock.accept()
         print(f"{addr}...已连接")
 
         recv_empty = False
-        cmd = b"" #getpack(client.recv, PROTO_LEN)
-        size = PROTO_LEN
+        # 接收指令类型头
+        cmd = b""
+        size = CMD_PACK.size
         while size > 0:
-            c = client.recv(size)
+            d = client.recv(size)
 
-            if not c:
+            if not d:
                 recv_empty = True
                 break
 
-            size -= len(c)
-            cmd += c
+            size -= len(d)
+            cmd += d
 
         if recv_empty:
             client.close()
             continue
 
-        type_, packsize, packcount = PROTO_PACK.unpack(cmd)
+        typ, packsize, datasum = CMD_PACK.unpack(cmd)
 
-        client_reset = False
-
-        if type_ == SERVER_RECV:
+        # typ 是相对于client来说的。
+        if typ == TCP_SEND:
             print("TCP: 开始测试接收...")
-            for i in range(packcount):
+            recv_empty = False
+            while True:
+                # 先接收协议头
+                proto_head = b""
+                lenght = PROTO_PACK.size
+                while lenght > 0:
+                    d = client.recv(lenght)
+                    if not d:
+                        print("TCP: 接收测试中断... 接收协议头时")
+                        recv_empty = True
+                        break
+                    lenght -= len(d)
+                    proto_head += d
+
+                if recv_empty:
+                    break
+
+                if proto_head == EOF:
+                    break
+
+                # 接收一个完整的包
                 size = packsize
                 while size > 0:
                     data = client.recv(size)
-                    size -= len(data)
                     if not data:
-                        print("TCP: 接收测试中断...")
+                        print("TCP: 接收测试中断... 接收数据时")
                         client_reset = True
                         break
-
-                if client_reset:
-                    break
+                    size -= len(data)
+                    
 
             print("TCP: 接收测试完成...")
             client.close()
 
-        elif type_ == SERVER_SEND:
+        elif typ == TCP_RECV:
             print("TCP: 开始测试发送...")
-            datapack = b"-" * packsize
-            for i in range(packcount):
+            datapack = PROTO_PACK.pack(TCP_RECV, packsize) + b"-" * packsize
+            while datasum > 0:
                 try:
                     client.send(datapack)
                 except BrokenPipeError:
                     break
+
+                datasum -= packsize
+            
+            try:
+                client.send(EOF)
+            except BrokenPipeError:
+                break
 
             print("TCP: 发送测试完成...")
             client.close()
@@ -421,6 +476,7 @@ def integer(number):
     else:
         raise argparse.ArgumentTypeError("值的有效范围：1 <= number <= 4294967295")
 
+
 def main():
     parse = argparse.ArgumentParser(usage="%(prog)s [-tucs] [-T <time>] [-c <count>] [-s <package size>] [host]",
             description="test network",
@@ -431,8 +487,10 @@ def main():
     tcp_udp.add_argument("-u", "--udp", action="store_true", help="使用UDP")
 
     time_count = parse.add_mutually_exclusive_group()
-    time_count.add_argument("--time", type=int, default=15, help="测试持续时间。(单位：秒，默认15，0: 一直测试。)")
-    time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
+    #time_count.add_argument("--time", type=int, default=15, help="测试持续时间。(单位：秒，默认15，0: 一直测试。)")
+    #time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
+
+    time_count.add_argument("-d", "--datasum", type=integer, default=64, help="发送的数据量1 ~ 4096 (defulat: 64M) 单位：M")
 
     parse.add_argument("-s", "--size", type=int, default=1024, help="发送数据包大小1 ~ 65535(default: 1024 byte)")
 
@@ -460,10 +518,10 @@ def main():
         print(args)
         sys.exit(0)
     
-    if args.time > 0:
-        signal.signal(signal.SIGALRM, countdown)
-        signal.alarm(args.time)
-        print(f"{args.time} 秒钟后退出")
+    #if args.time > 0:
+    #    signal.signal(signal.SIGALRM, countdown)
+    #    signal.alarm(args.time)
+    #    print(f"{args.time} 秒钟后退出")
 
     if args.server:
         try:
@@ -492,7 +550,7 @@ def main():
     else:
         op = 3
 
-    net = Nettest(args.address, args.port, args.size, args.count, args.time, proto, args.ipv6)
+    net = Nettest(args.address, args.port, args.size, args.datasum * (1<<20),  proto, args.ipv6)
 
     # 交换了 args.send args.recv
     net.testing(op) 
