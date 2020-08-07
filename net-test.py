@@ -43,6 +43,7 @@ TCP_SEND = 0x0001
 TCP_RECV = 0x0002
 
 TCP_RECV_TIME = 0x0003
+TCP_SEND_TIME = 0x0004
 
 END = 0xffff
 # 一个数据包的开头2byte为 0xffff 表示，接收或者发送结束。 0x0000为填充数据
@@ -93,34 +94,39 @@ class Nettest:
         print("测试发送。。。")
 
         self.__getsock()
+        self.sock.settimeout(30)
 
-        self.sock.connect((self.address, self.port))
+        try:
+            self.sock.connect((self.address, self.port))
 
-        # 指令包
-        self.sock.send(CMD_PACK.pack(TCP_SEND, self.packsize, self.datasum))
+            # 指令包
+            self.sock.send(CMD_PACK.pack(TCP_SEND, self.packsize, self.datasum))
 
-        c = 0 
-        datasum = self.datasum
-        playload = PROTO_PACK.pack(TCP_SEND, self.packsize) + self._datapack
-        start = time.time()
-        while datasum > 0:
-            self.sock.send(playload)
-            end = time.time()
-            c += 1
-            # 告诉 server 数据发送完～ break
-            datasum -= self.packsize
+            c = 0 
+            datasum = self.datasum
+            playload = PROTO_PACK.pack(TCP_SEND, self.packsize) + self._datapack
+            start = time.time()
+            while datasum > 0:
+                self.sock.send(playload)
+                end = time.time()
+                c += 1
+                # 告诉 server 数据发送完～ break
+                datasum -= self.packsize
+                t = end - start
+                if t >= 1:
+                    print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
+                    c = 0
+                    start = end
+
+            self.sock.send(EOF)
+
+            # 如果上面在1秒钟内发送完成。这里可以补上。
             t = end - start
-            if t >= 1:
+            if 0 < t <= 1:
                 print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
-                c = 0
-                start = end
 
-        self.sock.send(EOF)
-
-        # 如果上面在1秒钟内发送完成。这里可以补上。
-        t = end - start
-        if 0 < t <= 1:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
+        except socket.timeout:
+            print("TCP： 发送测试超时...")
 
         self.sock.close()
     
@@ -130,58 +136,108 @@ class Nettest:
 
         self.__getsock()
 
-        self.sock.connect((self.address, self.port))
+        self.sock.settimeout(30)
+        try:
+            self.sock.connect((self.address, self.port))
 
-        # 告诉server端开始测试接收, 需要参数： typ, packsize, datasum
-        self.sock.send(CMD_PACK.pack(TCP_RECV, self.packsize, self.datasum))
+            # 告诉server端开始测试接收, 需要参数： typ, packsize, datasum
+            self.sock.send(CMD_PACK.pack(TCP_RECV, self.packsize, self.datasum))
 
-        # 接收协议头
-        c = 0 
-        datasum = self.datasum
-        recv_empty = False        
-        start = time.time()
-        while True:
-            # 先接协议头
-            proto_head = b""
-            lenght = PROTO_PACK.size
-            while lenght > 0:
-                d = self.sock.recv(lenght)
-                if not d:
-                    print("TCP: 接收测试中断... 接收协议头时")
-                    recv_empty = True
+            # 接收协议头
+            c = 0 
+            datasum = self.datasum
+            recv_empty = False        
+            start = time.time()
+            while True:
+                # 先接协议头
+                proto_head = b""
+                lenght = PROTO_PACK.size
+                while lenght > 0:
+                    d = self.sock.recv(lenght)
+                    if not d:
+                        print("TCP: 接收测试中断... 接收协议头时")
+                        recv_empty = True
+                        break
+                    lenght -= len(d)
+                    proto_head += d
+
+                if recv_empty:
                     break
-                lenght -= len(d)
-                proto_head += d
-            
-            if recv_empty:
-                break
 
-            if proto_head == EOF:
-                break
-
-            # 接收一个完整的包
-            lenght = self.packsize
-            while lenght > 0:
-                d = self.sock.recv(lenght)
-                if not d:
-                    print("TCP: 接收测试中断... 接收数据时")
-                    recv_empty = True
+                if proto_head == EOF:
                     break
-                lenght -= len(d)
-            
-            datasum -= self.packsize
 
-            end = time.time()
-            c += 1
+                # 接收一个完整的包
+                lenght = self.packsize
+                while lenght > 0:
+                    d = self.sock.recv(lenght)
+                    if not d:
+                        print("TCP: 接收测试中断... 接收数据时")
+                        recv_empty = True
+                        break
+                    lenght -= len(d)
+
+                datasum -= self.packsize
+
+                end = time.time()
+                c += 1
+                t = end - start
+                if t >= 1:
+                    print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round((1 - (datasum / self.datasum)) * 100)))
+                    c = 0
+                    start = end
+
             t = end - start
-            if t >= 1:
+            if 0 < t:
                 print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round((1 - (datasum / self.datasum)) * 100)))
-                c = 0
-                start = end
 
-        t = end - start
-        if 0 < t:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round((1 - (datasum / self.datasum)) * 100)))
+        except socket.timeout:
+            print("TCP: 接收测试超时...")
+            
+        self.sock.close()
+
+
+    def tcp_send_time(self, timeout):
+        print("测试发送。。。")
+
+        self.__getsock()
+
+        self.sock.settimeout(30)
+        
+        try: 
+            self.sock.connect((self.address, self.port))
+
+            # 指令包
+            self.sock.send(CMD_PACK.pack(TCP_SEND, self.packsize, self.datasum))
+
+            c = 0 
+            datasum = self.datasum
+            playload = PROTO_PACK.pack(TCP_SEND, self.packsize) + self._datapack
+            start = time.time()
+            start_timeout = start
+            while datasum > 0:
+                self.sock.send(playload)
+                end = time.time()
+                c += 1
+                # 告诉 server 数据发送完～ break
+                datasum -= self.packsize
+                t = end - start
+                if t >= 1:
+                    print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
+                    c = 0
+                    start = end
+                 
+                if (end - start_timeout) >= timeout:
+                    self.sock.send(EOF)
+                    break
+
+            # 如果上面在1秒钟内发送完成。这里可以补上。
+            t = end - start
+            if 0 < t <= 1:
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), self.__data_unit(c * self.packsize / t), round(datasum / self.datasum * 100)))
+
+        except socket.timeout:
+            print("TCP: 发送测试超时...")
 
         self.sock.close()
 
@@ -285,6 +341,154 @@ class Nettest:
             return "{}GB".format(round(size / 1073741824, 2))
 
 
+def tcp_server_recv_old(client, type, packsize, datasum):
+    client.settimeout(30)
+    try:
+        recv_empty = False
+        while True:
+            # 先接收协议头
+            proto_head = b""
+            lenght = PROTO_PACK.size
+            while lenght > 0:
+                d = client.recv(lenght)
+                if not d:
+                    print("TCP: 接收测试中断... 接收协议头时")
+                    recv_empty = True
+                    break
+                lenght -= len(d)
+                proto_head += d
+
+            if recv_empty:
+                break
+
+            if proto_head == EOF:
+                break
+
+            # 接收一个完整的包
+            size = packsize
+            while size > 0:
+                data = client.recv(size)
+                if not data:
+                    print("TCP: 接收测试中断... 接收数据时")
+                    client_reset = True
+                    break
+                size -= len(data)
+    except socket.timeout:
+        print("TCP: 接收超时...")
+
+    print("TCP: 接收测试完成...")
+    client.close()
+
+
+def tcp_server_send_old(client, typ, packsize, datasum):
+    datapack = PROTO_PACK.pack(TCP_RECV, packsize) + b"-" * packsize
+    client.settimeout(30)
+    try:
+        while datasum > 0:
+            client.send(datapack)
+            datasum -= packsize
+    
+        client.send(EOF)
+    except BrokenPipeError:
+        pass
+    except socket.timeout:
+        print("TCP: 发送测试超时...")
+
+    print("TCP: 发送测试完成...")
+    client.close()
+
+
+def tcp_server_recv(client, typ, packsize, datasum):
+
+    if typ == TCP_RECV_TIME:
+        time_ = True
+        total_time = datasum * 1.2
+    else:
+        time_ = False
+
+    client.settimeout(30)
+    start = time.time()
+    try:
+        recv_empty = False
+        while True:
+            # 先接收协议头
+            proto_head = b""
+            lenght = PROTO_PACK.size
+            while lenght > 0:
+                d = client.recv(lenght)
+                if not d:
+                    print("TCP: 接收测试中断... 接收协议头时")
+                    recv_empty = True
+                    break
+                lenght -= len(d)
+                proto_head += d
+
+            if recv_empty:
+                break
+
+            if proto_head == EOF:
+                break
+
+            # 接收一个完整的包
+            size = packsize
+
+            while size > 0:
+                data = client.recv(size)
+                if not data:
+                    print("TCP: 接收测试中断... 接收数据时")
+                    client_reset = True
+                    break
+                size -= len(data)
+
+            end = time.time()
+            if time_ and (end - start) >= total_time:
+                break
+
+    except socket.timeout:
+        print("TCP: 接收超时...")
+
+    print("TCP: 接收测试完成...")
+    client.close()
+
+
+def tcp_server_send(client, typ, packsize, datasum):
+    datapack = PROTO_PACK.pack(TCP_RECV, packsize) + b"-" * packsize
+
+    if typ == TCP_SEND_TIME:
+        time_ = True
+        if datasum <= 0:
+            total_time = 15
+        else:
+            total_time = datasum
+    else:
+        time_ = False
+
+    client.settimeout(30)
+
+    try:
+        start = time.time()
+        while datasum > 0:
+            client.send(datapack)
+
+            if not time_:
+                datasum -= packsize
+
+            end = time.time()
+
+            if time_ and (end - start) >= total_time:
+                break
+    
+        client.send(EOF)
+
+    except BrokenPipeError:
+        pass
+    except socket.timeout:
+        print("TCP: 发送测试超时...")
+
+    print("TCP: 发送测试完成...")
+    client.close()
+
+
 def tcp_server(address, port, ipv6):
     """
     ipv6: True or False
@@ -328,58 +532,14 @@ def tcp_server(address, port, ipv6):
         # typ 是相对于client来说的。
         if typ == TCP_SEND:
             print("TCP: 开始测试接收...")
-            recv_empty = False
-            while True:
-                # 先接收协议头
-                proto_head = b""
-                lenght = PROTO_PACK.size
-                while lenght > 0:
-                    d = client.recv(lenght)
-                    if not d:
-                        print("TCP: 接收测试中断... 接收协议头时")
-                        recv_empty = True
-                        break
-                    lenght -= len(d)
-                    proto_head += d
-
-                if recv_empty:
-                    break
-
-                if proto_head == EOF:
-                    break
-
-                # 接收一个完整的包
-                size = packsize
-                while size > 0:
-                    data = client.recv(size)
-                    if not data:
-                        print("TCP: 接收测试中断... 接收数据时")
-                        client_reset = True
-                        break
-                    size -= len(data)
-                    
-
-            print("TCP: 接收测试完成...")
-            client.close()
+            th = threading.Thread(target=tcp_server_recv, args=(client, typ, packsize, datasum), daemon=True)
+            th.start()
 
         elif typ == TCP_RECV:
             print("TCP: 开始测试发送...")
-            datapack = PROTO_PACK.pack(TCP_RECV, packsize) + b"-" * packsize
-            while datasum > 0:
-                try:
-                    client.send(datapack)
-                except BrokenPipeError:
-                    break
+            th = threading.Thread(target=tcp_server_send, args=(client, typ, packsize, datasum), daemon=True)
+            th.start()
 
-                datasum -= packsize
-            
-            try:
-                client.send(EOF)
-            except BrokenPipeError:
-                break
-
-            print("TCP: 发送测试完成...")
-            client.close()
         else:
             print("未定义的操作类型。", file=sys.stderr)
             client.close()
@@ -478,7 +638,7 @@ def integer(number):
 
 
 def main():
-    parse = argparse.ArgumentParser(usage="%(prog)s [-tucs] [-T <time>] [-c <count>] [-s <package size>] [host]",
+    parse = argparse.ArgumentParser(usage="%(prog)s [-tucs] [-T <time>] [-d <data sum>] [-s <package size>] [host]",
             description="test network",
             epilog="author: calllivecn <https://github.com/calllivecn/mytools>"
             )
@@ -490,7 +650,7 @@ def main():
     #time_count.add_argument("--time", type=int, default=15, help="测试持续时间。(单位：秒，默认15，0: 一直测试。)")
     #time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
 
-    time_count.add_argument("-d", "--datasum", type=integer, default=64, help="发送的数据量1 ~ 4096 (defulat: 64M) 单位：M")
+    time_count.add_argument("-d", "--datasum", type=integer, default=64, help="发送的数据量1 ~ 4095 (defulat: 64M) 单位：M")
 
     parse.add_argument("-s", "--size", type=int, default=1024, help="发送数据包大小1 ~ 65535(default: 1024 byte)")
 
