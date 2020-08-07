@@ -51,14 +51,18 @@ EOF = struct.pack(">HH", 0xffff, 0x0000)
 
 class Nettest:
 
-    def __init__(self, address, port, packsize, datasum, tcp=True, ipv6=False):
+    def __init__(self, address, port, packsize, datasum, time_=True, tcp=True, ipv6=False):
         self.port = port
         self.address = address
         self.packsize = packsize
 
         self.datasum = datasum
 
-        #self.time = time_
+        self.time = time_
+
+        if time_:
+            self.total_time = datasum
+
         self.tcp = tcp
         self.ipv6 = ipv6
 
@@ -197,13 +201,14 @@ class Nettest:
         self.sock.close()
 
 
-    def tcp_send_time(self, timeout):
+    def tcp_send_time(self):
         print("测试发送。。。")
 
         self.__getsock()
 
         self.sock.settimeout(30)
-        
+
+        start_time = time.time()
         try: 
             self.sock.connect((self.address, self.port))
 
@@ -227,7 +232,7 @@ class Nettest:
                     c = 0
                     start = end
                  
-                if (end - start_timeout) >= timeout:
+                if self.time and (end - start_timeout) >= self.total_time:
                     self.sock.send(EOF)
                     break
 
