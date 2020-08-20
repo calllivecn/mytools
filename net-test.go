@@ -1,35 +1,31 @@
 package main
 
-
 import (
-	"fmt"
-	"log"
-	"net"
 	"bytes"
 	"encoding/binary"
+	"log"
 )
 
 type cmdpack struct {
-	cmd uint16
-	packsize uint16
-	time_datasum uint32
+	cmd          uint16
+	packsize     uint16
+	timedatasum uint32
 }
 
 type protopack struct {
-	typ uint16
+	typ  uint16
 	size uint16
 }
-
-func main(){
-
-}
-
 
 func (cmd cmdpack) newCmdPack(c, p uint16, td uint32) cmdpack {
 	d := cmdpack{c, p, td}
 	return d
 }
 
+func (pp protopack) newProtoPack(typ, size uint16) protopack {
+	d := protopack{typ, size}
+	return d
+}
 
 func (cmd cmdpack) toByte() []byte {
 
@@ -42,4 +38,8 @@ func (cmd cmdpack) toByte() []byte {
 	}
 
 	return buf.Bytes()
+}
+
+func main() {
+
 }
