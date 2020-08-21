@@ -31,7 +31,7 @@ import argparse
 
 BUF=8*(1<<20) # 8K
 
-CMD_PACK = struct.Struct("!HHI")
+CMD_PACK = struct.Struct("!HHQ")
 PROTO_PACK = struct.Struct(">HH")
 PROTO_LEN = PROTO_PACK.size
 # H 操作类型
@@ -103,12 +103,12 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
             # 接收一个完整的包
             size = packsize
             while size > 0:
-                data = client.recv(size)
-                if not data:
+                d = client.recv(size)
+                if not d:
                     print("TCP: 接收测试中断... 接收数据时")
                     recv_empty = True
                     break
-                size -= len(data)
+                size -= len(d)
 
             if recv_empty:
                 break
@@ -554,10 +554,13 @@ def countdown():
 
 def integer(number):
     i = int(number)
-    if 1 <= i <= 4294967295:
+    # if 1 <= i <= 4294967295:
+
+    # (1<<63) - 1
+    if 1 <= i <= 9223372036854775807:
         return i
     else:
-        raise argparse.ArgumentTypeError("值的有效范围：1 <= number <= 4294967295")
+        raise argparse.ArgumentTypeError("值的有效范围：1 <= number <= 9223372036854775807")
 
 
 def main():
@@ -571,10 +574,10 @@ def main():
 
     time_count = parse.add_mutually_exclusive_group()
 
-    time_count.add_argument("--time", type=int, default=15, help="测试持续时间。(单位：秒，默认: 7)")
+    time_count.add_argument("--time", type=int, help="测试持续时间。(单位：秒，默认: 7)")
     #time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
 
-    time_count.add_argument("-d", "--datasum", type=integer, default=64, help="发送的数据量1 ~ 4095 (defulat: 64M) 单位：M")
+    time_count.add_argument("-d", "--datasum", type=integer, help="发送的数据量1 ~ 8796093022208 (defulat: 64M) 单位：M")
 
     parse.add_argument("-s", "--size", type=int, default=1024, help="发送数据包大小1 ~ 65535(default: 1024 byte)")
 
@@ -636,8 +639,10 @@ def main():
 
     if args.time:
         net = Nettest(args.address, args.port, args.size, args.time, True, proto, args.ipv6)
-    else:
+    elif args.datasum:
         net = Nettest(args.address, args.port, args.size, args.datasum * (1<<20), False, proto, args.ipv6)
+    else:
+        net = Nettest(args.address, args.port, args.size, 15, True, proto, args.ipv6)
 
     # 交换了 args.send args.recv
     net.testing(op) 
