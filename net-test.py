@@ -72,48 +72,41 @@ def __data_unit(size):
         return "{}GB".format(round(size / 1073741824, 2))
 
 
+def get_size_pack(sock, size):
+    data = b""
+
+    while size > 0:
+        d = sock.recv(size)
+        if not d:
+            return b""
+        size -= len(d)
+        data += d
+    
+    return data
+
+
 def tcp_recv_datasum(client, packsize, datasum, speed=False):
     client.settimeout(30)
     try:
-        recv_empty = False
-
         data = 0
         c = 0
         start = time.time()
         end = start
         while True:
             # 先接收协议头
-            proto_head = b""
-            lenght = PROTO_PACK.size
-            while lenght > 0:
-                d = client.recv(lenght)
-                if not d:
-                    print("TCP: 接收测试中断... 接收协议头时")
-                    recv_empty = True
-                    break
-                lenght -= len(d)
-                proto_head += d
-
-            if recv_empty:
+            proto_head = get_size_pack(client, PROTO_PACK.size)
+            if not proto_head:
                 break
 
             if proto_head == EOF:
                 break
 
             # 接收一个完整的包
-            size = packsize
-            while size > 0:
-                d = client.recv(size)
-                if not d:
-                    print("TCP: 接收测试中断... 接收数据时")
-                    recv_empty = True
-                    break
-                size -= len(d)
-
-            if recv_empty:
+            pack = get_size_pack(client, packsize)
+            if not pack:
                 break
-            
-            data += size
+
+            data += len(pack)
 
             end = time.time()
             c += 1
@@ -122,12 +115,10 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
                 print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
                 c = 0
                 start = end
-        
 
         t = end - start
         if speed and 0 < t <= 1:
             print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
-
 
     except socket.timeout:
         print("TCP: 接收超时...")
@@ -144,10 +135,10 @@ def tcp_send_datasum(client, packsize, datasum, speed=False):
         c = 0
         start = time.time()
         end = start
-        data = datasum
-        while data > 0:
+        data = 0
+        while data < datasum:
             client.send(datapack)
-            data -= packsize
+            data += packsize
     
             end = time.time()
             c += 1
@@ -176,8 +167,6 @@ def tcp_send_datasum(client, packsize, datasum, speed=False):
 def tcp_recv_time(client, packsize, time_, speed=False):
     client.settimeout(30)
     try:
-        recv_empty = False
-
         c = 0
         start = time.time()
         end = start
@@ -185,34 +174,16 @@ def tcp_recv_time(client, packsize, time_, speed=False):
         progress = 0
         while True:
             # 先接收协议头
-            proto_head = b""
-            lenght = PROTO_PACK.size
-            while lenght > 0:
-                d = client.recv(lenght)
-                if not d:
-                    print("TCP: 接收测试中断... 接收协议头时")
-                    recv_empty = True
-                    break
-                lenght -= len(d)
-                proto_head += d
-
-            if recv_empty:
+            proto_head = get_size_pack(client, PROTO_PACK.size)
+            if not proto_head:
                 break
 
             if proto_head == EOF:
                 break
 
             # 接收一个完整的包
-            size = packsize
-            while size > 0:
-                data = client.recv(size)
-                if not data:
-                    print("TCP: 接收测试中断... 接收数据时")
-                    recv_empty = True
-                    break
-                size -= len(data)
-
-            if recv_empty:
+            data = get_size_pack(client, packsize)
+            if not data:
                 break
             
             end = time.time()
@@ -226,9 +197,6 @@ def tcp_recv_time(client, packsize, time_, speed=False):
                 c = 0
                 start = end
         
-            #if speed and progress >= time_:
-                #break
-
         t = end - start
         if speed and 0 < t <= 1:
             print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
@@ -484,6 +452,7 @@ def udp_server(address, port, ipv6):
         print(f"Listen UDP: {address}:{port} 等待接收...")
 
         cmd = b""
+        addr = ""
         size = PROTO_LEN
         while size > 0:
             c, addr = sock.recvfrom(size)
@@ -605,11 +574,6 @@ def main():
         print(args)
         sys.exit(0)
     
-    #if args.time > 0:
-    #    signal.signal(signal.SIGALRM, countdown)
-    #    signal.alarm(args.time)
-    #    print(f"{args.time} 秒钟后退出")
-
     if args.server:
         try:
             if args.ipv6:
