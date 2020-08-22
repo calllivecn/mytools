@@ -533,7 +533,7 @@ def integer(number):
 
 
 def main():
-    parse = argparse.ArgumentParser(usage="%(prog)s [-tucs] [-T <time>] [-d <data sum>] [-s <package size>] [host]",
+    parse = argparse.ArgumentParser(usage="%(prog)s [-tus] [-T <time>] [-d <data sum>] [-s <package size>] [host]",
             description="test network",
             epilog="author: calllivecn <https://github.com/calllivecn/mytools>"
             )

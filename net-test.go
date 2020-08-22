@@ -1,31 +1,32 @@
 //
 //
-// 
-// 
+//
+//
 // 比同种算法的python3 版的慢一倍。。。
-// 
-// 
-// 
-// 
+//
+//
+//
+//
 
 package main
 
 import (
 	"bytes"
+	"errors"
 	"encoding/binary"
+	"io"
 	"log"
 	"net"
-	"io"
 	// "fmt"
 )
 
 type CmdPack struct {
-	Cmd, Packsize    uint16
-	Timedatasum uint64
+	Cmd, Packsize uint16
+	Timedatasum   uint64
 }
 
 type PackHead struct {
-	Typ, Size  uint16
+	Typ, Size uint16
 }
 
 var cmdpack_size, packhead_size int
@@ -33,9 +34,8 @@ var cmdpack_size, packhead_size int
 func init() {
 	cmdpack_size = binary.Size(CmdPack{})
 	packhead_size = binary.Size(PackHead{})
-	log.SetFlags(log.Lshortfile | log.Ldate |log.Ltime)
+	log.SetFlags(log.Lshortfile | log.Ldate | log.Ltime)
 }
-
 
 // 这里的定义是相对client来说
 const (
@@ -50,12 +50,10 @@ const (
 
 var EOF PackHead = PackHead{0xffff, 0x0000}
 
-
-
 func (cp *CmdPack) byteToCmdPackReflect(b []byte) {
 	// c := CmdPack{}
 	buf := bytes.NewBuffer(b)
-	// 这种方式用到反射，导致性能很差!!! 
+	// 这种方式用到反射，导致性能很差!!!
 	// 这种方式用到反射，导致性应该会变差!!! 但这里的性能瓶颈并不是这里。。。
 	err := binary.Read(buf, binary.BigEndian, cp)
 	if err != nil {
@@ -97,9 +95,9 @@ func (cp *CmdPack) toByte() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (dp *PackHead) toByte() ([]byte, error) {
+func (ph *PackHead) toByte() ([]byte, error) {
 	buf := bytes.Buffer{}
-	err := binary.Write(&buf, binary.BigEndian, dp)
+	err := binary.Write(&buf, binary.BigEndian, ph)
 	if err != nil {
 		log.Println(err)
 		return []byte{}, err
@@ -108,61 +106,54 @@ func (dp *PackHead) toByte() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (dp *CmdPack) recvCmdPack(con net.Conn) error {
+func getSizePack(con net.Conn, s int) ([]byte, error) {
 	data := []byte{}
-	buf := make([]byte, cmdpack_size)
-	n := 0
-	for n <= cmdpack_size {
+	buf := make([]byte, s)
+	for 0 < s {
 		count, err := con.Read(buf)
+
+        if err == io.EOF {
+			log.Println("client close.")
+			return append(data, buf[:count]...), err
+        }
+
 		if err != nil {
 			log.Println(err)
-			return err
-		}
-		if count == 0 {
-			// peer close
-			log.Println("peer close.")
-			return err
+			return append(data, buf[:count]...), err
 		}
 
-		n += count
+		s -= count
 		data = append(data, buf[:count]...)
 	}
 
-	dp.byteToCmdPack(data)
-	log.Printf("CmdPack{}: %#v\n", *dp)
+	return data, nil
+}
+
+func (cp *CmdPack) recvCmdPack(con net.Conn) error {
+
+	data, err := getSizePack(con, cmdpack_size)
+	if err != nil {
+		log.Println("没有收到一个完整的包，exit...")
+		return errors.New("没有收到一个完整的包，exit")
+	}
+
+	cp.byteToCmdPack(data)
+	log.Printf("CmdPack{}: %#v\n", *cp)
 	return nil
 }
 
-func (dp *PackHead) recvPackHead(con net.Conn) error {
-	data := []byte{}
-	buf := make([]byte, packhead_size)
-	n := 0
-	for n <= packhead_size {
-		count, err := con.Read(buf)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-
-		if err == io.EOF {
-			log.Println("err == io.EOF")
-		}
-		
-		if count == 0 {
-			// peer close
-			log.Println("peer close.")
-			return err
-		}
-
-		n += count
-		data = append(data, buf[:count]...)
+func (ph *PackHead) recvPackHead(con net.Conn) error {
+	data, err := getSizePack(con, packhead_size)
+	if err != nil {
+		log.Println("没有收到一个完整的包，exit...")
+		return errors.New("没有收到一个完整的包，exit")
 	}
 
 	// dp.byteToPackHead(data)
-	dp.byteToPackHeadReflect(data)
+	ph.byteToPackHeadReflect(data)
 
 	// 这种，会改变，所指向的对象
-	// dp = &d 
+	// dp = &d
 	return nil
 }
 
@@ -212,12 +203,12 @@ func tcpServer(con net.Conn) {
 		tcpsend(con, head.Packsize, head.Timedatasum)
 	case TCP_SEND_DATASUM:
 		tcprecv(con, head.Packsize, head.Timedatasum)
-		/*
+	/*
 	case TCP_RECV_TIME:
 		tcprecv_time(con, head.Packsize, head.Timedatasum)
 	case TCP_SEND_TIME:
 		tcpsend_time(con, head.Packsize, head.Timedatasum)
-		*/
+	*/
 	default:
 		log.Println("未知指令类型。断开连接... CmdPack.Cmd: ", head.Cmd, "CmdPack.PackSize:", head.Packsize)
 		return
@@ -228,7 +219,7 @@ func tcprecv(con net.Conn, packsize uint16, datasum uint64) {
 	// 接收负载头信息
 	playload := PackHead{}
 
-	end:
+end:
 	for {
 
 		err := playload.recvPackHead(con)
@@ -245,28 +236,9 @@ func tcprecv(con net.Conn, packsize uint16, datasum uint64) {
 		}
 
 		// 接收负载
-		buf := make([]byte, packsize)
-		count := packsize
-		for count > 0 {
-			n, err := con.Read(buf)
-
-			if err == io.EOF {
-				// log.Println("err == io.EOF n ==", n)
-				log.Println("接收测试结束.")
-				break end
-			}
-		
-			if err != nil {
-				log.Println("peer error: ", err, "n ==", n)
-				break end
-			}
-
-			if n == 0 {
-				log.Println("peer close.")
-				break end
-			}
-
-			count -= uint16(n)
+		_, err = getSizePack(con, int(packsize))
+		if err != nil {
+			break
 		}
 	}
 }
@@ -275,16 +247,12 @@ func tcpsend(con net.Conn, packsize uint16, datasum uint64) {
 
 	head := PackHead{TCP_SEND_DATASUM, packsize}
 
-	head_byte, err := head.toByte()
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	headByte, _ := head.toByte()
 
-	playload := make([]byte, packsize)
+	playload := append(headByte, make([]byte, packsize)...)
 
 	for datasum > 0 {
-		n, err := con.Write(append(head_byte, playload...))
+		n, err := con.Write(playload)
 		if err != nil {
 			log.Println(err)
 			return
@@ -292,5 +260,8 @@ func tcpsend(con net.Conn, packsize uint16, datasum uint64) {
 
 		datasum -= uint64(n)
 	}
+	// 发送结束
+	eof, _ := EOF.toByte()
+	con.Write(eof)
 	log.Println("发送测试结束.")
 }
