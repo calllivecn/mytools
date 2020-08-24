@@ -3,7 +3,7 @@
 //
 //
 // 比同种算法的python3 版的慢一倍。。。
-//
+// 好像是TCP 的发和收包，所耗CPU资源不一样。接收耗的多。～！～！
 //
 //
 //
@@ -244,21 +244,24 @@ end:
 }
 
 func tcpsend(con net.Conn, packsize uint16, datasum uint64) {
-
 	head := PackHead{TCP_SEND_DATASUM, packsize}
 
 	headByte, _ := head.toByte()
 
 	playload := append(headByte, make([]byte, packsize)...)
 
-	for datasum > 0 {
-		n, err := con.Write(playload)
+	// datasum / packsize
+	pack := datasum / uint64(packsize)
+	for pack > 0 {
+		// n, err := con.Write(playload)
+		_, err := con.Write(playload)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		datasum -= uint64(n)
+		// datasum -= uint64(n)
+		pack--
 	}
 	// 发送结束
 	eof, _ := EOF.toByte()
