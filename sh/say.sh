@@ -10,8 +10,4 @@ if [ -z "$1" ];then
 fi
 
 
-
-cmd='espeak -s 130 -v zh '"$1"' &> /dev/null'
-
-eval $cmd
-
+espeak -s 150 -v zh "$1" &> /dev/null

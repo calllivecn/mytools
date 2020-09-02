@@ -303,7 +303,7 @@ class Crypto:
 
 
 
-def test():
+def __test():
     import random
     with open("/dev/urandom", "rb") as f:
         data = f.read(random.randint(4, 41))
@@ -355,4 +355,4 @@ def test():
 
 
 if __name__ == "__main__":
-    test()
+    __test()

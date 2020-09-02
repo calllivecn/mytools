@@ -8,7 +8,7 @@ import os
 import sys
 import ssl
 import json
-import socket
+# import socket
 import logging
 import argparse
 from os import path
