@@ -150,7 +150,7 @@ def clear():
     #os.write(fd, CLEAR)
 
     # new method
-    print("\x1b\x63")
+    print("\x1b\x63", end="")
 
 def main():
     import argparse
