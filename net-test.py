@@ -31,7 +31,7 @@ import argparse
 
 # BUF=8*(1<<20) # 8K
 
-CMD_PACK = struct.Struct("!HHQ")
+CMD_PACK = struct.Struct("!HIQ")
 PROTO_PACK = struct.Struct(">HI")
 PROTO_LEN = PROTO_PACK.size
 # H 操作类型
@@ -521,15 +521,20 @@ def server(address, port=6789, ipv6=False):
 def countdown():
     sys.exit(0)
 
-def integer(number):
+def biginteger(number):
     i = int(number)
-    # if 1 <= i <= 4294967295:
-
     # (1<<63) - 1
     if 1 <= i <= 9223372036854775807:
         return i
     else:
         raise argparse.ArgumentTypeError("值的有效范围：1 <= number <= 9223372036854775807")
+
+def integer(number):
+    i = int(number)
+    if 1 <= i <= 4294967295:
+        return i
+    else:
+        raise argparse.ArgumentTypeError("值的有效范围：1 <= number <= 4294967295")
 
 
 def main():
@@ -546,9 +551,9 @@ def main():
     time_count.add_argument("--time", type=int, help="测试持续时间。(单位：秒，默认: 7)")
     #time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
 
-    time_count.add_argument("-d", "--datasum", type=integer, help="发送的数据量1 ~ 8796093022208 (defulat: 64M) 单位：M")
+    time_count.add_argument("-d", "--datasum", type=biginteger, help="发送的数据量1 ~ 8796093022208 (defulat: 64M) 单位：M")
 
-    parse.add_argument("-s", "--size", type=int, default=1024, help="发送数据包大小1 ~ 65535(default: 1024 byte)")
+    parse.add_argument("-s", "--size", type=integer, default=1024, help="发送数据包大小1 ~ 4294967295(default: 1024 byte)")
 
     parse.add_argument("--ipv6", action="store_true", help="使用 ipv6 否则 ipv4 (default: ipv4)")
 
