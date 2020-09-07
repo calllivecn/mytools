@@ -261,7 +261,6 @@ func tcprecv(con net.Conn, packsize uint32, datasum uint64) {
 
 	recvRsp := NewRecvSendPack(con)
 
-end:
 	for {
 
 		err := playload.recvPackHead(recvRsp)
@@ -274,7 +273,8 @@ end:
 		// log.Printf("tcprecv() playload: %#v\n", playload)
 
 		if playload == EOF {
-			break end
+			log.Println("接收测试结束.")
+			break
 		}
 
 		// 接收负载

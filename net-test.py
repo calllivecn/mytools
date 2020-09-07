@@ -88,8 +88,9 @@ class Buffer:
     def recvsize(self, size):
         cur = 0
         while cur < size:
-            # n = self.sock.recv_into(self.buf[cur:size])
-            n = self.sock.recv_into(self.buf[cur:])
+            n = self.sock.recv_into(self.buf[cur:size])
+            # 不能这样， socke.recv_into(), 是写入到self.buf[cur:]的大小的。导致实际接收了很多，但没计算进去。
+            # n = self.sock.recv_into(self.buf[cur:]) 
             if n == 0:
                 return self.buf[:0]
             cur += n
