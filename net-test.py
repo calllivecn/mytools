@@ -30,10 +30,10 @@ import threading
 import argparse
 
 
-BUF=8*(1<<20) # 8K
+# BUF=8*(1<<20) # 8K
 
 CMD_PACK = struct.Struct("!HHQ")
-PROTO_PACK = struct.Struct(">HH")
+PROTO_PACK = struct.Struct(">HI")
 PROTO_LEN = PROTO_PACK.size
 # H 操作类型
 # H packsize
@@ -51,7 +51,7 @@ UDP_RECV = 0x0006
 
 END = 0xffff
 # 一个数据包的开头2byte为 0xffff 表示，接收或者发送结束。 0x0000为填充数据
-EOF = struct.pack(">HH", 0xffff, 0x0000)
+EOF = PROTO_PACK.pack(0xffff, 0x00000000)
 
 
 
