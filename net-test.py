@@ -56,60 +56,6 @@ EOF = PROTO_PACK.pack(0xffff, 0x00000000)
 
 # functions define begin
 
-class Speed:
-    def __init__(self, packsize, total, time_=True, send_recv=True):
-        self.packsize = packsize
-        self.total = total
-
-        self.time = time_
-        self.timecount = 0
-
-        self.packcount = 0
-        self.datasum = 0
-
-        signal.signal(signal.SIGALRM, self.showspeed)
-        signal.alarm(1)
-
-    def add_one_pack(self):
-        self.packcount += 1
-        self.datasum += self.packsize
-
-    def showspeed(self, value, frame):
-        # 增加时间/s 计数
-        if self.time:
-            self.timecount += 1
-
-        if self.send_recv:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(self.packcount, self.__data_unit(self.packcount * self.packsize), self.__progress()))
-        else:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(self.packcount, self.__data_unit(self.packcount * self.packsize), self.__progress()))
-
-        self.packcount = 0
-
-        signal.alarm(1)
-
-    def __progress(self):
-        if self.time:
-            return round(self.timecount / self.total, 1) * 100
-        else:
-            return round(self.datasum / self.total, 1) * 100
-
-    def __data_unit(self, size):
-        """
-        size: 数据量
-        return: 23K or 1M or 1021M or 1.23G
-        """
-
-        if 0 <= size < 1024: # B
-            return "{}B".format(size)
-        elif 1024 <= size <= 1048576: # KB
-            return "{}KB".format(round(size / 1024, 2))
-        elif 1048576<= size < 1073741824: # MB
-            return "{}MB".format(round(size / 1048576, 2))
-        elif 1048576 <= size: # < 1099511627776: # GB
-            return "{}GB".format(round(size / 1073741824, 2))
-
-
 def __data_unit(size):
     """
     size: 数据量
