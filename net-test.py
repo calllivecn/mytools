@@ -159,7 +159,7 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
             c += 1
             t = end - start
             if speed and t >= 1:
-                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
+                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
                 c = 0
                 start = end
 
@@ -167,7 +167,7 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
 
         t = end - start
         if speed and 0 < t <= 1:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
+            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
 
     except socket.timeout:
         print("TCP: 接收超时...")
