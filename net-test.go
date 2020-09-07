@@ -26,12 +26,14 @@ func init(){
 }
 
 type CmdPack struct {
-	Cmd, Packsize uint16
-	Timedatasum   uint64
+	Cmd				uint16 
+	Packsize 		uint32
+	Timedatasum   	uint64
 }
 
 type PackHead struct {
-	Typ, Size uint16
+	Typ				uint16
+	Size 			uint32
 }
 
 var cmdpack_size, packhead_size int
@@ -53,7 +55,7 @@ const (
 	END = 0xffff
 )
 
-var EOF PackHead = PackHead{0xffff, 0x0000}
+var EOF PackHead = PackHead{0xffff, 0x00000000}
 
 func (cp *CmdPack) byteToCmdPackReflect(b []byte) {
 	// c := CmdPack{}
@@ -70,8 +72,8 @@ func (cp *CmdPack) byteToCmdPackReflect(b []byte) {
 
 func (cp *CmdPack) byteToCmdPack(b []byte) {
 	cp.Cmd = binary.BigEndian.Uint16(b[:2])
-	cp.Packsize = binary.BigEndian.Uint16(b[2:4])
-	cp.Timedatasum = binary.BigEndian.Uint64(b[4:12])
+	cp.Packsize = binary.BigEndian.Uint32(b[2:6])
+	cp.Timedatasum = binary.BigEndian.Uint64(b[6:14])
 }
 
 func (ph *PackHead) byteToPackHeadReflect(b []byte) {
@@ -86,7 +88,7 @@ func (ph *PackHead) byteToPackHeadReflect(b []byte) {
 
 func (ph *PackHead) byteToPackHead(b []byte) {
 	ph.Typ = binary.BigEndian.Uint16(b[:2])
-	ph.Size = binary.BigEndian.Uint16(b[2:4])
+	ph.Size = binary.BigEndian.Uint32(b[2:6])
 }
 
 func (cp *CmdPack) toByte() ([]byte, error) {
@@ -112,7 +114,7 @@ func (ph *PackHead) toByte() ([]byte, error) {
 }
 
 
-var bufsize uint64 = 64*(1<<10)
+var bufsize uint32 = 64*(1<<10)
 
 // RecvSendPack 这算comments???
 type RecvSendPack struct{
@@ -251,7 +253,7 @@ func tcpServer(con net.Conn) {
 	}
 }
 
-func tcprecv(con net.Conn, packsize uint16, datasum uint64) {
+func tcprecv(con net.Conn, packsize uint32, datasum uint64) {
 	defer con.Close()
 
 	// 接收负载头信息
@@ -283,7 +285,7 @@ end:
 	}
 }
 
-func tcpsend(con net.Conn, packsize uint16, datasum uint64) {
+func tcpsend(con net.Conn, packsize uint32, datasum uint64) {
 	defer con.Close()
 
 	head := PackHead{TCP_SEND_DATASUM, packsize}
@@ -298,6 +300,7 @@ func tcpsend(con net.Conn, packsize uint16, datasum uint64) {
 
 	packcount := datasum / uint64(packsize)
 	log.Println("packcount：", packcount)
+
 	for packcount > 0 {
 		// _, err := con.Write(playload)
 		err := sendRsp.sendPack()
