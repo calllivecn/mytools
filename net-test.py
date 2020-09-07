@@ -20,12 +20,11 @@ TCP:
 """
 
 import os
-import io
 import sys
 import time
 import socket
 import struct
-import signal
+#import signal
 import threading
 import argparse
 
@@ -56,85 +55,22 @@ EOF = PROTO_PACK.pack(0xffff, 0x00000000)
 
 
 # functions define begin
-class Speed:
-    def __init__(self, packsize, total, time_=True, send_recv=True):
-        self.packsize = packsize
-        self.total = total
 
-        self.time = time_
-        self.timecount = 0
+def __data_unit(size):
+    """
+    size: 数据量
+    return: 23K or 1M or 1021M or 1.23G
+    """
+    
+    if 0 <= size < 1024: # B
+        return "{}B".format(size)
+    elif 1024 <= size <= 1048576: # KB
+        return "{}KB".format(round(size / 1024, 2))
+    elif 1048576<= size < 1073741824: # MB
+        return "{}MB".format(round(size / 1048576, 2))
+    elif 1048576 <= size: # < 1099511627776: # GB
+        return "{}GB".format(round(size / 1073741824, 2))
 
-        self.packcount = 0
-        self.datasum = 0
-
-        signal.signal(signal.SIGALRM, self.showspeed)
-        signal.alarm(1)
-
-    def add_one_pack(self):
-        self.packcount += 1
-        self.datasum += self.packsize
-
-    def showspeed(self):
-        # 增加时间/s 计数
-        if self.time:
-            self.timecount += 1
-
-        if self.send_recv:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(self.packcount, self.__data_unit(self.packcount * self.packsize), self.__progress()))
-        else:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(self.packcount, self.__data_unit(self.packcount * self.packsize), self.__progress()))
-
-        self.packcount = 0
-
-        signal.alarm(1)
-
-    def __progress(self):
-        if self.time:
-            return round(self.timecount / self.total, 1) * 100
-        else:
-            return round(self.datasum / self.total, 1) * 100
-
-    def __data_unit(self, size):
-        """
-        size: 数据量
-        return: 23K or 1M or 1021M or 1.23G
-        """
-
-        if 0 <= size < 1024: # B
-            return "{}B".format(size)
-        elif 1024 <= size <= 1048576: # KB
-            return "{}KB".format(round(size / 1024, 2))
-        elif 1048576<= size < 1073741824: # MB
-            return "{}MB".format(round(size / 1048576, 2))
-        elif 1048576 <= size: # < 1099511627776: # GB
-            return "{}GB".format(round(size / 1073741824, 2))
-
-
-
-# 看看这样能不能，避免GC。（我去可以!, 接收速度翻了约1.6倍～）
-# BUFVIEW = io.BytesIO(bytes(4096)).getbuffer()
-# BUFVIEW = bytearray(4096)
-
-class Buffer:
-
-    def __init__(self, sock, bufsize=64):
-        """
-        sock: client sock
-        bufsize: int: default 96k unit: k
-        """
-        self.buf = bytearray(bufsize*(1<<10)) # 64K buf
-        self.sock = sock
-
-    def recvsize(self, size):
-        cur = 0
-        while cur < size:
-            n = self.sock.recv_into(self.buf[cur:size])
-            if n == 0:
-                return bytearray()
-            cur += n
-
-        # print("应接收size:", size, "实际接收size:", cur)
-        return self.buf[:cur]
 
 def get_size_pack(sock, size):
     data = b""
@@ -151,13 +87,14 @@ def get_size_pack(sock, size):
 
 def tcp_recv_datasum(client, packsize, datasum, speed=False):
     client.settimeout(30)
-    bufsock = Buffer(client)
     try:
-        speed = Speed(packsize, datasum, False, False)
+        data = 0
+        c = 0
+        start = time.time()
+        end = start
         while True:
             # 先接收协议头
-            # proto_head = get_size_pack(client, PROTO_PACK.size)
-            proto_head = bufsock.recvsize(packsize)
+            proto_head = get_size_pack(client, PROTO_PACK.size)
             if not proto_head:
                 break
 
@@ -165,12 +102,23 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
                 break
 
             # 接收一个完整的包
-            # pack = get_size_pack(client, packsize)
-            pack = bufsock.recvsize(packsize)
+            pack = get_size_pack(client, packsize)
             if not pack:
                 break
-            
-            speed.add_one_pack()
+
+            data += len(pack)
+
+            end = time.time()
+            c += 1
+            t = end - start
+            if speed and t >= 1:
+                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
+                c = 0
+                start = end
+
+        t = end - start
+        if speed and 0 < t <= 1:
+            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
 
     except socket.timeout:
         print("TCP: 接收超时...")
@@ -196,7 +144,7 @@ def tcp_send_datasum(client, packsize, datasum, speed=False):
             c += 1
             t = end - start
             if speed and t >= 1:
-                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
                 c = 0
                 start = end
 
@@ -204,13 +152,11 @@ def tcp_send_datasum(client, packsize, datasum, speed=False):
 
         t = end - start
         if speed and 0 < t <= 1:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
 
     
     except BrokenPipeError:
         print("TCP: BrokenPipe...")
-    except ConnectionResetError:
-        print("TCP: ConnectionReset...")
     except socket.timeout:
         print("TCP: 发送测试超时...")
 
@@ -280,7 +226,7 @@ def tcp_send_time(client, packsize, time_, speed=False):
             t = end - start
             progress = end - time_start
             if speed and t >= 1:
-                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
+                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
                 c = 0
                 start = end
             
@@ -292,13 +238,11 @@ def tcp_send_time(client, packsize, time_, speed=False):
         t = end - start
         progress = end - time_start
         if speed and 0 < t <= 1:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
 
     
     except BrokenPipeError:
         print("TCP: BrokenPipe...")
-    except ConnectionResetError:
-        print("TCP: ConnectionReset...")
     except socket.timeout:
         print("TCP: 发送测试超时...")
 

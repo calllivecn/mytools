@@ -17,8 +17,13 @@ import (
 	"io"
 	"log"
 	"net"
+	"runtime"
 	// "fmt"
 )
+
+func init(){
+	runtime.GOMAXPROCS(1)
+}
 
 type CmdPack struct {
 	Cmd, Packsize uint16
@@ -106,51 +111,81 @@ func (ph *PackHead) toByte() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func getSizePack(con net.Conn, s int) ([]byte, error) {
-	data := []byte{}
-	buf := make([]byte, s)
-	for 0 < s {
-		count, err := con.Read(buf)
 
-        if err == io.EOF {
-			log.Println("client close.")
-			return append(data, buf[:count]...), err
-        }
+var bufsize uint64 = 64*(1<<10)
 
-		if err != nil {
-			log.Println(err)
-			return append(data, buf[:count]...), err
-		}
-
-		s -= count
-		data = append(data, buf[:count]...)
-	}
-
-	return data, nil
+// RecvSendPack 这算comments???
+type RecvSendPack struct{
+	net.Conn
+	Buf []byte
+	cur int
 }
 
-func (cp *CmdPack) recvCmdPack(con net.Conn) error {
+// NewRecvSendPack returns RecvSendPack 封装下收发包
+func NewRecvSendPack(conn net.Conn) *RecvSendPack {
+	return &RecvSendPack{conn, make([]byte, bufsize), 0}
+}
 
-	data, err := getSizePack(con, cmdpack_size)
+// func getSizePack(con net.Conn, s int) ([]byte, error) {
+func (rsp *RecvSendPack) getSizePack(s int) (int, error) {
+	rsp.cur = 0
+	for rsp.cur < s {
+		count, err := rsp.Read(rsp.Buf[rsp.cur:s])
+
+		if err != nil {
+
+        	if err == io.EOF {
+				log.Println("peer close.")
+				return rsp.cur, err
+			}
+
+			log.Println(err)
+			return -1, err
+		}
+
+		rsp.cur += count
+	}
+
+	return rsp.cur, nil
+}
+
+func (rsp *RecvSendPack) sendPack() error {
+	cur := 0
+	for cur < rsp.cur {
+		n, err := rsp.Write(rsp.Buf[cur:rsp.cur])
+
+		if err != nil {
+			log.Println("peer close.", err)
+			return err
+		}
+
+		cur += n
+	}
+	return nil
+}
+
+func (cp *CmdPack) recvCmdPack(rsp *RecvSendPack) error {
+
+	_, err := rsp.getSizePack(cmdpack_size)
 	if err != nil {
 		log.Println("没有收到一个完整的包，exit...")
 		return errors.New("没有收到一个完整的包，exit")
 	}
 
-	cp.byteToCmdPack(data)
+	cp.byteToCmdPack(rsp.Buf[:cmdpack_size])
 	log.Printf("CmdPack{}: %#v\n", *cp)
 	return nil
 }
 
-func (ph *PackHead) recvPackHead(con net.Conn) error {
-	data, err := getSizePack(con, packhead_size)
+func (ph *PackHead) recvPackHead(rsp *RecvSendPack) error {
+	_, err := rsp.getSizePack(packhead_size)
 	if err != nil {
 		log.Println("没有收到一个完整的包，exit...")
 		return errors.New("没有收到一个完整的包，exit")
 	}
 
 	// dp.byteToPackHead(data)
-	ph.byteToPackHeadReflect(data)
+	ph.byteToPackHeadReflect(rsp.Buf[:rsp.cur])
 
 	// 这种，会改变，所指向的对象
 	// dp = &d
@@ -177,20 +212,20 @@ func main() {
 			continue
 		}
 
-		log.Println("client: ", client.RemoteAddr(), "connected")
+		log.Println("client:", client.RemoteAddr(), "connected")
 
-		go tcpServer(client)
+		tcpServer(client)
 	}
 
 }
 
 func tcpServer(con net.Conn) {
-	defer con.Close()
-
 	head := CmdPack{}
 
+	acceptRsp := NewRecvSendPack(con)
+
 	// 接收指令头
-	err := head.recvCmdPack(con)
+	err := head.recvCmdPack(acceptRsp)
 	if err != nil {
 		log.Println("recvCmdPack() Error: ", err)
 		return
@@ -200,9 +235,9 @@ func tcpServer(con net.Conn) {
 	log.Println("接收到的指令：", head)
 	switch head.Cmd {
 	case TCP_RECV_DATASUM:
-		tcpsend(con, head.Packsize, head.Timedatasum)
+		go tcpsend(con, head.Packsize, head.Timedatasum)
 	case TCP_SEND_DATASUM:
-		tcprecv(con, head.Packsize, head.Timedatasum)
+		go tcprecv(con, head.Packsize, head.Timedatasum)
 	/*
 	case TCP_RECV_TIME:
 		tcprecv_time(con, head.Packsize, head.Timedatasum)
@@ -211,18 +246,23 @@ func tcpServer(con net.Conn) {
 	*/
 	default:
 		log.Println("未知指令类型。断开连接... CmdPack.Cmd: ", head.Cmd, "CmdPack.PackSize:", head.Packsize)
+		con.Close()
 		return
 	}
 }
 
 func tcprecv(con net.Conn, packsize uint16, datasum uint64) {
+	defer con.Close()
+
 	// 接收负载头信息
 	playload := PackHead{}
+
+	recvRsp := NewRecvSendPack(con)
 
 end:
 	for {
 
-		err := playload.recvPackHead(con)
+		err := playload.recvPackHead(recvRsp)
 
 		if err != nil {
 			log.Println("接收负载头错误: ", err)
@@ -236,7 +276,7 @@ end:
 		}
 
 		// 接收负载
-		_, err = getSizePack(con, int(packsize))
+		_, err = recvRsp.getSizePack(int(packsize))
 		if err != nil {
 			break
 		}
@@ -244,24 +284,29 @@ end:
 }
 
 func tcpsend(con net.Conn, packsize uint16, datasum uint64) {
+	defer con.Close()
+
 	head := PackHead{TCP_SEND_DATASUM, packsize}
 
 	headByte, _ := head.toByte()
 
-	playload := append(headByte, make([]byte, packsize)...)
+	sendRsp := NewRecvSendPack(con)
 
-	// datasum / packsize
-	pack := datasum / uint64(packsize)
-	for pack > 0 {
-		// n, err := con.Write(playload)
-		_, err := con.Write(playload)
+	playload := append(headByte, make([]byte, packsize)...)
+	copy(sendRsp.Buf[:len(playload)], playload)
+	sendRsp.cur = len(playload)
+
+	packcount := datasum / uint64(packsize)
+	log.Println("packcount：", packcount)
+	for packcount > 0 {
+		// _, err := con.Write(playload)
+		err := sendRsp.sendPack()
 		if err != nil {
 			log.Println(err)
 			return
 		}
-
-		// datasum -= uint64(n)
-		pack--
+		// log.Println("pack value:", pack)
+		packcount--
 	}
 	// 发送结束
 	eof, _ := EOF.toByte()
