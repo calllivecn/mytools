@@ -132,22 +132,20 @@ func tcprecv(con net.Conn, packsize int32, datasum uint64) {
 func tcpsend(con net.Conn, packsize int32, datasum uint64) {
 	defer con.Close()
 
-	head := define.PackHead{define.TCP_SEND_DATASUM, packsize}
+	head := define.PackHead{Typ: define.TCP_SEND_DATASUM, Size: packsize}
 
 	headByte, _ := head.ToByte()
 
-	sendRsp := define.NewRecvSendPack(con, packsize)
+	sendRsp := define.NewRecvSendPack(con, packsize + int32(define.PackHeadSize))
 
-	// playload := append(headByte, make([]byte, packsize)...)
-	// copy(sendRsp.Buf[:len(playload)], playload)
-	// sendRsp.Cur = len(playload)
+	copy(sendRsp.Buf[:define.PackHeadSize], headByte)
 
 	packcount := datasum / uint64(packsize)
 	log.Println("packcount：", packcount)
 
 	for packcount > 0 {
-		// _, err := con.Write(playload)
-		err := sendRsp.SendPack()
+		_, err := con.Write(sendRsp.Buf)
+		// err := sendRsp.SendPack()
 		if err != nil {
 			log.Println(err)
 			return

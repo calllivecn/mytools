@@ -114,7 +114,7 @@ type RecvSendPack struct{
 func NewRecvSendPack(conn net.Conn, bufsize int32) *RecvSendPack {
 	// cur = 0
 	// for cur <
-	return &RecvSendPack{conn, make([]byte, bufsize), 0}
+	return &RecvSendPack{conn, make([]byte, bufsize), int(bufsize)}
 }
 
 // s <= 10M
