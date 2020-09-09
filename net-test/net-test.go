@@ -124,6 +124,7 @@ func tcprecv(con net.Conn, packsize int32, datasum uint64) {
 		// 接收负载
 		_, err = recvRsp.GetSizePack(int(packsize))
 		if err != nil {
+			log.Println("接收数据包错误.")
 			break
 		}
 	}
