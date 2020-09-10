@@ -2,7 +2,7 @@
 //
 //
 //
-// 比同种算法的python3 版的慢一倍。。。(但是避免下GC性能就比python快2倍多了。)
+// 比同种算法的python3 版的慢一倍。。。(但是避免下GC性能就比python快2倍多了。快还是要相对于packsize来看)
 // 好像是TCP 的发和收包，所耗CPU资源不一样。接收耗的多。差不多正好是发送的一倍。
 //
 //
@@ -14,31 +14,33 @@ import (
 	"log"
 	"net"
 	"flag"
-	// "runtime"
 	// "fmt"
-
-	"./define"
 )
 
-// var address = ""
-// var port = "6789"
-// var server = false
+var (
+	address string = ""
+	port = "6789"
+	server = false
+)
 
-var	address = *flag.String("address", "0.0.0.0", "listen address Or server address")
-var	port = *flag.String("port", "6789", "server port  Or client port")
-var	server = *flag.Bool("server", true, "启动server")
 
 func init(){
 	// runtime.GOMAXPROCS(1)
 	// flag.
+
+	flag.StringVar(&address, "address", "0.0.0.0", "listen address Or server address")
+	flag.StringVar(&port, "port", "6789", "server port  Or client port")
+	flag.BoolVar(&server, "server", false, "启动server")
+
 	flag.Parse()
+
+	log.Println("server: ", server, "address: ", address, "port: ", port)
 }
 
 
 // ##################################################################
 
 func main() {
-	log.Println(server, address, port)
 	if server {
 		tcpServer(address, port)
 	}
@@ -67,7 +69,7 @@ func tcpServer(address, port string) {
 		log.Println("client:", client.RemoteAddr(), "connected")
 
 		// 开始！
-		head := define.CmdPack{}
+		head := CmdPack{}
 
 		// 接收指令头
 		err = head.RecvCmdPack(client)
@@ -79,9 +81,9 @@ func tcpServer(address, port string) {
 		// 这里是相对于client 来说的
 		log.Println("接收到的指令：", head)
 		switch head.Cmd {
-		case define.TCP_RECV_DATASUM:
+		case TCP_RECV_DATASUM:
 			go tcpsend(client, head.Packsize, head.Timedatasum)
-		case define.TCP_SEND_DATASUM:
+		case TCP_SEND_DATASUM:
 			go tcprecv(client, head.Packsize, head.Timedatasum)
 		/*
 		case TCP_RECV_TIME:
@@ -92,7 +94,6 @@ func tcpServer(address, port string) {
 		default:
 			log.Println("未知指令类型。断开连接... CmdPack.Cmd: ", head.Cmd, "CmdPack.PackSize:", head.Packsize)
 			client.Close()
-			return
 		}
 	}
 }
@@ -101,9 +102,9 @@ func tcprecv(con net.Conn, packsize int32, datasum uint64) {
 	defer con.Close()
 
 	// 接收负载头信息
-	playload := define.PackHead{}
+	playload := PackHead{}
 
-	recvRsp := define.NewRecvSendPack(con, packsize)
+	recvRsp := NewRecvSendPack(con, packsize)
 
 	for {
 
@@ -116,7 +117,7 @@ func tcprecv(con net.Conn, packsize int32, datasum uint64) {
 
 		// log.Printf("tcprecv() playload: %#v\n", playload)
 
-		if playload == define.EOF {
+		if playload == EOF {
 			log.Println("接收测试结束.")
 			break
 		}
@@ -127,18 +128,19 @@ func tcprecv(con net.Conn, packsize int32, datasum uint64) {
 			break
 		}
 	}
+
 }
 
 func tcpsend(con net.Conn, packsize int32, datasum uint64) {
 	defer con.Close()
 
-	head := define.PackHead{Typ: define.TCP_SEND_DATASUM, Size: packsize}
+	head := PackHead{Typ: TCP_SEND_DATASUM, Size: packsize}
 
 	headByte, _ := head.ToByte()
 
-	sendRsp := define.NewRecvSendPack(con, packsize + int32(define.PackHeadSize))
+	sendRsp := NewRecvSendPack(con, packsize + int32(PackHeadSize))
 
-	copy(sendRsp.Buf[:define.PackHeadSize], headByte)
+	copy(sendRsp.Buf[:PackHeadSize], headByte)
 
 	packcount := datasum / uint64(packsize)
 	log.Println("packcount：", packcount)
@@ -154,7 +156,8 @@ func tcpsend(con net.Conn, packsize int32, datasum uint64) {
 		packcount--
 	}
 	// 发送结束
-	eof, _ := define.EOF.ToByte()
+	eof, _ := EOF.ToByte()
 	con.Write(eof)
 	log.Println("发送测试结束.")
+
 }
