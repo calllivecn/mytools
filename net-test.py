@@ -24,7 +24,7 @@ import sys
 import time
 import socket
 import struct
-import signal
+# import signal
 import threading
 import argparse
 
@@ -55,6 +55,66 @@ EOF = PROTO_PACK.pack(0xffff, 0x00000000)
 
 
 # functions define begin
+
+class Speed:
+
+    def __init__(self, packsize, total, time_=True, show=False):
+        self. packsize = packsize
+        self.total = total
+        self.time = time_
+        self.show = show
+
+        if self.time:
+            self.datasum = total
+        else:
+            self.timecount = 0
+        
+
+        self.packcount = 0
+
+        # show speed 
+        self.lock = threading.Lock()
+
+        self.thread = threading.Thread(target=self.__show) 
+        self.start()
+    
+    def add_pack(self):
+        self.packcount += 1
+
+        if not self.time:
+            self.datasum += self.packsize
+
+
+    def __show(self):
+        while True:
+
+            with self.lock:
+                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(self.packcount), self.__data_unit(self.datasum), round((self.datasum / self.total) * 100)))
+
+            time.sleep(1)
+
+    def lock(self):
+        self.lock.acquire()
+    
+    def unlock(self):
+        self.lock.release()
+ 
+    def __data_unit(self, size):
+        """
+        size: 数据量
+        return: 23K or 1M or 1021M or 1.23G
+        """
+
+        if 0 <= size < 1024: # B
+            return "{}B".format(size)
+        elif 1024 <= size <= 1048576: # KB
+            return "{}KB".format(round(size / 1024, 2))
+        elif 1048576<= size < 1073741824: # MB
+            return "{}MB".format(round(size / 1048576, 2))
+        elif 1048576 <= size: # < 1099511627776: # GB
+            return "{}GB".format(round(size / 1073741824, 2))
+
+
 
 def __data_unit(size):
     """
