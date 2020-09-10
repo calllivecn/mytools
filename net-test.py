@@ -58,46 +58,78 @@ EOF = PROTO_PACK.pack(0xffff, 0x00000000)
 
 class Speed:
 
-    def __init__(self, packsize, total, time_=True, show=False):
-        self. packsize = packsize
+    def __init__(self, packsize, total, recvsend=True, time_=True):
+        self.packsize = packsize
         self.total = total
         self.time = time_
-        self.show = show
+        self.recvsend = recvsend
 
-        if self.time:
-            self.datasum = total
-        else:
-            self.timecount = 0
-        
-
+        self.datasum = 0
+        self.timecount = 0
         self.packcount = 0
+        self.curdata = 0
+        self.timestamp = time.time()
 
+        self.end = False
+    
         # show speed 
         self.lock = threading.Lock()
 
-        self.thread = threading.Thread(target=self.__show) 
-        self.start()
+        if self.time:
+            self.thread = threading.Thread(target=self.__showtime, daemon=True) 
+            self.thread.start()
+        else:
+            self.thread = threading.Thread(target=self.__showdata, daemon=True) 
+            self.thread.start()
     
     def add_pack(self):
-        self.packcount += 1
-
-        if not self.time:
+        """
+        return: true or false
+        """
+        with self.lock:
+            self.packcount += 1
             self.datasum += self.packsize
+            self.curdata += self.packsize
+
+            self.end = self.datasum >= self.total
 
 
-    def __show(self):
+    def __showdata(self):
         while True:
-
-            with self.lock:
-                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(self.packcount), self.__data_unit(self.datasum), round((self.datasum / self.total) * 100)))
-
             time.sleep(1)
+            with self.lock:
+                self.__print(round(self.packcount), self.__data_unit(self.curdata), round((self.datasum / self.total) * 100))
+                self.packcount = 0
+                self.curdata = 0
+                self.timestamp = time.time()
 
-    def lock(self):
+    def __showtime(self):
+        while True:
+            time.sleep(1)
+            with self.lock:
+                self.__print(round(self.packcount), self.__data_unit(self.curdata), round((self.timecount / self.total) * 100))
+                self.packcount = 0
+                self.timecount += 1
+                self.curdata = 0
+                self.timestamp = time.time()
+
+                self.end = self.timecount >= self.total
+
+    def endshowdata(self):
         self.lock.acquire()
+        t = time.time() - self.timestamp
+        self.__print(round(self.packcount / t), self.__data_unit(self.curdata / t), round((self.datasum / self.total) * 100))
     
-    def unlock(self):
-        self.lock.release()
+    def endshowtime(self):
+        self.lock.acquire()
+        t = time.time() - self.timestamp
+        self.__print(round(self.packcount / t), self.__data_unit(self.packcount / t), round((self.timecount / self.total) * 100))
+
+    def __print(self, pack, cur, progress):
+        if self.recvsend:
+            print("接收速度：{} pack/s {}/s 进度：{}%".format(pack, cur, progress))
+        else:
+            print("发送速度：{} pack/s {}/s 进度：{}%".format(pack, cur, progress))
  
     def __data_unit(self, size):
         """
@@ -187,17 +219,13 @@ def get_size_pack(sock, size):
     
     return data
 
-def tcp_recv_datasum(client, packsize, datasum, speed=False):
+def tcp_recv_datasum(client, packsize, datasum):
     client.settimeout(30)
     try:
-        data = 0
-        c = 0
-        start = time.time()
-        end = start
-
+        speed = Speed(packsize, datasum, False)
         buf = Buffer(client, packsize)
 
-        while data < datasum:
+        while not speed.end:
             # 先接收协议头
             proto_head = buf.recvsize(PROTO_PACK.size)
             if not proto_head:
@@ -205,7 +233,7 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
                 break
 
             if proto_head == EOF:
-                print("TCP: 接收测试完成...")
+                print("peer close...")
                 break
 
             # 接收一个完整的包
@@ -213,22 +241,14 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
             if not pack:
                 print("接收数据包错误...")
                 break
+                
+            speed.add_pack()
 
-            data += len(pack)
-            
-            end = time.time()
-            c += 1
-            t = end - start
-            if speed and t >= 1:
-                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
-                c = 0
-                start = end
 
+        # 正常结束
         buf.sendpack(EOF)
-
-        t = end - start
-        if speed and 0 < t <= 1:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
+        speed.endshowdata()
+        print("TCP: 接收测试完成...")
 
     except socket.timeout:
         print("TCP: 接收超时...")
@@ -236,34 +256,19 @@ def tcp_recv_datasum(client, packsize, datasum, speed=False):
         client.close()
 
 
-def tcp_send_datasum(client, packsize, datasum, speed=False):
+def tcp_send_datasum(client, packsize, datasum):
     datapack = PROTO_PACK.pack(TCP_RECV_DATASUM, packsize) + b"-" * packsize
     client.settimeout(30)
 
     try:
+        speed = Speed(packsize, datasum)
         buf = Buffer(client, packsize)
-        c = 0
-        start = time.time()
-        end = start
-        data = 0
-        while data < datasum:
+        while not speed.end:
             buf.sendpack(datapack)
-            data += packsize
-    
-            end = time.time()
-            c += 1
-            t = end - start
-            if speed and t >= 1:
-                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
-                c = 0
-                start = end
+            speed.add_pack()
 
         buf.sendpack(EOF)
-
-        t = end - start
-        if speed and 0 < t <= 1:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((data / datasum) * 100)))
-
+        speed.endshowdata()
         print("TCP: 发送测试完成...")
 
     except BrokenPipeError:
@@ -276,16 +281,12 @@ def tcp_send_datasum(client, packsize, datasum, speed=False):
         client.close()
 
 
-def tcp_recv_time(client, packsize, time_, speed=False):
+def tcp_recv_time(client, packsize, time_):
     client.settimeout(30)
     try:
         buf = Buffer(client, packsize)
-        c = 0
-        start = time.time()
-        end = start
-        time_start = start
-        progress = 0
-        while True:
+        speed = Speed(packsize, time_, True)
+        while not speed.end:
             # 先接收协议头
             proto_head = buf.recvsize(PROTO_PACK.size)
             if not proto_head:
@@ -293,7 +294,7 @@ def tcp_recv_time(client, packsize, time_, speed=False):
                 break
 
             if proto_head == EOF:
-                print("TCP: 接收测试完成...")
+                print("Peer close...")
                 break
 
             # 接收一个完整的包
@@ -302,21 +303,8 @@ def tcp_recv_time(client, packsize, time_, speed=False):
                 print("接收数据包错误...")
                 break
             
-            end = time.time()
-            c += 1
-            t = end - start
-
-            progress = end - time_start
-
-            if speed and t >= 1:
-                print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
-                c = 0
-                start = end
-        
-        t = end - start
-        if speed and 0 < t <= 1:
-            print("接收速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
-
+        speed.endshowtime()
+        print("TCP: 接收测试完成...")
 
     except socket.timeout:
         print("TCP: 接收超时...")
@@ -324,40 +312,20 @@ def tcp_recv_time(client, packsize, time_, speed=False):
         client.close()
 
 
-def tcp_send_time(client, packsize, time_, speed=False):
+def tcp_send_time(client, packsize, time_):
     datapack = PROTO_PACK.pack(TCP_RECV_TIME, packsize) + b"-" * packsize
     client.settimeout(30)
     try:
         buf = Buffer(client, packsize)
-        c = 0
-        start = time.time()
-        end = start
-        time_start = start
-        progress = 0
-        while True:
+        speed = Speed(packsize, time_, False)
+
+        while not speed.end:
             buf.sendpack(datapack)
-    
-            end = time.time()
-            c += 1
-            t = end - start
-            progress = end - time_start
-            if speed and t >= 1:
-                print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
-                c = 0
-                start = end
             
-            if progress >= time_:
-                print("TCP: 发送测试完成...")
-                break
-
         buf.sendpack(EOF)
+        speed.endshowtime()
+        print("TCP: 发送测试完成...")
 
-        t = end - start
-        progress = end - time_start
-        if speed and 0 < t <= 1:
-            print("发送速度：{} pack/s {}/s 进度：{}%".format(round(c / t), __data_unit(c * packsize / t), round((progress / time_) * 100)))
-
-    
     except BrokenPipeError:
         print("TCP: BrokenPipe...")
     except socket.timeout:
@@ -367,6 +335,26 @@ def tcp_send_time(client, packsize, time_, speed=False):
     finally:
         client.close()
 
+
+def tcp_server_recv(client, packsize):
+    buf = Buffer(client, packsize)
+    d = b"1"
+    while d:
+        d = buf.recvsize(packsize)
+
+    client.close()
+    print("TCP: 接收测试完成...")
+
+def tcp_server_send(client, packsize):
+    buf = Buffer(client, packsize)
+    pack = memoryview(bytearray(packsize))
+    try:
+        while True:
+            buf.sendpack(pack)
+    except ConnectionResetError:
+        print("TCP: 发送测试完成...")
+    finally:
+        client.close()
 
 # functions define end
 
@@ -515,27 +503,27 @@ def tcp_server(address, port, ipv6):
             client.close()
             continue
 
-        typ, packsize, datasum = CMD_PACK.unpack(cmd)
+        typ, packsize, total = CMD_PACK.unpack(cmd)
 
         # typ 是相对于client来说的。
         if typ == TCP_SEND_DATASUM:
             print("TCP: 开始测试接收...")
-            th = threading.Thread(target=tcp_recv_datasum, args=(client, packsize, datasum), daemon=True)
+            th = threading.Thread(target=tcp_server_recv, args=(client, packsize, total), daemon=True)
             th.start()
 
         elif typ == TCP_RECV_DATASUM:
             print("TCP: 开始测试发送...")
-            th = threading.Thread(target=tcp_send_datasum, args=(client, packsize, datasum), daemon=True)
+            th = threading.Thread(target=tcp_server_send, args=(client, packsize, total), daemon=True)
             th.start()
 
         elif typ == TCP_RECV_TIME:
             print("TCP: 开始测试发送...")
-            th = threading.Thread(target=tcp_send_time, args=(client, packsize, datasum), daemon=True)
+            th = threading.Thread(target=tcp_server_send, args=(client, packsize, total), daemon=True)
             th.start()
 
         elif typ == TCP_SEND_TIME:
             print("TCP: 开始测试接收...")
-            th = threading.Thread(target=tcp_recv_time, args=(client, packsize, datasum), daemon=True)
+            th = threading.Thread(target=tcp_server_send, args=(client, packsize, total), daemon=True)
             th.start()
 
         else:
