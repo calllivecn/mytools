@@ -26,7 +26,6 @@ var CmdPackSize, PackHeadSize int
 func init() {
 	CmdPackSize = binary.Size(CmdPack{})
 	PackHeadSize = binary.Size(PackHead{})
-	log.SetFlags(log.Lshortfile | log.Ldate | log.Ltime)
 }
 
 // 这里的定义是相对client来说
@@ -43,7 +42,6 @@ const (
 var EOF PackHead = PackHead{0xffff, 0x00000000}
 
 func (cp *CmdPack) ByteToCmdPackReflect(b []byte) {
-	// c := CmdPack{}
 	buf := bytes.NewBuffer(b)
 	// 这种方式用到反射，导致性能很差!!!
 	// 这种方式用到反射，导致性应该会变差!!! 但这里的性能瓶颈并不是这里。。。
@@ -53,12 +51,6 @@ func (cp *CmdPack) ByteToCmdPackReflect(b []byte) {
 		return
 	}
 
-}
-
-func (cp *CmdPack) ByteToCmdPack(b []byte) {
-	cp.Cmd = binary.BigEndian.Uint16(b[:2])
-	cp.Packsize = int32(binary.BigEndian.Uint32(b[2:6]))
-	cp.Timedatasum = binary.BigEndian.Uint64(b[6:14])
 }
 
 func (ph *PackHead) ByteToPackHeadReflect(b []byte) {
@@ -71,11 +63,21 @@ func (ph *PackHead) ByteToPackHeadReflect(b []byte) {
 	}
 }
 
+
+
+/*
+func (cp *CmdPack) ByteToCmdPack(b []byte) {
+	cp.Cmd = binary.BigEndian.Uint16(b[:2])
+	cp.Packsize = int32(binary.BigEndian.Uint32(b[2:6]))
+	cp.Timedatasum = binary.BigEndian.Uint64(b[6:14])
+}
+
 func (ph *PackHead) ByteToPackHead(b []byte) {
 	ph.Typ = binary.BigEndian.Uint16(b[:2])
 	ph.Size = int32(binary.BigEndian.Uint32(b[2:6]))
 }
 
+*/
 func (cp *CmdPack) ToByte() ([]byte, error) {
 	buf := bytes.Buffer{}
 	err := binary.Write(&buf, binary.BigEndian, cp)
@@ -177,7 +179,7 @@ func (cp *CmdPack) RecvCmdPack(con net.Conn) error {
 		Cur += count
 	}
 
-	cp.ByteToCmdPack(buf[:CmdPackSize])
+	cp.ByteToCmdPackReflect(buf[:CmdPackSize])
 	log.Printf("CmdPack{}: %#v\n", *cp)
 	return nil
 }

@@ -13,38 +13,7 @@ package main
 import (
 	"log"
 	"net"
-	"flag"
-	// "fmt"
 )
-
-var (
-	address string = ""
-	port = "6789"
-	server = false
-)
-
-
-func init(){
-	// runtime.GOMAXPROCS(1)
-	// flag.
-
-	flag.StringVar(&address, "address", "0.0.0.0", "listen address Or server address")
-	flag.StringVar(&port, "port", "6789", "server port  Or client port")
-	flag.BoolVar(&server, "server", false, "启动server")
-
-	flag.Parse()
-
-	log.Println("server: ", server, "address: ", address, "port: ", port)
-}
-
-
-// ##################################################################
-
-func main() {
-	if server {
-		tcpServer(address, port)
-	}
-}
 
 
 func tcpServer(address, port string) {

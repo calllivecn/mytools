@@ -543,30 +543,30 @@ def udp_server(address, port, ipv6):
             print("未定义的操作类型。", file=sys.stderr)
 
 
-def server(address, port=6789, ipv6=False):
+def tcpserver(address, port=6789, ipv6=False):
 
     if ipv6:
         tcp = threading.Thread(target=tcp_server, args=(address, port, ipv6), daemon=True)
         tcp.start()
-
-        udp = threading.Thread(target=udp_server, args=(address, port, ipv6), daemon=True)
-        udp.start()
-
         tcp.join()
-        udp.join()
-    
     else:
         tcp = threading.Thread(target=tcp_server, args=(address, port, ipv6), daemon=True)
         tcp.start()
+        tcp.join()
 
+def udpserver(address, port=6789, ipv6=False):
+
+    if ipv6:
         udp = threading.Thread(target=udp_server, args=(address, port, ipv6), daemon=True)
         udp.start()
-
-        tcp.join()
+        udp.join()
+    else:
+        udp = threading.Thread(target=udp_server, args=(address, port, ipv6), daemon=True)
+        udp.start()
         udp.join()
 
-def countdown():
-    sys.exit(0)
+
+
 
 def biginteger(number):
     i = int(number)
@@ -591,7 +591,7 @@ def main():
             epilog="author: calllivecn <https://github.com/calllivecn/mytools>"
             )
     tcp_udp = parse.add_mutually_exclusive_group()
-    tcp_udp.add_argument("-t", "--tcp", action="store_true", help="使用TCP(default)")
+    tcp_udp.add_argument("-t", "--tcp", action="store_true", default=True, help="使用TCP(default)")
     tcp_udp.add_argument("-u", "--udp", action="store_true", help="使用UDP")
 
     time_count = parse.add_mutually_exclusive_group()
@@ -630,9 +630,15 @@ def main():
     if args.server:
         try:
             if args.ipv6:
-                server(args.address, port=args.port, ipv6=True)
+                if args.tcp:
+                    tcpserver(args.address, port=args.port, ipv6=True)
+                else:
+                    udpserver(args.address, port=args.port, ipv6=True)
             else:
-                server(args.address, port=args.port)
+                if args.tcp:
+                    tcpserver(args.address, port=args.port)
+                else:
+                    udpserver(args.address, port=args.port)
         except KeyboardInterrupt:
             pass
         sys.exit(0)
