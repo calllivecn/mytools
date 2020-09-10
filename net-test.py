@@ -3,21 +3,6 @@
 # date 2020-01-09 00:19:05
 # author calllivecn <c-all@qq.com>
 
-"""
-TCP:
-    发送测试：
-        client --> struct.pack("!HH", typ=TCP_SEND, packsize)
-        server --> 一直接收。直到收到typ = EOF时。结束
-    
-    接收测试：
-        情形1（使用 --datasum 时，也是默认选项）：
-            client --> struct.pack("!HHI", typ=TCP_SEND, packsize, datasum)
-            server --> 在发送完数据后，向client发送EOF结束。
-
-        情形2（使用 --time 时）： 这种。。。。先算了，使用数据总量来跑吧
-            client --> struct.pack("!HHI", typ=TCP_SEND_TIME, packsize, time)
-            server --> 在时间到后，向client发送EOF结束。
-"""
 
 import io
 import sys
