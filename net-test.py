@@ -85,10 +85,10 @@ class Speed:
         while True:
             time.sleep(1)
             with self.lock:
+                self.timestamp = time.time()
                 self.__print(round(self.packcount), self.__data_unit(self.curdata), round(self.datasum / self.total * 100))
                 self.packcount = 0
                 self.curdata = 0
-                self.timestamp = time.time()
 
     def __showtime(self):
         while True:
