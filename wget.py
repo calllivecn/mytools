@@ -78,8 +78,8 @@ class Wget:
             func.update(data)
     
     def print(self):
-        for func in self.shafuncs:
-            print(f"{func}: {func.hexdigest()}")
+        for index, func in enumerate(self.shafuncs):
+            print(f"{self.shafuncnames[index]}: {func.hexdigest()}")
 
 
     def wget(self, savepath, url):
@@ -120,15 +120,20 @@ def main():
 
     if args.md5:
         shafuncs.append("md5") 
-    elif args.sha1:
+
+    if args.sha1:
         shafuncs.append("sha1") 
-    elif args.sha224:
+
+    if args.sha224:
         shafuncs.append("sha224") 
-    elif args.sha256:
+
+    if args.sha256:
         shafuncs.append("sha256") 
-    elif args.sha384:
+
+    if args.sha384:
         shafuncs.append("sha384") 
-    elif args.sha512:
+
+    if args.sha512:
         shafuncs.append("sha512") 
 
     w = Wget(shafuncs)
