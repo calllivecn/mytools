@@ -46,48 +46,96 @@ class Progress:
             return self._isEnd
 
 
-def wget(savepath, url):
-    block = 1<<14 # 16k
+class HashAlgError(Exception):
+    pass
 
-    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36"}
-    req = request.Request(url, headers=headers)
-    response = request.urlopen(req, timeout=15)
+class Wget:
 
-    md5 = hashlib.md5()
-    sha256 = hashlib.sha256()
-    sha384 = hashlib.sha384()
-    sha512 = hashlib.sha512()
+    HASH = ("md5", "sha1", "sha224", "sha256", "sha384", "sha512")
+
+    def __init__(self, shafunc=[]):
+        self.shafuncnames = shafunc
+
+        self.shafuncs = []
+
+        # 是否计算hash值
+        if len(shafunc) == 0:
+            self.sha = False
+        else:
+            self.sha = True
+
+
+        # 需要计算的hash函数
+        for funcname in self.shafuncnames:
+            if funcname in self.HASH:
+                self.shafuncs.append(getattr(hashlib, funcname)())
+            else:
+                raise HashAlgError(f"只支持 {self.HASH} 算法")
+
+
+    def update(self, data):
+        for func in self.shafuncs:
+            func.update(data)
     
-    progress = Progress()
+    def print(self):
+        for func in self.shafuncs:
+            print(f"{func}: {func.hexdigest()}")
 
-    with open(savepath, "wb") as f:
-        for data in iter(partial(response.read, block), b""):
-            f.write(data)
-            md5.update(data)
-            sha256.update(data)
-            sha384.update(data)
-            sha512.update(data)
-    
-    progress.over()
 
-    print("md5: ", md5.hexdigest())
-    print("sh256: ", sha256.hexdigest())
-    print("sh384: ", sha384.hexdigest())
-    print("sh512: ", sha512.hexdigest())
-    
-USAGE="""\
-Usage: {} <文件保存路径> <url>
-""".format(sys.argv[0])
+    def wget(self, savepath, url):
+        block = 1<<14 # 16k
+
+        headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36"}
+        req = request.Request(url, headers=headers)
+        response = request.urlopen(req, timeout=15)
+
+        with open(savepath, "wb") as f:
+            for data in iter(partial(response.read, block), b""):
+                f.write(data)
+
+                if self.sha:
+                    self.update(data)
+
+        self.print()
+
 
 def main():
-    if len(sys.argv) != 3:
-        print(USAGE)
-        sys.exit(1)
-    
+    import argparse
 
-    wget(sys.argv[1], sys.argv[2])
+    parse = argparse.ArgumentParser(usage="%(prog)s [optional] <url>")
 
+    parse.add_argument("-o", required=True, help="保存文件名")
+    parse.add_argument("--md5", action="store_true", help="下载同时计算 md5")
+    parse.add_argument("--sha1", action="store_true", help="下载同时计算 sha1")
+    parse.add_argument("--sha224", action="store_true", help="下载同时计算 sha224")
+    parse.add_argument("--sha256", action="store_true", help="下载同时计算 sha256")
+    parse.add_argument("--sha384", action="store_true", help="下载同时计算 sha384")
+    parse.add_argument("--sha512", action="store_true", help="下载同时计算 sha512")
 
+    parse.add_argument("url", help="下载链接")
+
+    args = parse.parse_args()
+
+    shafuncs = []
+
+    if args.md5:
+        shafuncs.append("md5") 
+    elif args.sha1:
+        shafuncs.append("sha1") 
+    elif args.sha224:
+        shafuncs.append("sha224") 
+    elif args.sha256:
+        shafuncs.append("sha256") 
+    elif args.sha384:
+        shafuncs.append("sha384") 
+    elif args.sha512:
+        shafuncs.append("sha512") 
+
+    w = Wget(shafuncs)
+
+    p = Progress()
+    w.wget(args.o, args.url)
+    p.over()
 
 if __name__ == "__main__":
     main()
