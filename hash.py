@@ -78,13 +78,13 @@ def readshafile(checksumfile):
             try:
                 value = shafile(fname)
             except FileNotFoundError as e:
-                print("{} line:{} 没有文件：{}".format(checksumfile, c, fname))
+                print("{} line:{} 没有文件：{}".format(checksumfile, c, fname), file=sys.stderr)
                 continue
 
             if fvalue == value:
                 print(fname, ": ok")
             else:
-                print(fname, ": failed")
+                print(fname, ": failed", file=sys.stderr)
 
 
 if args.check:
