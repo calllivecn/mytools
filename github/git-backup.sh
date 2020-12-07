@@ -23,6 +23,8 @@ esac
 
 if [ -n "$1" ];then
 	GIT="$1"
+elif [ -n "$GIT_BACKUP" ];then
+	GIT="$GIT_BACKUP"
 else
 	GIT="$HOME/git-backup"
 	echo "创建 $GIT"
