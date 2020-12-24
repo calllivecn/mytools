@@ -50,7 +50,7 @@ xz_tool(){
 	elif type -p xz 2>&1 > /dev/null;then
 		XZ=xz
 	else
-		echo "需要xz-utils"
+		echo "需要xz-utils OR pixz"
 		exit 1
 	fi
 }
@@ -126,3 +126,5 @@ elif [ $SPLIT = 1 ];then
 	tar -C / --acls -pc ${excludes} . 2>/dev/null |$XZ |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}". &
 	sha512sum $FIFO | awk -v filename=${out_filename} '{print $1,filename}' > "${out_dir}"/"${out_filename}".sha512sum
 fi
+
+# 恢复 pixz < *.tar.xz | tar -vx -C /tmp/<***>
