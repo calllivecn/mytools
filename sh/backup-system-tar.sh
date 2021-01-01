@@ -23,15 +23,17 @@ SHA_SUFFIX="sha256"
 HOSTNAME=$(hostname)
 DATETIME=$(date +%F-%H-%M-%S)
 
+clear_tmp(){
+	rm $FIFO
+	rm $TAR_USE
+}
 
 TRAP=0
-clean(){
+error_exit_clear(){
 
 	if [ $TRAP = 1 ];then
 		return
 	fi
-
-	rm "$TAR_USE"
 
 	if [ $SPLIT = 0 ];then
 
@@ -40,9 +42,8 @@ clean(){
 
 	elif [ $SPLIT = 1 ];then
 
-		rm $FIFO
-		kill $PID
-		rm -r "${OUT_DIR}"
+		kill $TAR_PID
+		rm -r "${out_dir}"
 	fi
 
 	TRAP=1
@@ -96,7 +97,7 @@ zstd_tool(){
 		if [ "$RESTORE"x = "1"x ];then
 			ZSTD="pzstd -d -c"
 		else
-			ZSTD="pzstd -15 -c"
+			ZSTD="pzstd -10 -c"
 		fi
 
 	else
@@ -116,6 +117,26 @@ aes_type(){
 	fi
 }
 
+check_aes_password(){
+	local p1 p2
+	read -s -p "password: " p1
+	echo
+	read -s -p "password(agent): " p2
+	echo
+
+	if [ "$p1"x = ""x ] || [ "$p2"x = ""x ];then
+		echo "两次输入的密码不能为空."
+		exit 1
+
+	elif [ "$p1"x != "$p2"x ];then
+		echo "两次输入的密码不一样."
+		exit 1
+	else
+		AES_PASSWORD="$p1"
+	fi
+
+}
+
 aes_type
 zstd_tool
 compress_program_and_suffix(){
@@ -128,7 +149,7 @@ if [ "$ENCRYPTO"x = "0"x ];then
 # 这是不加密的
 cat >"${TAR_USE}"<<EOF
 #!/bin/sh
-case "$1" in
+case "\$1" in
 	-d)
 		${ZSTD}
 		;;
@@ -145,15 +166,17 @@ EOF
 
 else
 
+check_aes_password
+
 # 这是加密的
 cat >>"${TAR_USE}"<<EOF
 #!/bin/sh
-case "$1" in
+case "\$1" in
 	-d)
-		${AES} -d | ${ZSTD}
+		${AES} -d -k "${AES_PASSWORD}" | ${ZSTD}
 		;;
 	'')
-		${ZSTD} | ${AES} -p "系统备份"
+		${ZSTD} | ${AES} -p "系统备份" -k "${AES_PASSWORD}"
 		;;
 	*)
 		echo "Unknown option $1" >&2
@@ -176,12 +199,14 @@ echo
 }
 
 
-trap "clean" SIGTERM SIGINT ERR
+trap "error_exit_clear" SIGTERM SIGINT ERR
+
+trap "clear_tmp" EXIT
 
 SPLIT=0
 ENCRYPTO=0
 RESTORE=0
-while getopts "deb:h" args
+while getopts "b:edh" args
 do
 	case $args in
 		b)
@@ -269,10 +294,12 @@ excludes="$sys_excludes $user_excludes"
 
 
 if [ $SPLIT = 0 ];then
-	time { tar -C / --acls -pc ${excludes} -I "$TAR_USE" . |show_speed |tee $out_file | sha256sum > ${out_file}.sha256sum; }
+	time { tar -C / --acls -pc ${excludes} -I "$TAR_USE" . |show_speed |tee $out_file | sha256sum > ${out_file}.${SHA_SUFFIX}; }
 elif [ $SPLIT = 1 ];then
-	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}"/"${out_filename}." &
-	time { sha256sum $FIFO | awk -v filename=${out_filename} '{print $1,filename}' > "${out_dir}"/"${out_filename}.sha256sum"; }
+	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
+	TAR_PID=$!
+	time { SHA256=$(sha256sum $FIFO); }
+	echo "${SHA256::64} ${out_filename}" > "${out_dir}/${out_filename}.${SHA_SUFFIX}"
 fi
 
 # 之前的这么: 恢复 pixz < *.tar.xz | tar -vx -C /tmp/<***>
