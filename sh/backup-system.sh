@@ -1,5 +1,6 @@
 #!/bin/bash
 # update 2018-04-28 23:29:32
+# update 2021-01-01 20:23:21
 # author calllivecn <c-all@qq.com>
 
 
@@ -10,6 +11,7 @@ mk_file(){
 	mkfifo $FIFO
 
 	TAR_USE=$(mktemp --suffix=.sh)
+	chmod u+x "$TAR_USE"
 
 	if [ $SPLIT = 1 ];then
 		mkdir "${out_dir}"
@@ -38,7 +40,7 @@ error_exit_clear(){
 	if [ $SPLIT = 0 ];then
 
 		rm "$out_file"
-		rm "${out_file}.${SHA_SUFFIX}"
+		#rm "${out_file}.${SHA_SUFFIX}"
 
 	elif [ $SPLIT = 1 ];then
 
@@ -67,7 +69,7 @@ show_speed(){
 	local CMD
 
 	if type -p pv 2>&1 > /dev/null;then
-		CMD="pv -ba"
+		CMD="pv -ab"
 	else
 		CMD=cat
 	fi
@@ -97,7 +99,7 @@ zstd_tool(){
 		if [ "$RESTORE"x = "1"x ];then
 			ZSTD="pzstd -d -c"
 		else
-			ZSTD="pzstd -10 -c"
+			ZSTD="pzstd -13 -c"
 		fi
 
 	else
@@ -141,9 +143,6 @@ aes_type
 zstd_tool
 compress_program_and_suffix(){
 
-
-chmod u+x "$TAR_USE"
-
 if [ "$ENCRYPTO"x = "0"x ];then
 
 # 这是不加密的
@@ -157,7 +156,7 @@ case "\$1" in
 		${ZSTD}
 		;;
 	*)
-		echo "Unknown option $1" >&2
+		echo "Unknown option \$1" >&2
 		exit 1
 		;;
 
@@ -179,7 +178,7 @@ case "\$1" in
 		${ZSTD} | ${AES} -p "系统备份" -k "${AES_PASSWORD}"
 		;;
 	*)
-		echo "Unknown option $1" >&2
+		echo "Unknown option \$1" >&2
 		exit 1
 		;;
 
@@ -191,10 +190,12 @@ fi
 
 
 usage(){
-echo "Usage: ${PROGRAM} [-d] [-e] [-b <split block>] <directory path>"
-echo "-d 还原备份."
+echo "Usage: ${PROGRAM} [-r] [-e] [-b <split block>] <directory path>"
+echo "-r 还原备份."
 echo "-e 使用 aes.py 加密文件."
 echo "-b 使用 split 切片块大小, 例：256M  512M 1G 5G"
+#echo "--aes-password"
+#echo "--aes-path"
 echo
 }
 
@@ -206,7 +207,7 @@ trap "clear_tmp" EXIT
 SPLIT=0
 ENCRYPTO=0
 RESTORE=0
-while getopts "b:edh" args
+while getopts "b:erh" args
 do
 	case $args in
 		b)
@@ -216,7 +217,7 @@ do
 		e)
 			ENCRYPTO=1
 			;;
-		d)
+		r)
 			RESTORE=1
 			;;
 		h)
@@ -228,7 +229,7 @@ do
 			exit 1
 			;;
 		\?)
-			echo "未知选项"
+			echo "未知选项" >&2
 			exit 1
 			;;
 
@@ -274,10 +275,8 @@ if [ $(id -u) -ne 0 ];then
 	exit 1
 fi
 
-if [ $SPLIT = 1 ];then
-	mk_file
-fi
 
+mk_file
 
 # 生成 tar use-compress-program sh
 compress_program_and_suffix
@@ -292,14 +291,24 @@ user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
 
 excludes="$sys_excludes $user_excludes"
 
+# 一个段一个段的添加 成指令(未开发完成)
+TAR_CMD="tar -C / --acls -pc ${excludes} . 2>/dev/null "
+
 
 if [ $SPLIT = 0 ];then
-	time { tar -C / --acls -pc ${excludes} -I "$TAR_USE" . |show_speed |tee $out_file | sha256sum > ${out_file}.${SHA_SUFFIX}; }
+
+	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $out_file > $FIFO &
+	TAR_PID=$!
+	time { SHA256=$(sha256sum $FIFO); }
+	echo "${SHA256::64} ${out_file}" > ${out_file}.${SHA_SUFFIX}
+
 elif [ $SPLIT = 1 ];then
-	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
+
+	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
 	TAR_PID=$!
 	time { SHA256=$(sha256sum $FIFO); }
 	echo "${SHA256::64} ${out_filename}" > "${out_dir}/${out_filename}.${SHA_SUFFIX}"
+
 fi
 
 # 之前的这么: 恢复 pixz < *.tar.xz | tar -vx -C /tmp/<***>
