@@ -5,21 +5,35 @@
 set -e
 
 
-PROXY='socks5://127.0.0.1:10000'
-PROXY='http://127.0.0.1:9999'
-YOU='youtube-dl --proxy '"$PROXY"
+
+
+
+
+if [ -z $https_proxy ];then
+	#PROXY='socks5://127.0.0.1:10000'
+	#PROXY='http://127.0.0.1:9999'
+	#PROXY='socks5://192.168.9.1:10002'
+
+	YOU='youtube-dl --proxy '"socks5://127.0.0.1:1080"
+else
+	YOU='youtube-dl --proxy '"$https_proxy"
+fi
 
 program="${0##*/}"
 
 using(){
 	echo "Using : $program queue"
-	echo "start download."
+	echo "start queue download."
 	echo
     echo "Using : $program [-dh] [-o outfilename] <URL>"
 	echo "add download queue."
 	echo
+    echo "Using : $program download [-o outfilename] <URL>"
+	echo "ask download video"
+	echo
 	echo "queue 启动队列下载."
-	echo "-d    使用 youtube-dl 默认视频选项"
+	echo "download 直接下载（不加入队列）."
+	#echo "-d    使用 youtube-dl 默认视频选项"
 	echo "-o    输出文件名"
 	echo "-h    help"
 }
@@ -39,6 +53,8 @@ check_YOUTUBE_QUEUE(){
 	fi
 	#echo "YOUTUBE_QUEUE is $YOUTUBE_QUEUE"
 }
+
+check_YOUTUBE_QUEUE
 
 number=
 OUT=
@@ -79,28 +95,13 @@ do
 done
 }
 
-if [ "$1"x = "queue"x ];then
-	shift
-	check_YOUTUBE_QUEUE
-	echo "$program start YOUTUBE_QUEUE --> $YOUTUBE_QUEUE"
-	YOUTUBE_QUEUE_download
-	exit 0
-fi
 
-if [ $# -eq 1 ];then
-	echo "$1" |grep -E "^https://"
-fi
-
-
-check_YOUTUBE_QUEUE
+# main process
 
 while getopts ':o:dh' opt;do
 case $opt in
     o)
         OUT="$OPTARG"
-        ;;
-    d)
-        DEFAULT=true
         ;;
     h)
         using
@@ -125,17 +126,29 @@ if [ $# -lt 1 ];then
 fi
 
 
+if [ "$1"x = "queue"x ];then
+	shift
+	check_YOUTUBE_QUEUE
+	echo "$program start YOUTUBE_QUEUE --> $YOUTUBE_QUEUE"
+	YOUTUBE_QUEUE_download
+	exit 0
 
-if [ $DEFAULT ];then
-    echo URL="$1" OUT="$OUT" 'number=' '-->' "$YOUTUBE_QUEUE"
-    echo URL='"'"$1"'"' OUT='"'"$OUT"'"' 'number=' >> "$YOUTUBE_QUEUE"
+elif [ "$1"x = "download"x ];then
+
+	shift
+    $YOU -F "$1"
+    echo -n "输入下载视频和音频编号(如137+140): "
+    read number
+    number=${number:-'137+140'}
+	$YOU -f "$number" "$1"
+
 else
+
     $YOU -F "$1"
     echo -n "输入下载视频和音频编号(如137+140): "
     read number
     number=${number:-'137+140'}
     echo URL='"'"$1"'"' OUT='"'"$OUT"'"' number='"'"$number"'"' '-->' "$YOUTUBE_QUEUE"
     echo URL='"'"$1"'"' OUT='"'"$OUT"'"' number='"'"$number"'"' >> "$YOUTUBE_QUEUE"
+
 fi
-
-
