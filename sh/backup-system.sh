@@ -5,8 +5,11 @@
 
 
 set -e
-
+MK_FILE=0
 mk_file(){
+
+	MK_FILE=1
+
 	FIFO=$(mktemp -u)
 	mkfifo $FIFO
 
@@ -26,8 +29,10 @@ HOSTNAME=$(hostname)
 DATETIME=$(date +%F-%H-%M-%S)
 
 clear_tmp(){
-	rm $FIFO
-	rm $TAR_USE
+	if [ $MK_FILE = 1 ];then
+		rm $FIFO
+		rm $TAR_USE
+	fi
 }
 
 TRAP=0
@@ -64,19 +69,6 @@ backup_filename_or_dirname(){
 	echo "使用这个备份名字: $BACKUP_NAME"
 }
 
-show_speed(){
-	
-	local CMD
-
-	if type -p pv 2>&1 > /dev/null;then
-		CMD="pv -ab"
-	else
-		CMD=cat
-	fi
-
-$CMD
-}
-
 # 弃用
 xz_tool(){
 	# pxz 命令从ubuntu 19.04 改为 pixz 
@@ -95,31 +87,29 @@ xz_tool(){
 # 改为使用
 zstd_tool(){
 	if type -p pzstd 2>&1 > /dev/null;then
-
-		if [ "$RESTORE"x = "1"x ];then
-			ZSTD="pzstd -d -c"
-		else
-			ZSTD="pzstd -13 -c"
-		fi
-
+		:
 	else
 		echo "需要 apt install zstd"
 		exit 1
 	fi 
-	#echo "$ZSTD"
 }
 
 # ase.py
 aes_type(){
 	if type -p aes.py 2>&1 > /dev/null;then
-		AES="aes.py"
+		AES_PATH="aes.py"
 	else
 		echo "需要 aes.py 下载地址 https://github.com/calllivecn/mytools/aes.py"
+		echo "使用 --aes-path /path/to/aes.py 指定."
 		exit 1
 	fi
 }
 
 check_aes_password(){
+	if [ "${AES_PATH}"x = ""x ];then
+		echo "aes.py 没有找到，可以 --aes-path /path/to/aes.py 指定." >&2
+		exit 1
+	fi
 	local p1 p2
 	read -s -p "password: " p1
 	echo
@@ -139,63 +129,18 @@ check_aes_password(){
 
 }
 
-aes_type
-zstd_tool
-compress_program_and_suffix(){
-
-if [ "$ENCRYPTO"x = "0"x ];then
-
-# 这是不加密的
-cat >"${TAR_USE}"<<EOF
-#!/bin/sh
-case "\$1" in
-	-d)
-		${ZSTD}
-		;;
-	'')
-		${ZSTD}
-		;;
-	*)
-		echo "Unknown option \$1" >&2
-		exit 1
-		;;
-
-esac
-EOF
-
-else
-
-check_aes_password
-
-# 这是加密的
-cat >>"${TAR_USE}"<<EOF
-#!/bin/sh
-case "\$1" in
-	-d)
-		${AES} -d -k "${AES_PASSWORD}" | ${ZSTD}
-		;;
-	'')
-		${ZSTD} | ${AES} -p "系统备份" -k "${AES_PASSWORD}"
-		;;
-	*)
-		echo "Unknown option \$1" >&2
-		exit 1
-		;;
-
-esac
-EOF
-
-fi
-}
-
-
 usage(){
-echo "Usage: ${PROGRAM} [-r] [-e] [-b <split block>] <directory path>"
-echo "-r 还原备份."
-echo "-e 使用 aes.py 加密文件."
-echo "-b 使用 split 切片块大小, 例：256M  512M 1G 5G"
-#echo "--aes-password"
-#echo "--aes-path"
+echo "Usage: ${PROGRAM} [-r] [-e] [-b <split block>] --target <directory path>"
+echo "${PROGRAM} --target <directory path>      备份."
+echo "-r, --restore                             还原备份.(还未实现)"
+echo "-e, --encrypto                            使用 aes.py 加密文件."
+echo "-b, --split-block                         使用 split 切片块大小, 例：256M  512M 1G 5G"
+#echo "--zstd                        选择压缩方式： zstd. 默认：zstd"
+#echo "--gzip                        选择压缩方式： gzip"
+#echo "--bzip                        选择压缩方式： bzip2" 
+#echo "--xz                          选择压缩方式： xz"
+echo "--aes-path                                aes.py 如果不在PATH里, 可以使用这个选项指定。"
+echo "--aes-password                            非交互式输入密码。"
 echo
 }
 
@@ -204,53 +149,139 @@ trap "error_exit_clear" SIGTERM SIGINT ERR
 
 trap "clear_tmp" EXIT
 
+
+param(){
+	if [ "${2}"x = x ] || [ ${2::1} = "-" ] || [ ${2::2} = "--" ];then
+		echo "${1} 选项需要参数。"
+		exit 1
+	fi
+}
+
 SPLIT=0
-ENCRYPTO=0
 RESTORE=0
-while getopts "b:erh" args
+ENCRYPTO=0
+AES_CMD=
+AES_PASSWORD=
+COMP_CMD="pzstd -13 -c"
+COMP_SUFFIX="zst"
+
+argc=0
+ARGS=()
+while :
 do
-	case $args in
-		b)
-			SPLIT=1
-			SPLIT_BLOCK="$OPTARG"
+	case "$1" in
+		# 如果后面的选项，依赖这个选项，那这选项就是有解析顺序的了。
+		# 放前面。
+		-r|--rstore)
+			RESTORE=1
+			echo "还原功能还未实现。"
+			echo "可以手动恢复。"
+			exit 0
 			;;
-		e)
+
+		-b|--split-block)
+			param "$1" "$2"
+			SPLIT=1
+			SPLIT_BLOCK="$2"
+			shift
+			;;
+
+		#--zstd)
+		#	if [ $RESTORE = 0 ];then
+		#		COMP="pzstd"
+		#	else
+		#		COMP="pzstd -13 -c"
+		#	fi
+		#	COMP_SUFFIX="zst"
+		#	;;
+		#--gzip)
+		#	COMP="gzip"
+		#	if [ $RESTORE = 0 ];then
+		#		COMP=""
+		#	else
+		#		COMP="pzstd -13 -c"
+		#	fi
+		#	COMP_SUFFIX="gz"
+		#	;;
+		#--xz)
+		#	COMP="xz"
+		#	COMP_SUFFIX="xz"
+		#	;;
+		#--bzip2)
+		#	COMP="bzip2"
+		#	COMP_SUFFIX="bz2"
+		#	;;
+		
+		-e|--encrypto)
 			ENCRYPTO=1
 			;;
-		r)
-			RESTORE=1
+
+		--aes-path)
+			param "$1" "$2"
+			if [ -x ${1} ];then
+				AES_PATH="$2"
+			else
+				echo "加密文件 ${2} 不在或者是不可执行文件。"
+				exit 1
+			fi
+			shift
 			;;
-		h)
+
+		--aes-prompt)
+			param "$1" "$2"
+			AES_CMD="${AES_PATH} -p ""$2"
+			shift
+			;;
+
+		--aes-password)
+			param "$1" "$2"
+			AES_CMD="${AES_CMD} -k ""$2"
+			shift
+			;;
+		-h|--help)
 			usage
 			exit 0
 			;;
-		\:)
-			echo "-${OPTARG} 需要一个参数"
-			exit 1
-			;;
-		\?)
-			echo "未知选项" >&2
-			exit 1
+		--)
+			break
 			;;
 
+		*)
+			#echo "添加到位置参数。"
+			ARGS[$argc]="$1"
+			argc=$[argc + 1]
+			;;
 	esac
+	shift
+	if [ $# -eq 0 ];then
+		break
+	fi
 done
+set -- "${ARGS[@]}"
+unset ARGS argc
 
-shift $[ OPTIND - 1 ]
 
+T=${1%/}
+if [ "$T"x = ""x ];then
+	echo "备份路径是必须的。${PROGRAM} </path/dir/>"
+	exit 1
+fi
 
-if [ -d "$1" ] && [ -w "$1" ];then
+if [ -d "$T" ] && [ -w "$T" ];then
 	:
 else
 	usage
 	echo
-	echo "or error exit $1 exists"
+	echo "Or error exit $T exists"
 	exit 1
 fi
 
 backup_filename_or_dirname
 
-T=${1%/}
+if [ $ENCRYPTO = 1 ];then
+	aes_type
+	check_aes_password
+fi
 
 out_file="${T}/${BACKUP_NAME}".tar.zst
 
@@ -258,7 +289,7 @@ out_dir="${T}/${BACKUP_NAME}"
 
 out_filename="${out_dir##*/}".tar.zst
 
-# 如果加密，就别上后缀
+# 如果加密，就加上后缀
 if [ $ENCRYPTO = 1 ];then
 
 	out_file="${T}/${BACKUP_NAME}".tar.zst.aes
@@ -278,20 +309,20 @@ fi
 
 mk_file
 
-# 生成 tar use-compress-program sh
-compress_program_and_suffix
-
 #################
 # main process
 #################
 
-sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/* --exclude=snap/*'
 #sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
+sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/* --exclude=snap/*'
 
-user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
 #user_excludes='./home/* ./mnt/* ./media/*'
+user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
 
-excludes="$sys_excludes $user_excludes"
+# 添加 /var/log/journal/
+var_log_journal='--exclude=var/log/journal/* --add-file=var/log/journal/'
+
+excludes="$var_log_journal $sys_excludes $user_excludes"
 
 # 一个段一个段的添加 成指令(未开发完成)
 BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
@@ -301,21 +332,18 @@ BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 
 
 
 # 添加压缩方式
-COMPRESS="zst"
-if [ $COMPRESS = "zst" ];then
-	BACKUP_CMD="$BACKUP_CMD""| pzstd -13 -c "
-fi
+BACKUP_CMD="$BACKUP_CMD""| ${COMP_CMD} "
 
 # 添加加密码
 if [ ENCRYPTO = 1 ];then
-	BACKUP_CMD="$BACKUP_CMD""| aes.py -p '系统备份' "
+	BACKUP_CMD="$BACKUP_CMD""| ${AES_CMD} "
 fi
 
 # 添加 show speed
 if type -p pv 2>&1 >/dev/null;then
 	BACKUP_CMD="$BACKUP_CMD""| pv -ab "
 else
-	echo "如果要查看进度， 可以安装 pv 工具" >&2
+	echo "如果要查看进度条， 可以安装 pv 工具" >&2
 fi
 
 
