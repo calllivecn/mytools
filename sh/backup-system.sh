@@ -281,7 +281,9 @@ mk_file
 # 生成 tar use-compress-program sh
 compress_program_and_suffix
 
+#################
 # main process
+#################
 
 sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/* --exclude=snap/*'
 #sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
@@ -292,21 +294,44 @@ user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
 excludes="$sys_excludes $user_excludes"
 
 # 一个段一个段的添加 成指令(未开发完成)
-TAR_CMD="tar -C / --acls -pc ${excludes} . 2>/dev/null "
+BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
+
+# test
+#BACKUP_CMD="tar -C /home/zx/work/ --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
+
+
+# 添加压缩方式
+COMPRESS="zst"
+if [ $COMPRESS = "zst" ];then
+	BACKUP_CMD="$BACKUP_CMD""| pzstd -13 -c "
+fi
+
+# 添加加密码
+if [ ENCRYPTO = 1 ];then
+	BACKUP_CMD="$BACKUP_CMD""| aes.py -p '系统备份' "
+fi
+
+# 添加 show speed
+if type -p pv 2>&1 >/dev/null;then
+	BACKUP_CMD="$BACKUP_CMD""| pv -ab "
+else
+	echo "如果要查看进度， 可以安装 pv 工具" >&2
+fi
 
 
 if [ $SPLIT = 0 ];then
-
-	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $out_file > $FIFO &
+	#tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $out_file > $FIFO &
+	eval $BACKUP_CMD | tee $out_file > $FIFO &
 	TAR_PID=$!
-	time { SHA256=$(sha256sum $FIFO); }
-	echo "${SHA256::64} ${out_file}" > ${out_file}.${SHA_SUFFIX}
+	time { SHA256="$(sha256sum $FIFO)"; }
+	echo "${SHA256::64} ${out_file}" > "${out_file}.${SHA_SUFFIX}"
 
 elif [ $SPLIT = 1 ];then
 
-	tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
+	#tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
+	eval $BACKUP_CMD |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
 	TAR_PID=$!
-	time { SHA256=$(sha256sum $FIFO); }
+	time { SHA256="$(sha256sum $FIFO)"; }
 	echo "${SHA256::64} ${out_filename}" > "${out_dir}/${out_filename}.${SHA_SUFFIX}"
 
 fi
