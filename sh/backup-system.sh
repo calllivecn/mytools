@@ -56,6 +56,14 @@ error_exit_clear(){
 	TRAP=1
 }
 
+LOGLEVEL=info
+debug(){
+	if [ $LOGLEVEL = "debug" ];then
+		echo "$1" >&2
+	fi
+}
+
+
 backup_filename_or_dirname(){
 	local ID VERSION_ID 
 	local OS="/etc/os-release"
@@ -66,7 +74,7 @@ backup_filename_or_dirname(){
 		BAKCUP_NAME="Linux-${HOSTNAME}-${DATETIME}"
 	fi
 	
-	echo "使用这个备份名字: $BACKUP_NAME"
+	debug "使用这个备份名字: $BACKUP_NAME"
 }
 
 # 弃用
@@ -130,17 +138,18 @@ check_aes_password(){
 }
 
 usage(){
-echo "Usage: ${PROGRAM} [-r] [-e] [-b <split block>] --target <directory path>"
-echo "${PROGRAM} --target <directory path>      备份."
-echo "-r, --restore                             还原备份.(还未实现)"
-echo "-e, --encrypto                            使用 aes.py 加密文件."
-echo "-b, --split-block                         使用 split 切片块大小, 例：256M  512M 1G 5G"
+echo "Usage: ${PROGRAM} [-r] [-e] [-b <split block>] <directory path>"
+echo "-r, --restore                  还原备份.(还未实现)"
+echo "-e, --encrypt                 使用 aes.py 加密文件."
+echo "-b, --split-block              使用 split 切片块大小, 例：256M  512M 1G 5G"
 #echo "--zstd                        选择压缩方式： zstd. 默认：zstd"
 #echo "--gzip                        选择压缩方式： gzip"
 #echo "--bzip                        选择压缩方式： bzip2" 
 #echo "--xz                          选择压缩方式： xz"
-echo "--aes-path                                aes.py 如果不在PATH里, 可以使用这个选项指定。"
-echo "--aes-password                            非交互式输入密码。"
+echo "--aes-path                     aes.py 如果不在PATH里, 可以使用这个选项指定。"
+#echo "--aes-password                 非交互式输入密码。"
+echo "--aes-prompt                   aes.py 的提示。"
+echo "--debug                        debug."
 echo
 }
 
@@ -159,7 +168,7 @@ param(){
 
 SPLIT=0
 RESTORE=0
-ENCRYPTO=0
+ENCRYPT=0
 AES_CMD=
 AES_PASSWORD=
 COMP_CMD="pzstd -13 -c"
@@ -212,8 +221,9 @@ do
 		#	COMP_SUFFIX="bz2"
 		#	;;
 		
-		-e|--encrypto)
-			ENCRYPTO=1
+		-e|--encrypt)
+			ENCRYPT=1
+			aes_type
 			;;
 
 		--aes-path)
@@ -221,7 +231,7 @@ do
 			if [ -x ${1} ];then
 				AES_PATH="$2"
 			else
-				echo "加密文件 ${2} 不在或者是不可执行文件。"
+				echo "加密文件 ${2} 不存在或者是不可执行文件。"
 				exit 1
 			fi
 			shift
@@ -229,18 +239,22 @@ do
 
 		--aes-prompt)
 			param "$1" "$2"
-			AES_CMD="${AES_PATH} -p ""$2"
+			AES_PROMPT="$2"
 			shift
 			;;
 
-		--aes-password)
-			param "$1" "$2"
-			AES_CMD="${AES_CMD} -k ""$2"
-			shift
-			;;
+		#--aes-password)
+		#	param "$1" "$2"
+		#	AES_PASSWORD="$2"
+		#	shift
+		#	;;
+
 		-h|--help)
 			usage
 			exit 0
+			;;
+		--debug)
+			LOGLEVEL="debug"
 			;;
 		--)
 			break
@@ -278,8 +292,14 @@ fi
 
 backup_filename_or_dirname
 
-if [ $ENCRYPTO = 1 ];then
-	aes_type
+if [ $ENCRYPT = 1 ];then
+
+	AES_CMD="${AES_PATH}"
+
+	if [ "${AES_PROMPT}"x != x ];then
+		AES_CMD="${AES_CMD} -p ""${AES_PROMPT}"	
+	fi
+
 	check_aes_password
 fi
 
@@ -290,7 +310,7 @@ out_dir="${T}/${BACKUP_NAME}"
 out_filename="${out_dir##*/}".tar.zst
 
 # 如果加密，就加上后缀
-if [ $ENCRYPTO = 1 ];then
+if [ $ENCRYPT = 1 ];then
 
 	out_file="${T}/${BACKUP_NAME}".tar.zst.aes
 
@@ -301,7 +321,7 @@ if [ $ENCRYPTO = 1 ];then
 fi
 
 
-if [ $(id -u) -ne 0 ];then
+if [ $EUID -ne 0 ];then
 	echo need root user
 	exit 1
 fi
@@ -335,8 +355,8 @@ BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 
 BACKUP_CMD="$BACKUP_CMD""| ${COMP_CMD} "
 
 # 添加加密码
-if [ ENCRYPTO = 1 ];then
-	BACKUP_CMD="$BACKUP_CMD""| ${AES_CMD} "
+if [ $ENCRYPT = 1 ];then
+	BACKUP_CMD="$BACKUP_CMD""| ${AES_CMD} -k ${AES_PASSWORD}"
 fi
 
 # 添加 show speed
@@ -349,6 +369,7 @@ fi
 
 if [ $SPLIT = 0 ];then
 	#tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $out_file > $FIFO &
+	debug "$BACKUP_CMD | tee $out_file > $FIFO &"
 	eval $BACKUP_CMD | tee $out_file > $FIFO &
 	TAR_PID=$!
 	time { SHA256="$(sha256sum $FIFO)"; }
@@ -357,6 +378,7 @@ if [ $SPLIT = 0 ];then
 elif [ $SPLIT = 1 ];then
 
 	#tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
+	debug "$BACKUP_CMD |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &"
 	eval $BACKUP_CMD |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
 	TAR_PID=$!
 	time { SHA256="$(sha256sum $FIFO)"; }
