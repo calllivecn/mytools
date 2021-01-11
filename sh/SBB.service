@@ -1,0 +1,11 @@
+[Unit]
+Description=系统启动完成时beep 3 声(蜂鸣器响)
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/modprobe pcspkr
+ExecStart=/usr/local/sbin/SBB.sh
+
+[Install]
+WantedBy=default.target

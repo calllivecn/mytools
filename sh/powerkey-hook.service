@@ -1,0 +1,10 @@
+[Unit]
+Description=powerkey hook beep (蜂鸣器响声)
+
+[Service]
+Type=simlpe
+ExecStartPre=-/modprobe pcspkr
+ExecStart=/usr/local/sbin/powerkey-hook.sh
+
+[Install]
+WantedBy=sysinit.target
