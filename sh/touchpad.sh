@@ -4,6 +4,7 @@
 
 set -e
 
+# 只应用于X.org
 # 需要你配置，xinput list --name-only |grep -i touchpad 查看你想操作的设备。
 # 可能会有几个，第一个都disable一下，测试出你的触控板是那个。
 DEVICE_NAME=""
