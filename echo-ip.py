@@ -6,32 +6,24 @@
 import sys
 # import time
 import socket
-# import asyncio
+import asyncio
 from datetime import datetime
-from threading import Thread
+# from threading import Thread
 
-'''
-async def echo_ipv4(r, w):
-    ip, port = w.get_extra_info("peername")
-    # result = w.get_extra_info("peername")
-    # print(f"peername --> {result}")
+def timestamp():
+    return datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
+
+async def echo_ip(r, w):
+    result = w.get_extra_info("peername")
+    ip = result[0]
     w.write(ip.encode()+ b"\n")
+    print(f"{timestamp()} [{ip}]", flush=True)
     w.close()
 
 
-async def main_ipv4(addr, port=1121):
-
-    server = await asyncio.start_server(echo_ip, addr, port, reuse_address=True)
-
-    async with server:
-        await server.serve_forever()
-
 async def main(addr, port=1121):
 
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    sock.bind((addr, port))
-
-    server = await asyncio.start_server(echo_ip, sock=sock, reuse_address=True)
+    server = await asyncio.start_server(echo_ip, addr, port, reuse_address=True)
 
     async with server:
         await server.serve_forever()
@@ -40,17 +32,18 @@ def start():
     try:
         addr = int(sys.argv[1])
     except Exception:
-        addr = "0.0.0.0"
-        # addr = "::"
+        # addr = "0.0.0.0" # ipv4
+        # addr = "::" # ipv6
+        addr = "*" # 双栈...
 
     try:
         port = int(sys.argv[2])
     except Exception:
         port = 1121
 
-    print(f"start listen: {addr} port: {port}")
+    print(f"start listen: [{addr}] port: {port}")
     
-    asyncio.run(main_ipv4(addr, port))
+    asyncio.run(main(addr, port))
 
 
 if __name__ == "__main__":
@@ -59,11 +52,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("exit")
 
+
 '''
-
-def timestamp():
-    return datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
-
 
 def echo_ipv4(addr="0.0.0.0", port=1121):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -91,7 +81,7 @@ def echo_ipv6(addr="::", port=1121):
 
     while True:
         client, addr = sock.accept()
-        ip, port, notknown, scope = client.getpeername()
+        ip, port, flowinfo, scope_id = client.getpeername()
         client.send(ip.encode() + b"\n")
         print(f"{timestamp()} {ip}")
         client.close()
@@ -112,6 +102,7 @@ def main():
     for p in proc:
         p.join()
 
-
 if __name__ == "__main__":
     main()
+
+'''
