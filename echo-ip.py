@@ -4,8 +4,10 @@
 # author calllivecn <c-all@qq.com>
 
 import sys
+# import time
 import socket
 # import asyncio
+from datetime import datetime
 from threading import Thread
 
 '''
@@ -59,11 +61,14 @@ if __name__ == "__main__":
 
 '''
 
+def timestamp():
+    return datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
 
 
 def echo_ipv4(addr="0.0.0.0", port=1121):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
     # sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, True)
     sock.bind((addr, port))
     sock.listen(512)
@@ -71,13 +76,15 @@ def echo_ipv4(addr="0.0.0.0", port=1121):
     while True:
         client, addr = sock.accept()
         ip, port = client.getpeername()
-        client.send(ip.encode())
+        client.send(ip.encode() + b"\n")
+        print(f"{timestamp()} {ip}")
         client.close()
 
 
 def echo_ipv6(addr="::", port=1121):
     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
     # sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, True)
     sock.bind((addr, port))
     sock.listen(512)
@@ -85,7 +92,8 @@ def echo_ipv6(addr="::", port=1121):
     while True:
         client, addr = sock.accept()
         ip, port, notknown, scope = client.getpeername()
-        client.send(ip.encode())
+        client.send(ip.encode() + b"\n")
+        print(f"{timestamp()} {ip}")
         client.close()
 
 
