@@ -16,9 +16,14 @@ def timestamp():
 async def echo_ip(r, w):
     result = w.get_extra_info("peername")
     ip = result[0]
+    
     w.write(ip.encode()+ b"\n")
-    print(f"{timestamp()} [{ip}]", flush=True)
+    await w.drain()
+    
+    print(f"{timestamp()} [{ip}]")
+    
     w.close()
+    await w.wait_closed()
 
 
 async def main(addr, port=1121):
@@ -29,8 +34,11 @@ async def main(addr, port=1121):
         await server.serve_forever()
 
 def start():
+    
+    print(f"Usage: {sys.argv[0]} [ipv4=0.0.0.0 or ipv6=:: address] [port=1121]")
+    
     try:
-        addr = int(sys.argv[1])
+        addr = sys.argv[1]
     except Exception:
         # addr = "0.0.0.0" # ipv4
         # addr = "::" # ipv6
