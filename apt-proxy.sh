@@ -18,11 +18,20 @@ do
 	done
 done
 
+SUDO(){
+	if [ $EUID -ne 0 ];then
+		sudo apt $APT_OPTION "$@"
+	else
+		apt $APT_OPTION "$@"
+	fi  
+}
+
+
 
 if [ "$1"x = "debug"x ];then
 	shift
 	echo apt $APT_OPTION "$@"
 else
-	apt $APT_OPTION "$@"
+	SUDO "$@"
 fi
 
