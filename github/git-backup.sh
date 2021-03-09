@@ -44,7 +44,8 @@ for gitdir in $(echo "$GIT/*");
 do
 	if [ -d "$gitdir/.git" ];then
 		pushd "$gitdir"
-		git fetch 
+		#git fetch 
+		git pull --all
 		popd
 	fi
 done
