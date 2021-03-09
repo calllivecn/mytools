@@ -1,0 +1,17 @@
+[Unit]
+Description=git-backup.service 定时器
+
+[Timer]
+#OnBootSec=15min
+## 指定每3天执行
+#OnUnitActiveSec=3d
+
+# 指定每个月的1号开始，每加3天(4), 的03点执行一次。
+OnCalendar=*-*-01/3 03:00:00
+
+# 设置定时器的触发精度(默认为1min)，在测试timer 时最好设置。
+# AccuracySec=1ms
+
+[Install]
+WantedBy=default.target
+
