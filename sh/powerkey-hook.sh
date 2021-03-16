@@ -27,13 +27,15 @@ interval=1
 t1=$(date +%s)
 
 notify(){
+	local c
+	c=$count
 
 	if [ $count -ne 0 ];then
 		echo "电源键被按下了 ${count} 次."
 		beep
 	fi
 
-	case $count in
+	case $c in
 		0)
 			#这里就说明没有按下
 			:
