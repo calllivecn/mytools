@@ -10,13 +10,14 @@ import json
 import argparse
 
 
-key_index = re.compile(r"([\w\d]+)(?:\[(\d+)\])?")
+key_index = re.compile(r"([\w\d\.]+)?(?:\[(\d+)\])?")
 
 def get_key_and_index(params):
     key, index = key_index.match(params).groups()
 
-    if index is None:
-        index = None
+    if key is None and index is None:
+        print(f"key: {key} index: {index}")
+        raise KeyError("key or index 必需要有一个")
 
     return key, index
 
@@ -82,13 +83,21 @@ def main():
 
                 try:
 
-                    value = value[key]
-
-                    if index:
+                    if key is None:
                         value = value[int(index)]
+                    else:
+                        value = value[key]
+
+                        if index:
+                            value = value[int(index)]
+
+                except IndexError as e:
+                    print(f"{e}")
+                    sys.exit(1)
 
                 except Exception as e:
                     print(f"解析 {dot}: key or index error.")
+                    print(f"{e}")
                     sys.exit(1)
 
             if isinstance(value, dict):
