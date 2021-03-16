@@ -1,0 +1,9 @@
+[Unit]
+Description=定时备份我的github
+
+
+[Service]
+Environment="http_proxy=http://localhost:9999"
+Environment="https_proxy=http://localhost:9999"
+ExecStart=%h/data/github-repos/git-backup.sh
+WorkingDirectory=%h/data/github-repos
