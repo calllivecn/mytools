@@ -94,8 +94,14 @@ def recv_cmd(sock):
 
     return cmd_number, cmd
 
+# client begin
 
-def send_cmd(sock, cmd_number, cmd=None):
+def broadcast_cmd(port, cmd_number, cmd):
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(1)
+    #send_cmd(sock, port, cmd_number, cmd)
 
     if cmd_number == 1 and cmd is not None:
         cmd_byte = cmd.encode()
@@ -116,7 +122,7 @@ def send_cmd(sock, cmd_number, cmd=None):
 
     logger.info(log)
 
-    broadcast = ("<broadcast>",6789)
+    broadcast = ("<broadcast>", port)
 
     # retry 3 次
     for i in range(1, 4):
@@ -134,14 +140,6 @@ def send_cmd(sock, cmd_number, cmd=None):
     #logger.error(f"指定可能发送失败。")
 
     return cmd_number, cmd
-
-# client begin
-
-def broadcast_cmd(cmd_number, cmd):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(1)
-    send_cmd(sock, cmd_number, cmd)
 
 # client end
 
@@ -164,6 +162,8 @@ def server(address, port):
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
     sock.bind((address, port))
+
+    logger.info(f"接收端口: {port}")
 
     while True:
         data, addr = sock.recvfrom(bufsize)
@@ -218,6 +218,6 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             sys.exit(0)
     else:
-        broadcast_cmd(args.type, args.cmd)
+        broadcast_cmd(args.port, args.type, args.cmd)
 
     
