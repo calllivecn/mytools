@@ -8,17 +8,18 @@
 通过LAN广播的方式，执行指令。
 1. 可以执行shell命令。
 2. 可以编写py拓展执行。
+3. termux-tts-speak 文字转语音
 """
 
 import os
 import sys
+import time
 import subprocess
 import argparse
 import logging
 import threading
 import struct
 import socket
-import socketserver
 
 
 def getlogger(level=logging.INFO):
@@ -33,6 +34,8 @@ def getlogger(level=logging.INFO):
     return logger
 
 logger = getlogger(logging.DEBUG)
+
+
 
 def shell(cmd, timeout=5):
 
@@ -60,6 +63,7 @@ class Plugin:
 
     def run(self):
         pass
+
 
 bufsize = 2048
 
@@ -90,8 +94,14 @@ def recv_cmd(sock):
 
     return cmd_number, cmd
 
+# client begin
 
-def send_cmd(sock, cmd_number, cmd=None):
+def broadcast_cmd(port, cmd_number, cmd):
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(1)
+    #send_cmd(sock, port, cmd_number, cmd)
 
     if cmd_number == 1 and cmd is not None:
         cmd_byte = cmd.encode()
@@ -112,7 +122,7 @@ def send_cmd(sock, cmd_number, cmd=None):
 
     logger.info(log)
 
-    broadcast = ("<broadcast>",6789)
+    broadcast = ("<broadcast>", port)
 
     # retry 3 次
     for i in range(1, 4):
@@ -121,6 +131,7 @@ def send_cmd(sock, cmd_number, cmd=None):
             data, addr = sock.recvfrom(bufsize)
         except socket.timeout:
             logger.info(f"超时重试: {i}/3")
+            time.sleep(1)
             continue
 
         logger.info(f"server: {addr} -- confirm: {data.decode()}")
@@ -129,14 +140,6 @@ def send_cmd(sock, cmd_number, cmd=None):
     #logger.error(f"指定可能发送失败。")
 
     return cmd_number, cmd
-
-# client begin
-
-def broadcast_cmd(cmd_number, cmd):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.settimeout(1)
-    send_cmd(sock, cmd_number, cmd)
 
 # client end
 
@@ -147,60 +150,36 @@ class subcmd(threading.Thread):
     args: (shellcmd,)
     """
     def __init__(self, cmd):
-        threading.Thread.__init__(self)
+        threading.Thread.__init__()
         self.cmd = cmd
 
     def run(self):
         shell(self.cmd)
 
 
-class ThreadUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
-    daemon_threads = True
+# 这里是 server 部分
+def server(address, port):
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
-class UDPHandler(socketserver.DatagramRequestHandler):
+    sock.bind((address, port))
 
-    def handle(self):
-        logger.info(f"client: {self.client_address}")
+    logger.info(f"接收端口: {port}")
 
-        # self.packet 接收到的数据, self.socket 套接字。
-
+    while True:
+        data, addr = sock.recvfrom(bufsize)
         # reply ok
-        self.socket.sendto(b"ok", self.client_address)
+        sock.sendto(b"ok", addr)
 
-        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(self.packet[:6])
-        cmd = self.packet[6:]
-        cmd = cmd.decode()
+        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
+        cmd = data[6:]
+        cmd = cmd.decode("utf8")
         if cmd_number == 1:
             logger.info(f"收到的shell指令：{cmd}")
             shell(cmd)
         else:
             logger.info(f"收到指令号：{cmd_number}")
-
-
-def server():
-    with ThreadUDPServer(("", 6789), UDPHandler) as server:
-        server.request_queue_size = 128
-        server.serve_forever()
-
-    #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-
-    #sock.bind(("", 6789))
-
-    #while True:
-    #    data, addr = sock.recvfrom(bufsize)
-    #    # reply ok
-    #    sock.sendto(b"ok", addr)
-
-    #    versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
-    #    cmd = data[6:]
-    #    cmd = cmd.decode()
-    #    if cmd_number == 1:
-    #        logger.info(f"收到的shell指令：{cmd}")
-    #        shell(cmd)
-    #    else:
-    #        logger.info(f"收到指令号：{cmd_number}")
     
-    #sock.close()
+    sock.close()
 
 
 # server end
@@ -209,6 +188,10 @@ def parse_cli():
     parse = argparse.ArgumentParser()
 
     parse.add_argument("--server", action="store_true", help="start a server.")
+
+    parse.add_argument("--address", action="store", default="::", help="listen 地址")
+
+    parse.add_argument("--port", action="store", type=int, default=11234, help="listen port")
 
     parse.add_argument("-t", "--type", type=int, default=1, help="1~60000 指令类型:1 为shell 指令")
 
@@ -230,9 +213,11 @@ if __name__ == "__main__":
     args = parse_cli()
 
     if args.server:
-        server()
-        sys.exit(0)
-
-    broadcast_cmd(args.type, args.cmd)
+        try:
+            server(args.address, args.port)
+        except KeyboardInterrupt:
+            sys.exit(0)
+    else:
+        broadcast_cmd(args.port, args.type, args.cmd)
 
     
