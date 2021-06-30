@@ -3,7 +3,7 @@
 # author calllivecn <c-all@qq.com>
 
 
-PROXY_ADDR="http://127.0.0.1:9999"
+PROXY_ADDR="$(grep -oP '(?<=http_proxy=")(.*)(?=")' $HOME/.config/xiyou)"
 
 URLs="ppa.launchpad.net
 linux.teamviewer.com

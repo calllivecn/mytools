@@ -4,17 +4,11 @@
 
 set -e
 
-
-
-
-
-
 if [ -z $https_proxy ];then
 	#PROXY='socks5://127.0.0.1:10000'
 	#PROXY='http://127.0.0.1:9999'
-	#PROXY='socks5://192.168.9.1:10002'
 
-	YOU='youtube-dl --proxy '"socks5://127.0.0.1:1080"
+	YOU='youtube-dl --proxy '"socks5://192.168.9.1:10000"
 else
 	YOU='youtube-dl --proxy '"$https_proxy"
 fi
