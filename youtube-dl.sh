@@ -8,7 +8,7 @@ if [ -z $https_proxy ];then
 	#PROXY='socks5://127.0.0.1:10000'
 	#PROXY='http://127.0.0.1:9999'
 
-	YOU='youtube-dl --proxy '"socks5://192.168.9.1:10000"
+	YOU='youtube-dl --proxy '"socks5://$(grep -oP '(?<=http_proxy=")(.*)(?=")' $HOME/.config/xiyou)"
 else
 	YOU='youtube-dl --proxy '"$https_proxy"
 fi

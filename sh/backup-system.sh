@@ -171,7 +171,7 @@ RESTORE=0
 ENCRYPT=0
 AES_CMD=
 AES_PASSWORD=
-COMP_CMD="pzstd -13 -c"
+COMP_CMD="pzstd -7 -c"
 COMP_SUFFIX="zst"
 
 argc=0
