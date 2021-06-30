@@ -19,6 +19,7 @@ IPv6 ff02::1组播：
     0. ipv6 组播地址
 """
 
+import sys
 import socket
 import argparse
 from struct import pack
@@ -30,43 +31,43 @@ LOCAL_LINK_IPv6 = 'ff02::1'
 DEFAULT_PORT = 9  # 9 or 7
 
 
-def magic_packet(macaddress):
+def magic_packet(mac):
 
-    if len(macaddress) == 12:
+    if len(mac) == 12:
         pass
-    elif len(macaddress) == 17:
-        sep = macaddress[2]
-        macaddress = macaddress.replace(sep, '')
+    elif len(mac) == 17:
+        sep = mac[2]
+        mac = mac.replace(sep, '')
     else:
         raise ValueError('Incorrect MAC address format')
 
     # Pad the synchronization stream
-    data = b'FFFFFFFFFFFF' + (macaddress * 16).encode()
+    data = b'FFFFFFFFFFFF' + (mac * 16).encode()
     send_data = b''
 
     # Split up the hex values in pack
-    for i in range(0, len(data), 2):
+    for i in range(0, len(data), ):
         send_data += pack(b'B', int(data[i: i + 2], 16))
     return send_data
 
 
-def send_packet(macs, ipv4=True):
+def send_packet(macs, ipv6):
 
-    if ipv4:
+    if ipv6:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    else:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    else:
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
     for mac in macs:
         packet = magic_packet(mac)
 
         #print(packet)
 
-        if ipv4:
-            sock.sendto(packet, (BROADCAST_IPv4, DEFAULT_PORT))
-        else:
+        if ipv6:
             sock.sendto(packet, (LOCAL_LINK_IPv6, DEFAULT_PORT))
+        else:
+            sock.sendto(packet, (BROADCAST_IPv4, DEFAULT_PORT))
 
     sock.close()
 
@@ -76,7 +77,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Wake one or more computers using the wake on lan protocol.')
 
-    parser.add_argument('-i','--ipv46' , action="store_false", default=True, help="ipv4 or ipv6 default: ipv4")
+    parser.add_argument('--ipv6', action="store_true", default=False, help="ipv6 default: ipv4")
 
     parser.add_argument('-p', metavar='port', type=int, default=DEFAULT_PORT,
                         help='The port of the host to send the magic packet to (default 9)')
@@ -84,9 +85,15 @@ def main():
     parser.add_argument('macs', metavar='mac address', nargs='+',
                         help='The mac addresses or of the computers you are trying to wake.')
 
+    parser.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
     args = parser.parse_args()
 
-    send_packet(args.macs, args.ipv46)
+    if args.parse:
+        print(args)
+        sys.exit(0)
+
+    send_packet(args.macs, args.ipv6)
 
 
 if __name__ == '__main__':
