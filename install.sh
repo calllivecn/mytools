@@ -16,7 +16,6 @@ aes.py
 jsonfmt.py
 registry.py
 unmount.sh
-git-backup.sh
 '
 HOME_BIN='youtube-dl.sh
 '
