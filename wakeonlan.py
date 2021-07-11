@@ -26,7 +26,7 @@ from struct import pack
 
 
 BROADCAST_IPv4 = '255.255.255.255'
-LOCAL_LINK_IPv6 = 'ff02::1'
+LOCAL_LINK_IPv6 = 'fe80::1'
 
 DEFAULT_PORT = 9  # 9 or 7
 
