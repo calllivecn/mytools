@@ -51,7 +51,7 @@ class HashAlgError(Exception):
 
 class Wget:
 
-    HASH = ("md5", "sha1", "sha224", "sha256", "sha384", "sha512")
+    HASH = ("md5", "sha1", "sha224", "sha256", "sha384", "sha512", "blake2b")
 
     def __init__(self, shafunc=set()):
         self.shafuncnames = sorted(shafunc)
@@ -114,6 +114,7 @@ def main():
     parse.add_argument("--sha256", action="store_true", help="下载同时计算 sha256")
     parse.add_argument("--sha384", action="store_true", help="下载同时计算 sha384")
     parse.add_argument("--sha512", action="store_true", help="下载同时计算 sha512")
+    parse.add_argument("--blake2b", action="store_true", help="下载同时计算 blake2b")
     parse.add_argument("--sha-all", action="store_true", help="下载同时计算以上所有值")
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
@@ -144,6 +145,9 @@ def main():
 
     if args.sha512:
         shafuncs |= {"sha512"}
+    
+    if args.blake2b:
+        shafuncs |= {"blake2b"}
     
     if args.sha_all:
         shafuncs |= set(Wget.HASH)
