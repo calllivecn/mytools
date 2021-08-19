@@ -5,7 +5,7 @@
 
 
 import os
-import re
+# import re
 import sys
 import argparse
 import hashlib
@@ -22,6 +22,7 @@ groups.add_argument('--sha224', action="store_true", help="sha224")
 groups.add_argument('--sha256', action="store_true", help="sha256 (default)")
 groups.add_argument('--sha384', action="store_true", help="sha384")
 groups.add_argument('--sha512', action="store_true", help="sha512")
+groups.add_argument('--blake2b', action="store_true", help="blake2b")
 
 g2 = parse.add_mutually_exclusive_group()
 
@@ -33,7 +34,7 @@ args = parse.parse_args()
 
 # print(args);exit(0)
 
-BUF = 1 << 14  # 16k
+BUF = 1 << 16  # 64k
 
 if args.md5:
     s = hashlib.md5()
@@ -49,10 +50,12 @@ elif args.sha384:
     s = hashlib.sha384()
 elif args.sha512:
     s = hashlib.sha512()
+elif args.blake2b:
+    s = hashlib.blake2b()
 else:
     s = hashlib.sha256()
 
-resep = re.compile(r"\t| +")
+# resep = re.compile(r"\t| +")
 
 
 def shafile(filename):
@@ -70,15 +73,15 @@ def readshafile(checksumfile):
         for line in iter(partial(f.readline), ""):
             c += 1
             try:
-                fvalue, fname = resep.split(line.rstrip("\r\n"), maxsplit=1)
+                fvalue, fname = line.rstrip("\r\n").split()
             except Exception as e:
-                print("{} line:{} {} 错误".formt(checksumfile, c, line))
+                print(f"{checksumfile} line:{c} {line} 错误", file=sys.stderr)
                 continue
 
             try:
                 value = shafile(fname)
             except FileNotFoundError as e:
-                print("{} line:{} 没有文件：{}".format(checksumfile, c, fname), file=sys.stderr)
+                print(f"{checksumfile} line:{c} 没有文件：{fname}", file=sys.stderr)
                 continue
 
             if fvalue == value:
@@ -99,4 +102,7 @@ elif args.files == "-" or args.files[0] == "-":
 
 else:
     for f in args.files:
-        print(shafile(f), f, sep="\t")
+        if f.startswith("./"):
+            fpath = f[2:]
+
+        print(shafile(f), fpath, sep="\t")
