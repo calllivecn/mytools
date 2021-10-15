@@ -106,7 +106,7 @@ def read_light(video):
         max_light = int(fd1.read())
         current_light = int(fd2.read())
 
-    step = (max_light-1)//30
+    step = (max_light-1)//100
     return max_light, current_light, step
 
 
