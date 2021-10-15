@@ -18,7 +18,10 @@ async def echo_ip(r, w):
     ip = result[0]
     
     w.write(ip.encode()+ b"\n")
-    await w.drain()
+    try:
+        await w.drain()
+    except ConnectionResetError:
+        print(f"{ip} ConnectReset...")
     
     print(f"{timestamp()} [{ip}]")
     
