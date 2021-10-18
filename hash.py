@@ -104,5 +104,7 @@ else:
     for f in args.files:
         if f.startswith("./"):
             fpath = f[2:]
+        else:
+            fpath = f
 
         print(shafile(f), fpath, sep="\t")
