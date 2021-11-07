@@ -10,7 +10,7 @@ import getpass
 import logging
 import argparse
 import glob
-from hashlib import sha256
+from hashlib import sha256, pbkdf2_hmac
 from binascii import b2a_hex
 from functools import partial
 from threading import Thread
@@ -55,9 +55,7 @@ except ModuleNotFoundError:
 ENCRYPTO = 1  # 加密
 DECRYPTO = 0  # 解密
 
-FILE_VERSION = 0x01
-
-version = "v1.1.0"
+version = "v1.2.0"
 
 
 def getlogger(level=logging.INFO):
@@ -404,14 +402,14 @@ class FileFormat:
     写入到文件的文件格式
     """
 
-    def __init__(self):
+    def __init__(self, file_version=0x0002):
         """
         prompt: `str': 密码提示信息
         out_fp: `fp': 类文件对象
         """
 
         logger.debug("file header format build")
-        self.version = FILE_VERSION  # 2byte
+        self.version = file_version  # 2byte
         self.prompt_len = bytes(2)   # 2bytes 提示信息字节长度
         self.iv = os.urandom(16)     # 16byte
         self.salt = os.urandom(32)   # 32byte
@@ -468,10 +466,15 @@ def isstring(key):
         raise argparse.ArgumentTypeError("password require is string")
 
 
+# v1.0 的做法，密钥没有派生。
 def salt_key(password, salt):
     key = sha256(salt + password.encode("utf-8")).digest()
     return key
 
+# v1.0 (version code: 0x01) 的做法，密钥没有派生。
+# 现在 v1.2 (version code: 0x02)使用密钥派生。date: 2021-11-07
+def key_deriverd(password, salt):
+    return pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 200000)
 
 def fileinfo(filename):
     header = FileFormat()
@@ -563,7 +566,8 @@ def main():
 
         header.setHeader(out_stream)
 
-        key = salt_key(password, header.salt)
+        # key = salt_key(password, header.salt)
+        key = key_deriverd(password, header.salt)
         #aes = AES.new(key, AES.MODE_CFB, header.iv)
         aes = OpenSSLCrypto("aes-256-cfb", key, header.iv, ENCRYPTO)
         # aes = OpenSSLCrypto("aes-256-cfb1", key, header.iv, ENCRYPTO) # 这个好慢？？？
@@ -588,7 +592,14 @@ def main():
         file_version, prompt_len, iv, salt, prompt = header.getHeader(
             in_stream)
 
-        key = salt_key(password, salt)
+        if file_version == 0x02:
+            key = key_deriverd(password, salt)
+        elif file_version == 0x01:
+            key = salt_key(password, salt)
+        else:
+            logger.error(f"不支持的文件版本。")
+            sys.exit(2)
+
         #aes = AES.new(key, AES.MODE_CFB, iv)
         aes = OpenSSLCrypto("aes-256-cfb", key, iv, DECRYPTO)
         # aes = OpenSSLCrypto("aes-256-cfb1", key, iv, DECRYPTO) # 这个好慢？？？
