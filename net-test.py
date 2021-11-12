@@ -12,7 +12,7 @@ import struct
 # import signal
 import threading
 import argparse
-from functools import partial
+# from functools import partial
 
 
 CMD_PACK = struct.Struct("!HIQ")
@@ -119,7 +119,7 @@ class Speed:
 
 
 def get_size_pack(sock, size):
-    data = b""
+    data = io.BytesIO()
     while 0 < size:
         d = sock.recv(size)
 
@@ -127,9 +127,9 @@ def get_size_pack(sock, size):
             return b""
 
         size -= len(d)
-        data += d
+        data.write(d)
     
-    return data
+    return data.getvalue()
 
 
 # 看看这样能不能，避免GC。（不可以。。。)
@@ -187,7 +187,8 @@ def tcp_recv(client, packsize, datasum, time_):
     buf = Buffer(client, packsize)
     try:
 
-        for data in iter(partial(buf.recvsize, packsize), b""):
+        # for data in iter(partial(buf.recvsize, packsize), b""):
+        while (data := buf.recvsize(packsize)) != b"":
             # 接收一个完整的包
             speed.add_pack()
 
@@ -260,7 +261,8 @@ def tcp_server_recv_datasum(client, packsize, datasum):
     data = 0
 
     try:
-        for d in iter(partial(buf.recvsize, packsize), b""):
+        # for d in iter(partial(buf.recvsize, packsize), b""):
+        while (d := buf.recvsize(packsize)) != b"":
             data += len(d)
             if data >= datasum:
                 break
@@ -298,7 +300,8 @@ def tcp_server_recv_time(client, packsize, time_):
     t = Sleep(time_)
 
     try:
-        for _ in iter(partial(buf.recvsize, packsize), b""):
+        # for _ in iter(partial(buf.recvsize, packsize), b""):
+        while (d := buf.recvsize(packsize)) != b"":
             if t.isEnd():
                 break
 
