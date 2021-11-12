@@ -410,7 +410,7 @@ class FileFormat:
 
         logger.debug("file header format build")
         self.version = file_version  # 2byte
-        self.prompt_len = bytes(2)   # 2bytes 提示信息字节长度
+        self.prompt_len = bytes(2)  # 2bytes 提示信息字节长度
         self.iv = os.urandom(16)     # 16byte
         self.salt = os.urandom(32)   # 32byte
         # self.long = bytes(8)        # 8byte 加密后数据部分长度
@@ -466,12 +466,11 @@ def isstring(key):
         raise argparse.ArgumentTypeError("password require is string")
 
 
-# v1.0 的做法，密钥没有派生。
+# v1.0 (version code: 0x01) 的做法，密钥没有派生。
 def salt_key(password, salt):
     key = sha256(salt + password.encode("utf-8")).digest()
     return key
 
-# v1.0 (version code: 0x01) 的做法，密钥没有派生。
 # 现在 v1.2 (version code: 0x02)使用密钥派生。date: 2021-11-07
 def key_deriverd(password, salt):
     return pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 200000)
