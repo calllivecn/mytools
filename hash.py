@@ -34,7 +34,8 @@ args = parse.parse_args()
 
 # print(args);exit(0)
 
-BUF = 1 << 16  # 64k
+# BUF = 1 << 16  # 64k
+BUF = memoryview(bytearray(1<<16))
 
 if args.md5:
     s = hashlib.md5()
@@ -61,8 +62,9 @@ else:
 def shafile(filename):
     s_tmp = s.copy()
     with open(filename, 'rb') as f_in:
-        for data in iter(partial(f_in.read, BUF), b""):
-            s_tmp.update(data)
+        # for data in iter(partial(f_in.read, BUF), b""):
+        while (n := f_in.readinto(BUF)) != 0:
+            s_tmp.update(BUF[:n])
 
     return s_tmp.hexdigest()
 
@@ -70,7 +72,8 @@ def shafile(filename):
 def readshafile(checksumfile):
     with open(checksumfile) as f:
         c = 0
-        for line in iter(partial(f.readline), ""):
+        # for line in iter(partial(f.readline), ""):
+        while (line := f.readline()) != "":
             c += 1
             try:
                 fvalue, fname = line.rstrip("\r\n").split()
@@ -94,9 +97,12 @@ if args.check:
     readshafile(args.check)
 
 elif args.files == "-" or args.files[0] == "-":
-    stdin = sys.stdin.buffer.fileno()
-    for data in iter(partial(os.read, stdin, BUF), b""):
-        s.update(data)
+    # stdin = sys.stdin.buffer.fileno()
+    # for data in iter(partial(os.read, stdin, BUF), b""):
+
+    # 这样为什么需要按两次 CTRL+D ？？
+    while (n := sys.stdin.buffer.readinto(BUF)) != 0:
+        s.update(BUF[:n])
 
     print(s.hexdigest(), "-", sep="\t")
 
