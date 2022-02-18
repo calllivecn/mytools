@@ -35,6 +35,7 @@ args = parse.parse_args()
 # print(args);exit(0)
 
 # BUF = 1 << 16  # 64k
+# 这样可以省一个BUF的内存。
 BUF = memoryview(bytearray(1<<16))
 
 if args.md5:
@@ -101,6 +102,7 @@ elif args.files == "-" or args.files[0] == "-":
     # for data in iter(partial(os.read, stdin, BUF), b""):
 
     # 这样为什么需要按两次 CTRL+D ？？
+    # 目前看貌似是sys.stdin.buffer 是带缓存的原因(2022-01-05)。
     while (n := sys.stdin.buffer.readinto(BUF)) != 0:
         s.update(BUF[:n])
 
