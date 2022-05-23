@@ -27,6 +27,7 @@ from struct import pack
 
 BROADCAST_IPv4 = '255.255.255.255'
 LOCAL_LINK_IPv6 = 'fe80::1'
+LOCAL_LINK_IPv6 = 'ff02::1'
 
 DEFAULT_PORT = 9  # 9 or 7
 
@@ -51,7 +52,7 @@ def magic_packet(mac):
     return send_data
 
 
-def send_packet(macs, ipv6):
+def send_packet(macs, ipv6, port, ifname=None):
 
     if ipv6:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
@@ -61,39 +62,46 @@ def send_packet(macs, ipv6):
 
     for mac in macs:
         packet = magic_packet(mac)
-
         #print(packet)
-
         if ipv6:
-            sock.sendto(packet, (LOCAL_LINK_IPv6, DEFAULT_PORT))
+            #sock.sendto(packet, (LOCAL_LINK_IPv6, DEFAULT_PORT, 0, 8)) #这种可以。
+            multicast_addr = socket.getaddrinfo(LOCAL_LINK_IPv6 + "%" + ifname, port, socket.AF_INET6,socket.SOCK_DGRAM, socket.SOL_UDP)[0][4]
+            sock.sendto(packet, multicast_addr) 
         else:
-            sock.sendto(packet, (BROADCAST_IPv4, DEFAULT_PORT))
+            sock.sendto(packet, (BROADCAST_IPv4, port))
 
     sock.close()
 
 
 def main():
 
-    parser = argparse.ArgumentParser(
+    parse = argparse.ArgumentParser(
         description='Wake one or more computers using the wake on lan protocol.')
 
-    parser.add_argument('--ipv6', action="store_true", default=False, help="ipv6 default: ipv4")
+    parse.add_argument('--ipv6', action="store_true", default=False, help="ipv6 default: ipv4")
 
-    parser.add_argument('-p', metavar='port', type=int, default=DEFAULT_PORT,
+    parse.add_argument('--ifname', help="使用ipv6时，必须指定接口")
+
+    parse.add_argument('-p', '--port',  metavar='port', type=int, default=DEFAULT_PORT,
                         help='The port of the host to send the magic packet to (default 9)')
 
-    parser.add_argument('macs', metavar='mac address', nargs='+',
+    parse.add_argument('macs', metavar='mac address', nargs='+',
                         help='The mac addresses or of the computers you are trying to wake.')
 
-    parser.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
-    args = parser.parse_args()
+    args = parse.parse_args()
 
     if args.parse:
         print(args)
         sys.exit(0)
 
-    send_packet(args.macs, args.ipv6)
+    if args.ipv6:
+        if not args.ifname:
+            print("使用ipv6时，必须指定接口")
+            sys.exit(1)
+
+    send_packet(args.macs, args.ipv6, args.port, args.ifname)
 
 
 if __name__ == '__main__':
