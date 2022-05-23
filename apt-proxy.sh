@@ -7,7 +7,8 @@ PROXY_ADDR="$(grep -oP '(?<=http_proxy=")(.*)(?=")' $HOME/.config/xiyou)"
 
 URLs="ppa.launchpad.net
 linux.teamviewer.com
-packages.microsoft.com"
+packages.microsoft.com
+dl.google.com"
 
 APT_OPTION=""
 for http in $URLs
