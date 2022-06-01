@@ -13,6 +13,7 @@ randpw.py
 srm.py
 ztar.py
 aes.py
+crypto.py
 jsonfmt.py
 registry.py
 unmount.sh

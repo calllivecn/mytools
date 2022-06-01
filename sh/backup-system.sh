@@ -28,6 +28,9 @@ SHA_SUFFIX="sha256"
 HOSTNAME=$(hostname)
 DATETIME=$(date +%F-%H-%M-%S)
 
+# global varible
+AES_PATH=
+
 clear_tmp(){
 	if [ $MK_FILE = 1 ];then
 		rm $FIFO
@@ -102,20 +105,27 @@ zstd_tool(){
 	fi 
 }
 
-# ase.py
+# ase.py -- 2022-06-02 改为备用，优先使用 crypto.py
+AES_PY="aes.py"
+CRYPTO_PY="crypto.py"
 aes_type(){
-	if type -p aes.py 2>&1 > /dev/null;then
-		AES_PATH="aes.py"
+	if type -p ${CRYPTO_PY} 2>&1 > /dev/null;then
+		AES_PATH="${CRYPTO_PY}"
+
+	elif type -p aes.py 2>&1 > /dev/null;then
+		AES_PATH="${AES_PY}"
 	else
-		echo "需要 aes.py 下载地址 https://github.com/calllivecn/mytools/aes.py"
-		echo "使用 --aes-path /path/to/aes.py 指定."
+		echo "需要 ${CRYPTO_PY} 下载地址 https://github.com/calllivecn/mytools/${CRYPTO_PY}"
+		echo "使用 --aes-path /path/to/${CRYPTO_PY} 指定."
 		exit 1
 	fi
+	debug "aes_type() --> AES_PATH: ${AES_PATH}"
 }
 
+
 check_aes_password(){
-	if [ "${AES_PATH}"x = ""x ];then
-		echo "aes.py 没有找到，可以 --aes-path /path/to/aes.py 指定." >&2
+	if [ "${AES_PATH}"x = x ];then
+		echo "${AES_PATH} 没有找到，可以 --aes-path /path/to/${AES_PATH} 指定." >&2
 		exit 1
 	fi
 	local p1 p2
@@ -140,15 +150,15 @@ check_aes_password(){
 usage(){
 echo "Usage: ${PROGRAM} [-r] [-e] [-b <split block>] <directory path>"
 echo "-r, --restore                  还原备份.(还未实现)"
-echo "-e, --encrypt                 使用 aes.py 加密文件."
+echo "-e, --encrypt                  使用 ${CRYPTO_PY} or ${AES_PY} 加密文件."
 echo "-b, --split-block              使用 split 切片块大小, 例：256M  512M 1G 5G"
 #echo "--zstd                        选择压缩方式： zstd. 默认：zstd"
 #echo "--gzip                        选择压缩方式： gzip"
 #echo "--bzip                        选择压缩方式： bzip2" 
 #echo "--xz                          选择压缩方式： xz"
-echo "--aes-path                     aes.py 如果不在PATH里, 可以使用这个选项指定。"
-#echo "--aes-password                 非交互式输入密码。"
-echo "--aes-prompt                   aes.py 的提示。"
+echo "--aes-path                     ${AES_PATH} 如果不在PATH里, 可以使用这个选项指定。"
+#echo "--aes-password                非交互式输入密码。"
+echo "--aes-prompt                   ${AES_PATH}的提示。"
 echo "--debug                        debug."
 echo
 }
