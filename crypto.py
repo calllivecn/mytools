@@ -85,7 +85,8 @@ class FileFormat:
             self.prompt = prompt
 
     def setHeader(self, fp):
-        logger.debug("set file header {}".format(fp.name))
+        logger.debug(f"set file header {fp.name}")
+        logger.debug(f"\nversion: {self.version}\n prompt_len: {self.prompt_len}\n vi: {self.iv}\n salt: {self.salt}\n prompt: {self.prompt}")
         headers = self.file_fmt.pack(self.version, self.prompt_len)
         self.HEAD = headers + self.iv + self.salt + self.prompt
         return fp.write(self.HEAD)
@@ -96,6 +97,7 @@ class FileFormat:
         iv = fp.read(16)
         salt = fp.read(32)
         prompt = fp.read(prompt_len)
+        logger.debug(f"\nversion: {file_version}\n prompt_len: {prompt_len}\n vi: {iv}\n salt: {salt}\n prompt: {self.prompt}")
         return file_version, prompt_len, iv, salt, prompt.decode("utf-8")
 
 
@@ -225,11 +227,15 @@ def main():
 
         algorithm = algorithms.AES(key)
         cipher = Cipher(algorithm, mode=modes.CFB(header.iv))
-        aes = cipher.decryptor()
+        aes = cipher.encryptor()
 
         while (data := in_stream.read(block)) != b"":
             en_data = aes.update(data)
             out_stream.write(en_data)
+
+        finally_data = aes.finalize()
+        # print("finally data:", finally_data)
+        out_stream.write(finally_data)
 
         in_stream.close()
 
@@ -259,6 +265,10 @@ def main():
         while (data := in_stream.read(block)) != b"":
             de_data = aes.update(data)
             out_stream.write(de_data)
+        
+        finally_data = aes.finalize()
+        # print("finally data:", finally_data)
+        out_stream.write(finally_data)
 
         in_stream.close()
 
