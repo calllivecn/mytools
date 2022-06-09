@@ -64,12 +64,17 @@ def main():
                                     )
     parse.add_argument("-s", "--speed", type=int, default=150, help="说话的速度（default: 150）")
 
-    parse.add_argument("text", help="要说的句子")
+    parse.add_argument("text", nargs="?", help="要说的句子(如果不给出，默认从标准输入读取。)")
 
     args = parse.parse_args()
 
-    with Say(speed=args.speed) as s:
-        s.say(args.text)
+    if args.text is None:
+        with Say(speed=args.speed) as s:
+            while (line := sys.stdin.readline()) != "":
+                s.say(line)
+    else:
+        with Say(speed=args.speed) as s:
+            s.say(args.text)
 
 def __test():
 
