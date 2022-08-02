@@ -1,17 +1,36 @@
 #!/usr/bin/env python3
 # coding=utf-8
+# update 2022-08-03 05:03:07
+# author calllivecn <c-all@qq.com>
+
 
 import os
 import re
+import sys
 import sqlite3 as sql
-from os import kill, remove
-from functools import partial
+# from functools import partial
 from threading import Thread
 from hashlib import sha512
 from tempfile import mktemp
 from argparse import ArgumentParser
-from os.path import abspath, isdir, join, isfile, islink, getsize, basename
-from multiprocessing import Process, Queue
+from os import (
+    kill,
+    remove,
+)
+from multiprocessing import (
+    Process,
+    Queue,
+)
+from os.path import (
+    abspath,
+    isdir,
+    join,
+    isfile,
+    islink,
+    getsize,
+    basename,
+)
+
 SIGTERM = 15  # from signal import SIGTERM
 
 CPU_COUNT = os.cpu_count()
@@ -47,7 +66,7 @@ def checkDirs(lists):
         sys.exit(1)
 
     if args.process > CPU_COUNT and args.process <= 0:
-        print('CPU MAX : {} your {}'.format(CPU_COUTN, args.process))
+        print('CPU MAX : {} your {}'.format(CPU_COUNT, args.process))
         sys.exit(1)
 
 
@@ -222,8 +241,8 @@ class Sql3():
         sha = sha512()
         READ_BUF = 1<<20
         with open(file_, 'rb') as f:
-            for data in iter(partial(f.read, READ_BUF), b""):
-                data = f.read(READ_BUF)
+            # for data in iter(partial(f.read, READ_BUF), b""): # 这是py3.8以前的写法
+            while (data := f.read(READ_BUF)) != b"":
                 sha.update(data)
         # return sha.hexdigest()
         return sha.digest()
