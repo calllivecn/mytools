@@ -27,11 +27,15 @@
 ### ztar.py:
 * py版tar。
 
-### aes.py:
-* 加密小工具
-
 ### ssl-crypto.sh:
 * 文件加密脚本，openssl 加密文件格式会随着版本发生变化，导致无法解密。(弃用，改用aes.py)
+
+### aes.py or crypto.py:
+* 加密小工具
+
+ - aes.py 使用ctypes 链接的openssl 库
+ - crypto.py 使用的 cryptography 库
+ - 兼容的
 
 ### hash.py:
 * 计算md5,sha1,sha128,sha224,sha256,sha384,sha512。
