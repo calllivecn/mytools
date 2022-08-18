@@ -1,6 +1,6 @@
 #!/bin/bash
 # update 2018-04-28 23:29:32
-# update 2021-01-01 20:23:21
+# update 2022-08-18 09:24:24
 # author calllivecn <c-all@qq.com>
 
 
@@ -97,7 +97,7 @@ xz_tool(){
 
 # 改为使用
 zstd_tool(){
-	if type -p pzstd 2>&1 > /dev/null;then
+	if type -p zstd 2>&1 > /dev/null;then
 		:
 	else
 		echo "需要 apt install zstd"
@@ -181,7 +181,7 @@ RESTORE=0
 ENCRYPT=0
 AES_CMD=
 AES_PASSWORD=
-COMP_CMD="pzstd -7 -c"
+COMP_CMD="zstd -T0 -7 -c"
 COMP_SUFFIX="zst"
 
 argc=0
@@ -313,20 +313,20 @@ if [ $ENCRYPT = 1 ];then
 	check_aes_password
 fi
 
-out_file="${T}/${BACKUP_NAME}".tar.zst
+out_file="${T}/${BACKUP_NAME}".tz
 
 out_dir="${T}/${BACKUP_NAME}"
 
-out_filename="${out_dir##*/}".tar.zst
+out_filename="${out_dir##*/}".tz
 
 # 如果加密，就加上后缀
 if [ $ENCRYPT = 1 ];then
 
-	out_file="${T}/${BACKUP_NAME}".tar.zst.aes
+	out_file="${T}/${BACKUP_NAME}".tza
 
 	out_dir="${T}/${BACKUP_NAME}"
 
-	out_filename="${out_dir##*/}".tar.zst.aes
+	out_filename="${out_dir##*/}".tza
 
 fi
 
