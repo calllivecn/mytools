@@ -12,7 +12,6 @@ import sys
 import time
 import hashlib
 from urllib import request
-from functools import partial
 from threading import (
     Thread, 
     Lock,
@@ -89,13 +88,13 @@ class Wget:
         response = request.urlopen(req, timeout=15)
 
         if savepath == "-":
-            for data in iter(partial(response.read, block), b""):
+            while (data := response.read(block)) != b"":
                 sys.stdout.buffer.write(data)
                 if self.sha:
                     self.update(data)
         else:
             with open(savepath, "wb") as f:
-                for data in iter(partial(response.read, block), b""):
+                while (data := response.read(block)) != b"":
                     f.write(data)
                     if self.sha:
                         self.update(data)
