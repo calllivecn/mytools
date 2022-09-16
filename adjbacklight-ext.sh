@@ -10,10 +10,26 @@
 # apt install ddcutil
 # ddcutil getvcp 0x10: --> VCP code 0x10 (Brightness): current value =    17, max value =   100
 
+
+SUDO=0
 if groups |grep -q i2c;then
-	ddcutil getvcp 0x10
-	ddcutil setvcp 0x10 "$1"
+	:	
 else
-	sudo ddcutil setvcp 0x10 "$1"
+	SUDO=1
 fi
+
+if [ "$1"x = x ];then
+	if [ $SUDO = 0 ];then
+		ddcutil getvcp 0x10
+	else
+		sudo ddcutil getvcp 0x10
+	fi
+else
+	if [ $SUDO = 0 ];then
+		ddcutil setvcp 0x10 "$1"
+	else
+		sudo ddcutil setvcp 0x10 "$1"
+	fi
+fi
+
 
