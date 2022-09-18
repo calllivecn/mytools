@@ -24,6 +24,7 @@ do
 done
 
 
+echo "默认保存到当前目录"
 echo -n "选择导出哪个虚拟机(0 退出): "
 read number
 
@@ -35,9 +36,8 @@ if [ $number = "0" ];then
 	exit 0
 fi
 
-echo "默认保存到当前目录"
 
-vboxmanage export ${VMS[$number]} -o "${VMS[$number]}-$(date +%F-%H-%M-%S).ova" --ovf20 --manifest
+vboxmanage export "${VMS[$number]}" -o "${VMS[$number]}-$(date +%F-%H-%M-%S).ova" --ovf20 --manifest
 
 IFS=$old_IFS
 
