@@ -14,13 +14,25 @@
 import os
 import sys
 import time
-import subprocess
-import argparse
-import logging
-import threading
+import shlex
 import struct
 import socket
+import logging
+import argparse
+import threading
+import subprocess
+from multiprocessing import (
+    Process,
+    ProcessError,
+)
 
+
+from cryptography import exceptions
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+__all__ = (
+    "Plugin",
+)
 
 def getlogger(level=logging.INFO):
     fmt = logging.Formatter(
@@ -33,27 +45,38 @@ def getlogger(level=logging.INFO):
     logger.addHandler(stream)
     return logger
 
+
 logger = getlogger(logging.DEBUG)
 
 
+class subcmd(threading.Thread):
+    """
+    args: (shellcmd,)
+    """
+    def __init__(self, cmd, timeout=30):
+        super().__init__()
+        self.cmd = cmd
+        self.timeout = timeout
 
-def shell(cmd, timeout=5):
+    def run(self):
+        logger.debug(f"执行shell(cmd): {self.cmd}")
+        try:
+            # 安全处理下命令
+            cmd = shlex.split(self.cmd)
+            com = subprocess.run(cmd, timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            logger.warning(f'执行: "{cmd}" 超时。')
+            return -1
+        except Exception:
+            logger.error(f'执行: "{cmd}" 异常。')
+            return -1
 
-    logger.debug(f"执行shell(cmd): {cmd}")
-    try:
-        com = subprocess.run(cmd.split(), timeout=timeout)
-    except subprocess.TimeoutExpired:
-        logger.warning(f'执行: "{cmd}" 超时。')
-        return -1
-    except Exception:
-        logger.error(f'执行: "{cmd}" 异常。')
-        return -1
+        logger.info(f'执行: "{cmd}" recode: {com.returncode}')
 
-    logger.info(f'执行: "{cmd}" recode: {com.returncode}')
+        return com.returncode
 
-    return com.returncode
 
-class Plugin:
+class Plugin(Process):
     """
     实现编写插件执行。
     """
@@ -65,7 +88,7 @@ class Plugin:
         pass
 
 
-bufsize = 2048
+BUFSIZE = 2048
 
 PROTOCOL_VERSION = 0x01
 PROTOCOL_HEADER = struct.Struct("!HHH")
@@ -79,16 +102,16 @@ PROTOCOL_HEADER = struct.Struct("!HHH")
 
 def recv_cmd(sock):
 
-    data, addr = sock.recvfrom(bufsize)
+    data, addr = sock.recvfrom(BUFSIZE)
 
-    version, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
+    version, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:PROTOCOL_HEADER.size])
 
     cmd = data[PROTOCOL_HEADER.size:cmd_len].decode()
     
-    log = f"{addr} 接收到指令号：{cmd_number} -- "
+    log = f"{addr} 接收到指令号：{cmd_number}"
 
-    if cmd_len != 0:
-        log.join(f"指令: {cmd}")
+    if cmd_number == 1:
+        log += f"指令: {cmd}"
     
     logger.info(log)
 
@@ -97,6 +120,8 @@ def recv_cmd(sock):
 # client begin
 
 def broadcast_cmd(port, cmd_number, cmd):
+
+    # sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -128,7 +153,7 @@ def broadcast_cmd(port, cmd_number, cmd):
     for i in range(1, 4):
         sock.sendto(data + cmd_byte, broadcast)
         try:
-            data, addr = sock.recvfrom(bufsize)
+            data, addr = sock.recvfrom(BUFSIZE)
         except socket.timeout:
             logger.info(f"超时重试: {i}/3")
             time.sleep(1)
@@ -145,41 +170,34 @@ def broadcast_cmd(port, cmd_number, cmd):
 
 # server begin
 
-class subcmd(threading.Thread):
-    """
-    args: (shellcmd,)
-    """
-    def __init__(self, cmd):
-        threading.Thread.__init__()
-        self.cmd = cmd
-
-    def run(self):
-        shell(self.cmd)
-
-
 # 这里是 server 部分
 def server(address, port):
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-
+    # sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.bind((address, port))
 
     logger.info(f"接收端口: {port}")
 
-    while True:
-        data, addr = sock.recvfrom(bufsize)
-        # reply ok
-        sock.sendto(b"ok", addr)
+    try:
+        while True:
+            data, addr = sock.recvfrom(BUFSIZE)
+            logger.debug(f"收到UDP包：{addr} -- {data}")
+            # reply ok
+            sock.sendto(b"ok", addr)
 
-        versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
-        cmd = data[6:]
-        cmd = cmd.decode("utf8")
-        if cmd_number == 1:
-            logger.info(f"收到的shell指令：{cmd}")
-            shell(cmd)
-        else:
-            logger.info(f"收到指令号：{cmd_number}")
-    
-    sock.close()
+            versoin, cmd_number, cmd_len = PROTOCOL_HEADER.unpack(data[:6])
+            cmd = data[6:]
+            cmd = cmd.decode("utf8")
+            if cmd_number == 1:
+                logger.info(f"收到的shell指令：{cmd}")
+                th = subcmd(cmd)
+                th.start()
+            else:
+                logger.info(f"收到指令号：{cmd_number}")
+    except Exception as e:
+        logger.error(f"异常：", e)
+    finally:
+        sock.close()
 
 
 # server end
@@ -189,7 +207,7 @@ def parse_cli():
 
     parse.add_argument("--server", action="store_true", help="start a server.")
 
-    parse.add_argument("--address", action="store", default="::", help="listen 地址")
+    parse.add_argument("--address", action="store", default="", help="listen 地址")
 
     parse.add_argument("--port", action="store", type=int, default=11234, help="listen port")
 
@@ -197,13 +215,18 @@ def parse_cli():
 
     parse.add_argument("cmd", nargs="?", help="如果是shell指令的话，必需存在。")
 
-    parse.add_argument("--parse", action="store_true", help="debug argparse parse_args()")
+    parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
+
+    parse.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
 
     args = parse.parse_args()
 
     if args.parse:
         print(args)
         sys.exit(0)
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
 
     return args
 
