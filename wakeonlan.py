@@ -52,6 +52,14 @@ def magic_packet(mac):
     return send_data
 
 
+def get_all_ipv6_ifname(port):
+    multicast_addrs = []
+    for index, ifname in socket.if_nameindex():
+        addr = socket.getaddrinfo(LOCAL_LINK_IPv6 + "%" + ifname, port, socket.AF_INET6,socket.SOCK_DGRAM, socket.SOL_UDP)[0][4]
+        multicast_addrs.append((ifname, addr))
+    return multicast_addrs
+
+
 def send_packet(macs, ipv6, port, ifname=None):
 
     if ipv6:
@@ -64,9 +72,19 @@ def send_packet(macs, ipv6, port, ifname=None):
         packet = magic_packet(mac)
         #print(packet)
         if ipv6:
-            #sock.sendto(packet, (LOCAL_LINK_IPv6, DEFAULT_PORT, 0, 8)) #这种可以。
-            multicast_addr = socket.getaddrinfo(LOCAL_LINK_IPv6 + "%" + ifname, port, socket.AF_INET6,socket.SOCK_DGRAM, socket.SOL_UDP)[0][4]
-            sock.sendto(packet, multicast_addr) 
+
+            if ifname:
+                multicast_addr = socket.getaddrinfo(LOCAL_LINK_IPv6 + "%" + ifname, port, socket.AF_INET6,socket.SOCK_DGRAM, socket.SOL_UDP)[0][4]
+                sock.sendto(packet, multicast_addr)
+            else:
+                for if_, multicast_addr in get_all_ipv6_ifname(port):
+                    try:
+                        sock.sendto(packet, multicast_addr)
+                        print(f"{if_} -- ok.")
+                    except Exception as e:
+                        print(f"{if_} -- error: {e}")
+
+
         else:
             sock.sendto(packet, (BROADCAST_IPv4, port))
 
@@ -80,10 +98,10 @@ def main():
 
     parse.add_argument('--ipv6', action="store_true", default=False, help="ipv6 default: ipv4")
 
-    parse.add_argument('--ifname', help="使用ipv6时，必须指定接口")
+    parse.add_argument('--ifname', help="使用ipv6时，指定接口。(默认向所有ipv6接口发送)")
 
-    parse.add_argument('-p', '--port',  metavar='port', type=int, default=DEFAULT_PORT,
-                        help='The port of the host to send the magic packet to (default 9)')
+    parse.add_argument('-p', '--port',  metavar='port', type=int, choices=(7, 9), default=DEFAULT_PORT,
+                        help='The port of the host to send the magic packet to 7 or 9(default 9)')
 
     parse.add_argument('macs', metavar='mac address', nargs='+',
                         help='The mac addresses or of the computers you are trying to wake.')
@@ -96,10 +114,12 @@ def main():
         print(args)
         sys.exit(0)
 
+    """
     if args.ipv6:
         if not args.ifname:
             print("使用ipv6时，必须指定接口")
             sys.exit(1)
+    """
 
     send_packet(args.macs, args.ipv6, args.port, args.ifname)
 
