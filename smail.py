@@ -18,8 +18,8 @@ from email.mime.multipart import MIMEMultipart
 CFG="""\
 [Smtp]
 Server = smtp.qq.com
-Email =
-Password =
+;Email =
+;Password =
 """
 
 HOME = os.environ.get("HOME")
@@ -58,15 +58,18 @@ def send(server, email, passwd, to, msg, verbose):
 
         code = s.ehlo()[0]
         usesesmtp = True
+
         if not (200 <= code <= 299):
             usesesmtp = False
             code = s.helo()[0]
+
             if not (200 <= code <= 299):
                 raise smtplib.SMTPHeloError
+
         if usesesmtp and s.has_extn("size"):
             if len(msg) > int(s.esmtp_features["size"]):
-                print("Maximum message size is {}MB".format(
-                    int(s.esmtp_features["size"]) / (1 << 20)))
+                size = int(s.esmtp_features["size"]) / (1 << 20)
+                print(f"Maximum message size is {size}MB")
                 print("Message too large ; aborting.")
                 sys.exit(2)
 
@@ -82,7 +85,7 @@ def send(server, email, passwd, to, msg, verbose):
         sys.exit(1)
 
     finally:
-        #    s.close()
+        # s.close()
         s.quit()
 
 
@@ -127,9 +130,9 @@ def main():
         server = config["Server"]
         email = config["Email"]
         password = config["Password"]
-        print(locals())
+        # print(locals())
     except Exception:
-        print("需要配置:")
+        print(f"需要配置({CONF}):")
         print(CFG)
         sys.exit(1)
 
