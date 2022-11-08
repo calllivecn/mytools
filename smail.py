@@ -91,6 +91,7 @@ def send(server, email, passwd, to, msg, verbose):
 
 
 def main():
+    PROG = Path(sys.argv[0]).name
     parse = argparse.ArgumentParser(description="%(prog)s SMTP mail 发送工具")
 
     parse.add_argument("-c", "--conf", default=CONF, help=f"配置(default: ~/.config/smail.conf")
@@ -99,13 +100,13 @@ def main():
     # parse.add_argument("-p", "--passwd", help="mail password")
 
     parse.add_argument("-T", "--to", nargs="+", required=True, help="发送给谁, 可以多个地址。")
-    parse.add_argument("-s", "--subject", default="unknown subject", help="邮件主题")
+    parse.add_argument("-s", "--subject", default="测试邮件", help="邮件主题")
 
     # text = parse.add_argument_group(title="文件内容选项")
     text = parse.add_mutually_exclusive_group()
-    text.add_argument( "-t", "--text", default="%(prog)s 工具默认邮件内容", help="邮件内容")
+    text.add_argument( "-t", "--text", default=f"{PROG} 工具默认邮件内容", help="邮件内容")
     text.add_argument("--text-infile", dest="infile", type=Path, help="从一个文体文件读取内容")
-    text.add_argument("--text-stdin", dest="stdin", help="从一个文体文件读取内容(Max: 8K")
+    text.add_argument("--text-stdin", dest="stdin", action="store_true", help="从一个文体文件读取内容(Max: 8K")
 
     parse.add_argument("-F", "--From", help="Mail From.")
 
