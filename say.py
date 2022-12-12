@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# coding=utf-8
+# date 2022-11-19 08:53:47
+# author calllivecn <c-all@qq.com>
+
 
 import sys
 import time

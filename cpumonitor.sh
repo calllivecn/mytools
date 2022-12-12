@@ -32,15 +32,9 @@
 #  5. cpu使用率 = 使用时间 / 总时间 * 100% = used / total * 100%
 
 
-CPUINFO="/proc/cpuinfo"
-
 STAT="/proc/stat"
 
-cpu_count(){
-    grep "cpu MHz" $CPUINFO | wc -l
-}
-
-CPUs=$(cpu_count)
+CPUs=$(nproc)
 
 row_sum(){
 head -n $[CPUs + 1] $STAT | awk '
@@ -66,34 +60,34 @@ done
 sleep 0.01
 
 loop(){
-sleep 0.01
-c=0
-for numbers in $(row_sum)
-do
-    total_now=$(echo $numbers|cut -d'_' -f1)
-    idle_now=$(echo $numbers|cut -d'_' -f2)
-
-    last_total=$(echo ${last_data[$c]}|cut -d'_' -f1)
-    last_idle=$(echo ${last_data[$c]}|cut -d'_' -f2)
-
-    last_data[$c]="${total_now}_${idle_now}"
-    # (total - last_total) - (idel - last_idle)
-    total=$[total_now - last_total]
-    used=$[total - idle_now + last_idle]
-
-    # echo "debug: used=$used total=$total"
-    usage_rate=$[used * 100 / total]
-    # awk '{print $1/$2*100}')
-
-    if [ $c -eq 0 ];then
-        echo "CPU 总使用率: ${usage_rate}%"
-    else
-        p=$[c-1]
-        echo "CPU$p 使用率: ${usage_rate}%"
-    fi
-
-    c=$[c+1]
-done
+    sleep 0.01
+    c=0
+    for numbers in $(row_sum)
+    do
+        total_now=$(echo $numbers|cut -d'_' -f1)
+        idle_now=$(echo $numbers|cut -d'_' -f2)
+    
+        last_total=$(echo ${last_data[$c]}|cut -d'_' -f1)
+        last_idle=$(echo ${last_data[$c]}|cut -d'_' -f2)
+    
+        last_data[$c]="${total_now}_${idle_now}"
+        # (total - last_total) - (idel - last_idle)
+        total=$[total_now - last_total]
+        used=$[total - idle_now + last_idle]
+    
+        # echo "debug: used=$used total=$total"
+        usage_rate=$[used * 100 / total]
+        # awk '{print $1/$2*100}')
+    
+        if [ $c -eq 0 ];then
+            echo "CPU 总使用率: ${usage_rate}%"
+        else
+            p=$[c-1]
+            echo "CPU$p 使用率: ${usage_rate}%"
+        fi
+    
+        c=$[c+1]
+    done
 }
 
 while :
