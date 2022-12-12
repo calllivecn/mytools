@@ -73,7 +73,7 @@ getcpuload(){
     local load1
     local load2
     load1=($(cpu_load))
-    sleep 0.1
+    sleep 1
     load2=($(cpu_load))
 
     # 这样不行
