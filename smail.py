@@ -8,6 +8,7 @@ import sys
 import base64
 import smtplib
 import argparse
+import traceback
 import configparser
 from pathlib import Path
 from email.mime.text import MIMEText
@@ -66,9 +67,15 @@ def send(server, email, passwd, to, msg, verbose):
             if not (200 <= code <= 299):
                 raise smtplib.SMTPHeloError
 
+        # print("msg:", len(msg))
+        msg_as_string = msg.as_string()
+        # print("msg_as_string:", len(msg_as_string))
+
         if usesesmtp and s.has_extn("size"):
-            if len(msg) > int(s.esmtp_features["size"]):
-                size = int(s.esmtp_features["size"]) / (1 << 20)
+            sizelimit = int(s.esmtp_features["size"])
+            size = round(sizelimit / (1 << 20), 2)
+            # print(f"sizelimit: {sizelimit} size: {size}MB")
+            if len(msg_as_string) > sizelimit:
                 print(f"Maximum message size is {size}MB")
                 print("Message too large ; aborting.")
                 sys.exit(2)
@@ -77,11 +84,12 @@ def send(server, email, passwd, to, msg, verbose):
         # s.helo()
         # s.login(args.user, args.passwd)
         s.login(email, passwd)
-        if s.sendmail(email, to, msg.as_string()):
+        if s.sendmail(email, to, msg_as_string):
             print("Recv : error.")
 
     except (smtplib.SMTPException, smtplib.SMTPHeloError) as e:
-        print("SMTPException ", e)
+        print("SMTPException:")
+        traceback.print_exc(e)
         sys.exit(1)
 
     finally:
@@ -104,9 +112,9 @@ def main():
 
     # text = parse.add_argument_group(title="文件内容选项")
     text = parse.add_mutually_exclusive_group()
-    text.add_argument( "-t", "--text", default=f"{PROG} 工具默认邮件内容", help="邮件内容")
-    text.add_argument("--text-infile", dest="infile", type=Path, help="从一个文体文件读取内容")
-    text.add_argument("--text-stdin", dest="stdin", action="store_true", help="从一个文体文件读取内容(Max: 8K")
+    text.add_argument( "-t", "--text", default=f"{PROG} 工具默认邮件内容", help="邮件内容(Max: 1M)")
+    text.add_argument("--text-infile", dest="infile", type=Path, help="从一个文体文件读取内容(Max: 1M)")
+    text.add_argument("--text-stdin", dest="stdin", action="store_true", help="从标准输入读取内容(Max: 1M")
 
     parse.add_argument("-F", "--From", help="Mail From.")
 
@@ -147,18 +155,18 @@ def main():
     msg["Subject"] = args.subject
     
 
-    if args.text:
-        Text = args.text
-
-    elif args.infile:
+    if args.infile:
         with open(args.infile) as f:
-            text = "#### Email send content filename: " + f.name + " ####\n\n"
-            text += f.read()
+            text = f"#### 从文件里读取文本: {args.infile.name} ####\n\n"
+            text += f.read(1<<20)
 
         Text = text
 
     elif args.stdin:
-        Text = sys.stdin.read(8192)
+        Text = sys.stdin.read(1<<20)
+
+    elif args.text:
+        Text = args.text
 
     content1 = MIMEText(Text, "plain", "utf-8")
 
