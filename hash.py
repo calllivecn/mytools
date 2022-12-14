@@ -103,7 +103,11 @@ elif args.files == "-" or args.files[0] == "-":
 
     # 这样为什么需要按两次 CTRL+D ？？
     # 目前看貌似是sys.stdin.buffer 是带缓存的原因(2022-01-05)。
-    while (n := sys.stdin.buffer.readinto(BUF)) != 0:
+    #while (n := sys.stdin.buffer.readinto(BUF)) != 0:
+
+    # 这样修复了 需要按两次 CTRL+D(2022-12-15)
+    stdin = sys.stdin.fileno()
+    while (n := os.readv(stdin, [BUF])) != 0:
         s.update(BUF[:n])
 
     print(s.hexdigest(), "-", sep="\t")
