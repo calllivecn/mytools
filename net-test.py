@@ -234,6 +234,11 @@ def tcp_send(client, packsize, datasum, time_):
         print("TCP: 发送测试完成...")
         client.close()
 
+def udp_send(client, packsize, datasum, time_):
+    datapack = b"=" * packsize
+    client.settimeout(30)
+    pass
+
 
 # 下面是server 函数
 
@@ -398,7 +403,7 @@ class Nettest:
     
 
     def tcp_recv(self):
-        print("测试接收。。。")
+        print("测试接收...")
 
         self.__getsock()
 
@@ -421,7 +426,24 @@ class Nettest:
 
 
     def udp_send(self):
-        pass
+        print("测试UDP发送...")
+
+        self.__getsock()
+
+        self.sock.settimeout(30)
+
+        try:
+            if self.time:
+                self.sock.sendto(CMD_PACK.pack(UDP_SEND_TIME, self.packsize, self.total))
+            else:
+                self.sock.sendto(CMD_PACK.pack(UDP_SEND_DATASUM, self.packsize, self.total))
+            
+            udp_send(self.sock, self.packsize, self.total, self.time)
+        
+        except TimeoutError:
+            print("UDP: connect 超时...")
+
+        self.sock.close()
 
     def udp_recv(self):
         pass
@@ -601,7 +623,7 @@ def main():
 
     time_count = parse.add_mutually_exclusive_group()
 
-    time_count.add_argument("-T", "--time", type=int, help="测试持续时间。(单位：秒，默认: 7)")
+    time_count.add_argument("-T", "--time", type=int, default=7, help="测试持续时间。(单位：秒，默认: 7)")
     #time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
 
     time_count.add_argument("-d", "--datasum", type=biginteger, help="发送的数据量1 ~ 8796093022208 (defulat: 64M) 单位：M")
@@ -670,7 +692,7 @@ def main():
     elif args.datasum:
         net = Nettest(args.address, args.port, args.size, args.datasum * (1<<20), False, proto, args.ipv6)
     else:
-        net = Nettest(args.address, args.port, args.size, 7, True, proto, args.ipv6)
+        net = Nettest(args.address, args.port, args.size, args.time, True, proto, args.ipv6)
 
     # 交换了 args.send args.recv
     net.testing(op) 
