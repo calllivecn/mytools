@@ -3,7 +3,7 @@
 # author calllivecn <c-all@qq.com>
 
 
-# 0. 怎么使用主板上的蜂鸣器
+# 0. 怎么使用主板上的蜂鸣器, 还需要把 vim /etc/systemd/logind.conf: HandlePowerKey=poweroff --> HandlePowerKey=ignore
 #
 # 1. linux 需要加载 pcspkr 模块
 # ubuntu 默认是把它加入了/etc/modprobe.d/blacklist.conf
