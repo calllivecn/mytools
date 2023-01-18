@@ -1,22 +1,12 @@
 #!/bin/bash
 
-install_lists='adjbacklight.py
-cpuonoff.sh
+install_lists='adjbacklight-ext.py
 dos2unix.py
-findcmp.py
 hash.py
 io.sh
-ip-query.py
-libsh.sh
 netio.py
-randpw.py
-srm.py
-ztar.py
-aes.py
 crypto.py
 jsonfmt.py
-registry.py
-unmount.sh
 '
 HOME_BIN='youtube-dl.sh
 '
