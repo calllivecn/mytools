@@ -8,7 +8,9 @@
 # so... 有了这个脚本
 
 # 可配置： cpulimit 负载阈值 0~100
-CPU_THRESHOLD=40
+CPU_THRESHOLD=70
+
+CPU_LIMIT_LOAD=25
 
 
 # 变量声明
@@ -73,7 +75,7 @@ getcpuload(){
     local load1
     local load2
     load1=($(cpu_load))
-    sleep 0.1
+    sleep 1
     load2=($(cpu_load))
 
     # 这样不行
@@ -123,7 +125,7 @@ safe_exit(){
     done
 }
 
-trap safe_exit SIGTERM EXIT
+trap safe_exit SIGTERM SIGKILL EXIT
 
 main(){
 
@@ -145,7 +147,7 @@ main(){
     do
         load=$(getcpuload)
         echo "CPU load: $load"
-        if [ $load -ge 20 ];then
+		if [ $load -ge $CPU_LIMIT_LOAD ];then
             if [ $stat == 1 ];then
                 pause $load_pid
                 echo "Pause CPU load."
