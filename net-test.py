@@ -28,9 +28,11 @@ TCP_RECV_DATASUM = 0x0002
 TCP_RECV_TIME = 0x0003
 TCP_SEND_TIME = 0x0004
 
-UDP_SEND = 0x0005
-UDP_RECV = 0x0006
+UDP_SEND_DATASUM = 0x0005
+UDP_RECV_DATASUM = 0x0006
 
+UDP_SEND_TIME = 0x0007
+UDP_RECV_TIME = 0x0008
 
 # functions define begin
 
@@ -132,7 +134,7 @@ def get_size_pack(sock, size):
     return data.getvalue()
 
 
-# 看看这样能不能，避免GC。（不可以。。。)
+# 看看这样能不能，避免GC提高性能。（不可以。。。)
 # BUFVIEW = io.BytesIO(bytearray(4096)).getbuffer()
 
 class Buffer:
@@ -140,10 +142,11 @@ class Buffer:
     def __init__(self, sock, bufsize=64*(1<<10)):
         """
         sock: client sock
-        bufsize: int: default 96k unit: k
+        bufsize: int: default 64k unit: k
         """
         self.bufsize = bufsize 
-        self.buf = io.BytesIO(bytearray(self.bufsize)).getbuffer() # 64K buf
+        # self.buf = io.BytesIO(bytearray(self.bufsize)).getbuffer() # 64K buf
+        self.buf = memoryview(bytearray(self.bufsize))
         self.sock = sock
 
     def recvsize(self, size):
@@ -230,6 +233,11 @@ def tcp_send(client, packsize, datasum, time_):
             speed.endshowdata()
         print("TCP: 发送测试完成...")
         client.close()
+
+def udp_send(client, packsize, datasum, time_):
+    datapack = b"=" * packsize
+    client.settimeout(30)
+    pass
 
 
 # 下面是server 函数
@@ -395,7 +403,7 @@ class Nettest:
     
 
     def tcp_recv(self):
-        print("测试接收。。。")
+        print("测试接收...")
 
         self.__getsock()
 
@@ -418,7 +426,24 @@ class Nettest:
 
 
     def udp_send(self):
-        pass
+        print("测试UDP发送...")
+
+        self.__getsock()
+
+        self.sock.settimeout(30)
+
+        try:
+            if self.time:
+                self.sock.sendto(CMD_PACK.pack(UDP_SEND_TIME, self.packsize, self.total))
+            else:
+                self.sock.sendto(CMD_PACK.pack(UDP_SEND_DATASUM, self.packsize, self.total))
+            
+            udp_send(self.sock, self.packsize, self.total, self.time)
+        
+        except TimeoutError:
+            print("UDP: connect 超时...")
+
+        self.sock.close()
 
     def udp_recv(self):
         pass
@@ -509,53 +534,41 @@ def udp_server(address, port, ipv6):
 
     sock.bind((address, port))
 
+    pack_buf = memoryview(bytearray(16*(1<<10)))
+
     while True:
         print(f"Listen UDP: {address}:{port} 等待接收...")
 
-        cmd = b""
-        addr = ""
-        size = PROTO_LEN
-        while size > 0:
-            c, addr = sock.recvfrom(size)
-            size -= len(c)
-            cmd += c
+        c, addr = sock.recvfrom_into(pack_buf, CMD_PACK.size)
 
         print(f"{addr}...")
 
-        type_, packsize, packcount = PROTO_PACK.unpack(cmd)
-        client_reset = False
-        if type_ == SERVER_RECV:
+        sock.settimeout(30)
+
+        typ, packsize, total = CMD_PACK.unpack(pack_buf[:c])
+
+        if typ == UDP_SEND_DATASUM:
             print("UDP: 开始测试接收...")
-            #for i in range(packcount):
-            while True:
-                size = packsize
-                cmd = b""
-                while size > 0:
-                    data, addr = sock.recvfrom(size)
-                    size -= len(data)
-                    cmd += data
-                    if not data :
-                        print("UDP: Client close()...")
-                        client_reset = True
-                        break
-
-                if client_reset:
-                    break
-
-                if EOF == cmd[0:3]:
-                    break
+            pack_count = 0
+            datasum = 0
+            while datasum < total:
+                c, addr = sock.recvfrom_into(pack_buf, time)
+                pack_count += 1
+                datasum += c
 
             print("UDP: 接收测试完成...")
 
-        elif type_ == SERVER_SEND:
+        elif typ == UDP_RECV_DATASUM:
             print("UDP: 开始测试发送...")
             datapack = b"-" * packsize
-            for i in range(packcount):
+            for i in range(total/packsize):
                 sock.sendto(datapack, addr)
             print("UDP: 发送测试完成...")
         else:
             print("未定义的操作类型。", file=sys.stderr)
 
+
+        sock.settimeout(None)
 
 def tcpserver(address, port=6789, ipv6=False):
 
@@ -610,7 +623,7 @@ def main():
 
     time_count = parse.add_mutually_exclusive_group()
 
-    time_count.add_argument("-T", "--time", type=int, help="测试持续时间。(单位：秒，默认: 7)")
+    time_count.add_argument("-T", "--time", type=int, default=7, help="测试持续时间。(单位：秒，默认: 7)")
     #time_count.add_argument("-c", "--count", type=integer, default=10000, help="发送的数据包数量1 ~ 4294967295 (default: 10000)")
 
     time_count.add_argument("-d", "--datasum", type=biginteger, help="发送的数据量1 ~ 8796093022208 (defulat: 64M) 单位：M")
@@ -679,7 +692,7 @@ def main():
     elif args.datasum:
         net = Nettest(args.address, args.port, args.size, args.datasum * (1<<20), False, proto, args.ipv6)
     else:
-        net = Nettest(args.address, args.port, args.size, 7, True, proto, args.ipv6)
+        net = Nettest(args.address, args.port, args.size, args.time, True, proto, args.ipv6)
 
     # 交换了 args.send args.recv
     net.testing(op) 
