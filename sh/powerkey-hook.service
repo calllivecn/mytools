@@ -2,7 +2,7 @@
 Description=powerkey hook beep (蜂鸣器响声)
 
 [Service]
-Type=simlpe
+Type=simple
 ExecStartPre=-/modprobe pcspkr
 ExecStart=/usr/local/sbin/powerkey-hook.sh
 

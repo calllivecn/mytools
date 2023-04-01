@@ -1,9 +1,9 @@
 [Unit]
-Description=定时备份我的github
-
+Description=git backup
 
 [Service]
-Environment="http_proxy=http://localhost:9999"
-Environment="https_proxy=http://localhost:9999"
-ExecStart=%h/data/github-repos/git-backup.sh
-WorkingDirectory=%h/data/github-repos
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=%h/.config/xiyou
+ExecStart=/usr/bin/bash %h/git-backup/git-backup.sh
+
