@@ -3,7 +3,7 @@ Description=git backup
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
+#RemainAfterExit=yes
 EnvironmentFile=%h/.config/xiyou
 ExecStart=/usr/bin/bash %h/git-backup/git-backup.sh
 
