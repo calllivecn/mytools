@@ -222,7 +222,9 @@ def main():
         logger.setLevel(logging.INFO)
 
     if args.k is None:
-        if args.d:
+
+        # 加密
+        if args.d is False:
             password = getpass.getpass("Password:")
             password2 = getpass.getpass("Password(again):")
             if password != password2:
