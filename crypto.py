@@ -100,14 +100,18 @@ class FileFormat:
 
 
 def isregulerfile(filename):
-    if isfile(filename) or filename == "-":
+    if filename == "-":
+        return "-"
+    elif isfile(filename):
         return Path(filename)
     else:
         raise argparse.ArgumentTypeError("is not a reguler file")
 
 
 def notexists(filename):
-    if exists(filename) and filename != "-":
+    if filename == "-":
+        return "-"
+    elif exists(filename) and filename != "-":
         raise argparse.ArgumentTypeError(f"already file {filename}")
     else:
         return filename
