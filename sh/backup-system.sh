@@ -131,7 +131,7 @@ check_aes_password(){
 	local p1 p2
 	read -s -p "password: " p1
 	echo
-	read -s -p "password(agent): " p2
+	read -s -p "password(again): " p2
 	echo
 
 	if [ "$p1"x = ""x ] || [ "$p2"x = ""x ];then
