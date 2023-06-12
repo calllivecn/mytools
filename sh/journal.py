@@ -20,4 +20,6 @@ while True:
         #l = j.get_next()
         #print("line:", l)
         for l in j:
-            print("line:", l)
+            print("line:", l["MESSAGE"])
+    else:
+        print("其他事件", event)
