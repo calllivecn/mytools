@@ -36,9 +36,14 @@ if [ $number = "0" ];then
 	exit 0
 fi
 
+export_vmname="${VMS[$number]}-$(date +%F-%H-%M-%S).ova"
+export_vmname_sha256="${export_vmname_sha256}.sha256"
 
-vboxmanage export "${VMS[$number]}" -o "${VMS[$number]}-$(date +%F-%H-%M-%S).ova" --ovf20 --manifest
+vboxmanage export "${VMS[$number]}" -o "${export_vmname}" --ovf20 --manifest
 
 IFS=$old_IFS
 
+echo "sha256 ...."
+
+hash.py --sha256 "${export_vmname}" |tee "${export_vmname_sha256}"
 
