@@ -11,6 +11,16 @@ else
 	exit 1
 fi
 
+HASHSUM=
+if type -p hash.py 2>&1 > /dev/null;then
+	HASHSUM=hash.py
+elif type -p sha256sum 2>&1 > /dev/null;then
+	HASHSUM=sha256sum
+else
+	echo "你没有安装sha256工具, 本次不计算hash值。"
+fi
+
+
 old_ifs=$IFS
 
 VMS=()
@@ -37,7 +47,7 @@ if [ $number = "0" ];then
 fi
 
 export_vmname="${VMS[$number]}-$(date +%F-%H-%M-%S).ova"
-export_vmname_sha256="${export_vmname_sha256}.sha256"
+export_vmname_sha256="${export_vmname}.sha256"
 
 vboxmanage export "${VMS[$number]}" -o "${export_vmname}" --ovf20 --manifest
 
@@ -45,5 +55,9 @@ IFS=$old_IFS
 
 echo "sha256 ...."
 
-hash.py --sha256 "${export_vmname}" |tee "${export_vmname_sha256}"
+if [ "$HASHSUM"x = x ];then
+	echo "不计算sha256"
+else
+	$HASHSUM "${export_vmname}" |tee "${export_vmname_sha256}"
+fi
 
