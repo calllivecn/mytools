@@ -53,7 +53,7 @@ async def main(addr, port=1121):
 
 def start():
     
-    logging.info(f"Usage: echo-ip.py [ipv4=0.0.0.0 or ipv6=:: address] [port=1121]")
+    logger.info(f"Usage: echo-ip.py [ipv4=0.0.0.0 or ipv6=:: address] [port=1121]")
     
     try:
         addr = sys.argv[1]
