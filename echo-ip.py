@@ -4,14 +4,29 @@
 # author calllivecn <c-all@qq.com>
 
 import sys
-# import time
-import socket
 import asyncio
+import logging
 from datetime import datetime
-# from threading import Thread
 
 def timestamp():
     return datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")
+
+def getlogger(level=logging.INFO):
+    logger = logging.getLogger("echo-ip")
+    # formatter = logging.Formatter("%(asctime)s %(levelname)s %(filename)s:%(funcName)s:%(lineno)d %(message)s", datefmt="%Y-%m-%d-%H:%M:%S")
+    formatter = logging.Formatter("%(levelname)s %(filename)s:%(funcName)s:%(lineno)d %(message)s")
+    consoleHandler = logging.StreamHandler(stream=sys.stdout)
+    #logger.setLevel(logging.DEBUG)
+
+    consoleHandler.setFormatter(formatter)
+
+    # consoleHandler.setLevel(logging.DEBUG)
+    logger.addHandler(consoleHandler)
+    logger.setLevel(level)
+    return logger
+
+logger = getlogger()
+
 
 async def echo_ip(r, w):
     result = w.get_extra_info("peername")
@@ -21,9 +36,9 @@ async def echo_ip(r, w):
     try:
         await w.drain()
     except ConnectionResetError:
-        print(f"{ip} ConnectReset...")
+        logger.info(f"{ip} ConnectReset...")
     
-    print(f"{timestamp()} [{ip}]")
+    logger.info(f"[{ip}]")
     
     w.close()
     await w.wait_closed()
@@ -38,7 +53,7 @@ async def main(addr, port=1121):
 
 def start():
     
-    print(f"Usage: {sys.argv[0]} [ipv4=0.0.0.0 or ipv6=:: address] [port=1121]")
+    logging.info(f"Usage: echo-ip.py [ipv4=0.0.0.0 or ipv6=:: address] [port=1121]")
     
     try:
         addr = sys.argv[1]
@@ -52,7 +67,7 @@ def start():
     except Exception:
         port = 1121
 
-    print(f"start listen: [{addr}] port: {port}")
+    logger.info(f"start listen: [{addr}] port: {port}")
     
     asyncio.run(main(addr, port))
 
@@ -61,59 +76,5 @@ if __name__ == "__main__":
     try:
         start()
     except KeyboardInterrupt:
-        print("exit")
+        logger.info("exit")
 
-
-'''
-
-def echo_ipv4(addr="0.0.0.0", port=1121):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
-    # sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, True)
-    sock.bind((addr, port))
-    sock.listen(512)
-
-    while True:
-        client, addr = sock.accept()
-        ip, port = client.getpeername()
-        client.send(ip.encode() + b"\n")
-        print(f"{timestamp()} {ip}")
-        client.close()
-
-
-def echo_ipv6(addr="::", port=1121):
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, True)
-    # sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, True)
-    sock.bind((addr, port))
-    sock.listen(512)
-
-    while True:
-        client, addr = sock.accept()
-        ip, port, flowinfo, scope_id = client.getpeername()
-        client.send(ip.encode() + b"\n")
-        print(f"{timestamp()} {ip}")
-        client.close()
-
-
-def main():
-
-    proc = []
-    
-    th4 = Thread(target=echo_ipv4, daemon=True)
-    th4.start()
-    proc.append(th4)
-
-    th6 = Thread(target=echo_ipv6, daemon=True)
-    th6.start()
-    proc.append(th4)
-
-    for p in proc:
-        p.join()
-
-if __name__ == "__main__":
-    main()
-
-'''
