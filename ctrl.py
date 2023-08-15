@@ -8,7 +8,6 @@
 通过LAN广播的方式，执行指令。
 1. 可以执行shell命令。
 2. 可以编写py拓展执行。
-3. termux-tts-speak 文字转语音
 """
 
 import os
@@ -28,7 +27,10 @@ from multiprocessing import (
 
 
 from cryptography import exceptions
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.ciphers.aead import (
+    AESGCM,
+    ChaCha20Poly1305,
+)
 
 __all__ = (
     "Plugin",
