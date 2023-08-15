@@ -9,7 +9,7 @@ import os
 import sys
 import argparse
 import hashlib
-from functools import partial
+# from functools import partial
 
 parse = argparse.ArgumentParser()
 
