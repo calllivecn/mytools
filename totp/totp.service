@@ -1,0 +1,11 @@
+[Unit]
+Description=TOTP http server (PurePython)
+
+[Service]
+Type=simple
+ExecStart=%h/.ddns/totp.pyz --config %h/.ssh/totp.json
+ExecReload=kill -1 $MAINPID
+WorkingDirectory=%h/.ddns
+
+[Install]
+WantedBy=default.target
