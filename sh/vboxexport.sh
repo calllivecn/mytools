@@ -12,12 +12,20 @@ else
 fi
 
 HASHSUM=
-if type -p hash.py 2>&1 > /dev/null;then
-	HASHSUM=hash.py
-elif type -p sha256sum 2>&1 > /dev/null;then
-	HASHSUM=sha256sum
+if [ "$1"x == "--sha256"x ];then
+	echo "本次计算sha256值."
+
+	if type -p hash.py 2>&1 > /dev/null;then
+		HASHSUM=hash.py
+	elif type -p sha256sum 2>&1 > /dev/null;then
+		HASHSUM=sha256sum
+	else
+		echo "你没有安装sha256工具, 本次不计算hash值。"
+	fi
+
 else
-	echo "你没有安装sha256工具, 本次不计算hash值。"
+	echo -e "\033[32m本次不计算sha256值.\033[0m"
+
 fi
 
 
