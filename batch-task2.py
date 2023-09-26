@@ -583,7 +583,9 @@ def main():
     ENV_PORT = os.environ.get("BATCH_TASK_PORT")
 
     if args.server:
-        args.host = ENV_HOST if ENV_HOST else "::1"
+        if ENV_HOST:
+            args.host = ENV_HOST
+
         args.port = int(ENV_PORT) if ENV_PORT else args.port
 
         fp = logging.FileHandler(f"{PROG}.logs")
