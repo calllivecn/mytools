@@ -101,6 +101,32 @@ def getch():
     return ch
 
 
+class Getch:
+
+    def __init__(self):
+        self.fd = sys.stdin.fileno()
+        self.old_settings = termios.tcgetattr(self.fd)
+        self.new_settings = copy.deepcopy(self.old_settings)
+        self.new_settings[3] &= ~(termios.ICANON | termios.ECHO)  # | termios.ISIG)
+
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.new_settings)
+    
+
+    def getch(self, nbyte=8):
+        return os.read(self.fd, nbyte)
+    
+
+    def close(self):
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+    
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_typ, exc_val, exc_tb):
+        self.close()
+
+
 def read_light(video):
     with open(base_dir + video + max_light_f) as fd1, open(base_dir + video + current_light_f) as fd2:
         max_light = int(fd1.read())
@@ -113,6 +139,16 @@ def read_light(video):
 def change_light(value, video):
     with open(base_dir + video + current_light_f, 'r+') as fd:
         fd.write(str(value))
+
+
+def test():
+
+
+    with Getch() as Gch:
+        while True:
+            print(f"Gch.getch(): {Gch.getch()}")
+    
+    print("exit...")
 
 
 def main():
@@ -130,20 +166,22 @@ def main():
 
     usage()
     out_lenght = len(str(max_light))
-    while True:
-        print('\r', "current brightness: ", ' '*out_lenght, '\b' *
-              out_lenght, current_light, sep='', end='', flush=True)
-        ch = getch()
-        if ch == b'j' or ch == b'\x1b[B':
-            current_light = check_overflow(current_light - step, max_light)
-            change_light(current_light, video)
-        elif ch == b'k' or ch == b'\x1b[A':
-            current_light = check_overflow(current_light + step, max_light)
-            change_light(current_light, video)
-        elif ch == b'\x1b' or ch == b'q':
-            print('\nexit...')
-            sys.exit(0)
+    with Getch() as Gch:
+        while True:
+            print('\r', "current brightness: ", ' '*out_lenght, '\b' *
+                  out_lenght, current_light, sep='', end='', flush=True)
+            ch = Gch.getch()
+            if ch == b'j' or ch == b'\x1b[B':
+                current_light = check_overflow(current_light - step, max_light)
+                change_light(current_light, video)
+            elif ch == b'k' or ch == b'\x1b[A':
+                current_light = check_overflow(current_light + step, max_light)
+                change_light(current_light, video)
+            elif ch == b'\x1b' or ch == b'q':
+                print('\nexit...')
+                sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
+    # test()
