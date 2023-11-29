@@ -13,7 +13,7 @@
 
 SUDO=0
 if groups |grep -q i2c;then
-	:	
+	:
 else
 	SUDO=1
 fi
