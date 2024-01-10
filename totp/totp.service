@@ -4,7 +4,7 @@ Description=TOTP http server (PurePython)
 [Service]
 Type=simple
 ExecStart=%h/.ddns/totp.pyz --config %h/.ssh/totp.json
-ExecReload=kill -1 $MAINPID
+ExecReload=/usr/bin/bash -c "kill -s SIGHUP $MAINPID"
 WorkingDirectory=%h/.ddns
 
 [Install]
