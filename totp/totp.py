@@ -28,20 +28,7 @@ from totplib import (
     issecretfile,
 )
 
-SECRET_HTML="""\
-<!DOCTYPE html>
-<html>
-<meta charset="UTF-8">
-<title>需要输入密码:</title>
-<body>
-    <form action="/" method="post">
-    <label for="password">密码：</label>
-    <input type="password" name="password" id="password" required>
-    <input type="submit" value="提交">
-    </form>
-</body>
-</html>
-"""
+global URL_PREFIX
 
 # 使用外部命令解密
 class LoadFile:
@@ -113,9 +100,9 @@ class Handler(BaseHTTPRequestHandler):
         # parse 参数
         self.pr = parse.urlparse(self.path)
 
-        print(f"urlparse: {self.pr}")
+        # print(f"urlparse: {self.pr}")
         querys = parse.parse_qs(self.pr.query)
-        print(f"参数: {querys}")
+        # print(f"参数: {querys}")
 
         l = querys.get("label")
         c = querys.get("comment")
@@ -138,6 +125,22 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if not SECRET.is_decrypt():
+
+            SECRET_HTML=f"""\
+            <!DOCTYPE html>
+            <html>
+            <meta charset="UTF-8">
+            <title>需要输入密码:</title>
+            <body>
+                <form action="{URL_PREFIX}" method="post">
+                <label for="password">密码：</label>
+                <input type="password" name="password" id="password" required>
+                <input type="submit" value="提交">
+                </form>
+            </body>
+            </html>
+            """
+
             self.urlparse()
             # 解密文件
             html_buf = io.BytesIO()
@@ -235,12 +238,12 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 CONF = SECRET.decrypt(pw)
             except ValueError:
-                msg="""\
+                msg=f"""\
                 <!DOCTYPE>
                 <html>
                 <meta charset="UTF-8">
                 <h1>密码错误。</h1>
-                <a href="/">重新输入</a>
+                <a href="{URL_PREFIX}">重新输入</a>
                 </html>
                 """
                 buf.write(msg.encode("utf-8"))
@@ -253,12 +256,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
             # 成功了，跳转到totp
-            msg="""\
+            msg=f"""\
             <!DOCTYPE>
             <html>
             <meta charset="UTF-8">
-            <h3>在URL输入 /?label=xxx 查询对应TOTP</h3>
-            <a href="/">查询全部</a>
+            <h3>在URL输入 {URL_PREFIX}?label=xxx 查询对应TOTP</h3>
+            <a href="{URL_PREFIX}">查询全部</a>
             </html>
             """
             buf.write(msg.encode("utf-8"))
@@ -312,12 +315,16 @@ def main():
 
     parse.add_argument("--port", action="store", type=int, default=12201, help="默认监听端口(default: 12201)")
 
+    parse.add_argument("--prefix", action="store", type=str, default="/", help="默认 nginx 反向代理前缀(default: /)")
+
     parse.add_argument("--config", type=issecretfile, help="指定配置文件json")
 
     args = parse.parse_args()
 
+    global URL_PREFIX
+    URL_PREFIX = args.prefix
+
     global CONF
-    CONF=None
     """
     with open(args.config) as f:
         CONF = json.load(f)
