@@ -3,10 +3,17 @@
 # date 2023-09-08 11:09:02
 # author calllivecn <c-all@qq.com>
 
+from typing import (
+    List,
+    Dict,
+)
+
 
 import io
 import json
+import subprocess
 import argparse
+from pathlib import Path
 from urllib import parse
 from http.server import (
                         # HTTPServer,
@@ -20,6 +27,48 @@ from totplib import (
     TOTP,
     issecretfile,
 )
+
+SECRET_HTML="""\
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<title>需要输入密码:</title>
+<body>
+    <form action="/" method="post">
+    <label for="password">密码：</label>
+    <input type="password" name="password" id="password" required>
+    <input type="submit" value="提交">
+    </form>
+</body>
+</html>
+"""
+
+# 使用外部命令解密
+class LoadFile:
+    
+    def __init__(self, secretfile: Path):
+
+        self.sf = secretfile
+
+        self._decrypt = False
+
+    def decrypt(self, pw: str) -> Dict:
+
+        p = subprocess.run(["crypto.py", "-d", "-k", pw, "-i", self.sf, "-o", "-"], stdout=subprocess.PIPE)
+        p.check_returncode()
+        try:
+            conf = json.loads(p.stdout)
+        except json.JSONDecodeError:
+            raise ValueError("密码错误")
+
+        self._decrypt = True
+
+        return conf
+
+
+    def is_decrypt(self) -> bool:
+        return self._decrypt
+
 
 
 def respose_headers(buf: io.BytesIO):
@@ -43,16 +92,30 @@ def query_label(label: str, comment: str = None):
     
     return None
 
+def wrap_server_header(func):
+    def wrap(*args, **kwargs):
+        s = args[0]
+
+        # self.server_version = "server/0.1 ca/1.0"
+        s.server_version = "server"
+        s.sys_version = ""
+        # 返回http协议版本
+        s.protocol_version = "HTTP/1.1"
+
+        return func(*args, **kwargs)
+    
+    return wrap
+
 
 class Handler(BaseHTTPRequestHandler):
 
     def urlparse(self):
         # parse 参数
-        pr = parse.urlparse(self.path)
+        self.pr = parse.urlparse(self.path)
 
-        # print(f"urlparse: {pr}")
-        querys = parse.parse_qs(pr.query)
-        # print(f"参数: {querys}")
+        print(f"urlparse: {self.pr}")
+        querys = parse.parse_qs(self.pr.query)
+        print(f"参数: {querys}")
 
         l = querys.get("label")
         c = querys.get("comment")
@@ -67,11 +130,30 @@ class Handler(BaseHTTPRequestHandler):
             return None, None
 
 
+    @wrap_server_header
     def do_GET(self):
         if self.path == "/favicon.ico":
             self.send_response(404)
             self.end_headers()
             return
+
+        if not SECRET.is_decrypt():
+            self.urlparse()
+            # 解密文件
+            html_buf = io.BytesIO()
+            html_buf.write(SECRET_HTML.encode("utf-8"))
+            content_length = html_buf.tell()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", content_length)
+            self.end_headers()
+
+            self.wfile.write(html_buf.getvalue())
+            html_buf.close()
+
+            return
+
 
         label, comment = self.urlparse()
 
@@ -122,17 +204,13 @@ class Handler(BaseHTTPRequestHandler):
         # print(f"最后的HTML:")
         # print(html_buf.getvalue())
         self.wfile.write(html_buf.getvalue())
+        html_buf.close()
 
 
+    @wrap_server_header
     def do_POST(self):
-        #print("HTTP version:", self.request_version)
-        #print("client IP:", self.client_address)
+        # 处理从表单收到的密码
 
-        self.server_version = "server/0.1 zx/1.0"
-        self.sys_version = ""
-
-        # 返回http协议版本
-        self.protocol_version = "HTTP/1.1"
 
         # headers
         #print(f"headers: {self.headers}")
@@ -146,21 +224,50 @@ class Handler(BaseHTTPRequestHandler):
             body = self.rfile.read(int(length))
             #print(f"read json data: {json.loads(body)}")
 
+        # 从body里拿密码
+        _, pw = body.decode().split("=")
 
-        # process content
-        content = "hello, world!".encode()
-        content_length = len(content)
+        self.urlparse()
+
+        global CONF
+        # 解密
+        with io.BytesIO() as buf:
+            try:
+                CONF = SECRET.decrypt(pw)
+            except ValueError:
+                msg="""\
+                <!DOCTYPE>
+                <html>
+                <meta charset="UTF-8">
+                <h1>密码错误。</h1>
+                <a href="/">重新输入</a>
+                </html>
+                """
+                buf.write(msg.encode("utf-8"))
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", buf.tell())
+                self.end_headers()
+                self.wfile.write(buf.getvalue())
+                return
 
 
-        self.send_response(200)
+            # 成功了，跳转到totp
+            msg="""\
+            <!DOCTYPE>
+            <html>
+            <meta charset="UTF-8">
+            <h3>在URL输入 /?label=xxx 查询对应TOTP</h3>
+            <a href="/">查询全部</a>
+            </html>
+            """
+            buf.write(msg.encode("utf-8"))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", buf.tell())
+            self.end_headers()
+            self.wfile.write(buf.getvalue())
 
-        self.send_header("Content-Type", "text/html")
-        self.send_header("Content-Length", content_length)
-        self.end_headers()
-
-        #time.sleep(1)
-
-        self.wfile.write(content)
 
     def log_message(self, *args):
         pass
@@ -184,7 +291,7 @@ def httpserver(addr, port):
     httpd.server_activate()
 
 
-    # 这3个好像没用
+    # TCP 心跳
     #httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5) # 75 -> 5
     #httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 20) # 7200 -> 200
     #httpd.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 3) # 9 -> 3
@@ -210,8 +317,14 @@ def main():
     args = parse.parse_args()
 
     global CONF
+    CONF=None
+    """
     with open(args.config) as f:
         CONF = json.load(f)
+    """
+
+    global SECRET
+    SECRET = LoadFile(args.config)
     
     # print(f"{CONF=}")
 
