@@ -28,44 +28,61 @@ else
 
 fi
 
-
-old_ifs=$IFS
-
-VMS=()
-c=1
-IFS=$'\n'
-for line in $(vboxmanage list vms |grep -oE '"(.*)"'| sed 's/"//g')
-do
-	echo "$c) $line" 
-	VMS[$c]="$line"
-	c=$[c+1]
-done
-
-
-echo "默认保存到当前目录"
-echo -n "选择导出哪个虚拟机(0 退出): "
-read number
-
-# 默认是 0 退出脚本
-number=${number:-0}
-
-
-if [ $number = "0" ];then
-	exit 0
-fi
-
-export_vmname="${VMS[$number]}-$(date +%F-%H-%M-%S).ova"
-export_vmname_sha256="${export_vmname}.sha256"
-
-vboxmanage export "${VMS[$number]}" -o "${export_vmname}" --ovf20 --manifest
-
-IFS=$old_IFS
-
-echo "sha256 ...."
-
-if [ "$HASHSUM"x = x ];then
-	echo "不计算sha256"
+# 看看是不是自动分割文件
+SPLIT=
+if [ "$1"x == "--split"x ];then
+	echo "本次会自动分割文件, 同时也会计算sha256。"
+	SPLIT="yes"
 else
-	$HASHSUM "${export_vmname}" |tee "${export_vmname_sha256}"
+	echo -e "\033[32m本次不自动分割文件.\033[0m"
 fi
 
+
+export_vm(){
+	old_ifs=$IFS
+	
+	VMS=()
+	c=1
+	IFS=$'\n'
+	for line in $(vboxmanage list vms |grep -oE '"(.*)"'| sed 's/"//g')
+	do
+		echo "$c) $line" 
+		VMS[$c]="$line"
+		c=$[c+1]
+	done
+	
+	
+	echo "默认保存到当前目录"
+	echo -n "选择导出哪个虚拟机(0 退出): "
+	read number
+	
+	# 默认是 0 退出脚本
+	number=${number:-0}
+	
+	
+	if [ $number = "0" ];then
+		exit 0
+	fi
+	
+	export_vmname="${VMS[$number]}-$(date +%F-%H-%M-%S).ova"
+	export_vmname_sha256="${export_vmname}.sha256"
+	
+	vboxmanage export "${VMS[$number]}" -o "${export_vmname}" --ovf20 --manifest
+	
+	IFS=$old_IFS
+}
+
+
+main(){
+	export_vm
+	
+	echo "sha256 ...."
+	
+	if [ "$HASHSUM"x = x ];then
+		echo "不计算sha256"
+	else
+		$HASHSUM "${export_vmname}" |tee "${export_vmname_sha256}"
+	fi
+}
+
+main
