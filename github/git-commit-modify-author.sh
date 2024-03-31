@@ -12,14 +12,13 @@ OLD_EMAIL=""
 NEW_NAME=""
 NEW_EMAIL=""
 
-#if [ "$GIT_AUTHOR_EMAIL" != "$OLD_EMAIL" ] || [ "$GIT_COMMITER_EMAIL" != "$OLD_EMAIL" ];then
-if [ "$GIT_COMMITTER_EMAIL" != "$OLD_EMAIL" ];then
+if [ "$GIT_AUTHOR_EMAIL" != "$OLD_EMAIL" ] || [ "$GIT_COMMITER_EMAIL" != "$OLD_EMAIL" ];then
 	echo "找到目标， 进行替换"
     export GIT_AUTHOR_NAME="$NEW_NAME"
     export GIT_AUTHOR_EMAIL="$NEW_EMAIL"
 
-    export GIT_COMMITER_NAME="$NEW_NAME"
-    export GIT_COMMITER_EMAIL="$NEW_EMAIL"
+    export GIT_COMMITTER_NAME="$NEW_NAME"
+    export GIT_COMMITTER_EMAIL="$NEW_EMAIL"
 	env |grep "^GIT_"
 else
 	echo "没有找到目标， 不进行替换"
