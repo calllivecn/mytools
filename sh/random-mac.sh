@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2017-12-12 17:00:24
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # install path /etc/NetworkManager/dispatcher.d/pre-up.d/random-mac.sh
 # NetworkManager >= 1.4.1 (Ubuntu 17.04+) 可以自动随机改变MAC。

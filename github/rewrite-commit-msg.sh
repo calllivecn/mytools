@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2024-01-19 11:14:18
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 git filter-branch --env-filter '

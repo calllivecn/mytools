@@ -1,7 +1,7 @@
 #!/bin/bash
 # update 2018-04-28 23:29:32
 # update 2022-08-18 09:24:24
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 set -e

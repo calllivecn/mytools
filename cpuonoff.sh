@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2018-05-22 02:20:50
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 CPU_PREFIX='/sys/devices/system/cpu/cpu'

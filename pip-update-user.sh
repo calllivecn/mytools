@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2019-02-24 14:28:22
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 PIP="pip3"

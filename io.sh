@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2017-10-28 20:07:53
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 error(){
 echo "error exit"

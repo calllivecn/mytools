@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2018-08-16 14:01:25
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 REGISTRY="http://hub.bnq.com.cn"

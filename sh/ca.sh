@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2018-07-18 15:08:07
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 #C=cn
 #ST=hubei

@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2019-06-11 14:52:06
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 PROXY_ADDR="$(grep -oP '(?<=http_proxy=")(.*)(?=")' $HOME/.config/xiyou)"

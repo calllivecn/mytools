@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2019-10-14 10:13:40
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 PROGRAM=${0##*/}

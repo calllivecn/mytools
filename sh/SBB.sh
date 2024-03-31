@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2021-01-11 21:57:09
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 # system boot beep --> SBB.sh

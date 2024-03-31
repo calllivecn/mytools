@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2018-11-30 10:15:40
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 ps1(){

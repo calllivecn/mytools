@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2021-01-10 17:49:49
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 
 # 0. 怎么使用主板上的蜂鸣器, 还需要把 vim /etc/systemd/logind.conf: HandlePowerKey=poweroff --> HandlePowerKey=ignore

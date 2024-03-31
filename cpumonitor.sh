@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2020-11-27 19:35:12
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 #  cpu使用率：
 #  proc文件：/proc/stat

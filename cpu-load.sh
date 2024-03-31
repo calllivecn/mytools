@@ -1,6 +1,6 @@
 #!/bin/bash
 # date 2022-12-12 14:08:18
-# author calllivecn <c-all@qq.com>
+# author calllivecn <calllivecn@outlook.com>
 
 # 这个是腾,讯-云. 机器在负载过低的时候，会被关机，
 # 所以需要在机器没有负载的时候搞点负载,
