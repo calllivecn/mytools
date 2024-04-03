@@ -369,7 +369,7 @@ def server(args):
             proto = pickle.loads(data)
             # print("type:", proto[0])
         except Exception:
-            logger.deubg(f"接收客户端数据异常")
+            logger.debug(f"接收客户端数据异常")
             traceback.print_exc()
             continue
 
@@ -603,6 +603,9 @@ def main():
     
     if ENV_PORT:
         args.port = int(ENV_PORT)
+
+    if ENV_HOST:
+        args.host = ENV_HOST
 
     client(args)
 
