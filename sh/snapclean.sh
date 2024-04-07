@@ -3,7 +3,7 @@
 # author calllivecn <calllivecn@outlook.com>
 
 
-for snapclean in $(snap list --all |awk '$6~/disable/{print $3"#"$1}')
+for snapclean in $(snap list --all |awk '$6~/disable|已禁用/{print $3"#"$1}')
 do
 	sudo snap remove --revision $(echo "$snapclean" |tr '#' ' ')
 done
