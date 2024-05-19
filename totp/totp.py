@@ -11,10 +11,15 @@ from typing import (
 
 import io
 import json
+import time
 import subprocess
 import argparse
 from pathlib import Path
 from urllib import parse
+from threading import (
+    Thread,
+    Lock,
+)
 from http.server import (
                         # HTTPServer,
                         ThreadingHTTPServer, # 3.7 版本新功能。
@@ -30,25 +35,36 @@ from totplib import (
 
 global URL_PREFIX
 
+
+
 # 使用外部命令解密
 class LoadFile:
     
-    def __init__(self, secretfile: Path):
+    def __init__(self, secretfile: Path, time_: float):
 
         self.sf = secretfile
 
         self._decrypt = False
 
+        self.time_ = time_
+
+        self._lock = Lock()
+
+        self.th = Thread(target=self.re_dectypt, daemon=True)
+        self.th.start()
+
     def decrypt(self, pw: str) -> Dict:
 
-        p = subprocess.run(["crypto.py", "-d", "-k", pw, "-i", self.sf, "-o", "-"], stdout=subprocess.PIPE)
-        p.check_returncode()
-        try:
-            conf = json.loads(p.stdout)
-        except json.JSONDecodeError:
-            raise ValueError("密码错误")
+        with self._lock:
 
-        self._decrypt = True
+            p = subprocess.run(["crypto.py", "-d", "-k", pw, "-i", self.sf, "-o", "-"], stdout=subprocess.PIPE)
+            p.check_returncode()
+            try:
+                conf = json.loads(p.stdout)
+            except json.JSONDecodeError:
+                raise ValueError("密码错误")
+
+            self._decrypt = True
 
         return conf
 
@@ -57,12 +73,14 @@ class LoadFile:
         return self._decrypt
 
 
+    def re_dectypt(self):
 
-def respose_headers(buf: io.BytesIO):
-    buf.write()
+        while True:
+            time.sleep(self.time_)
 
-def respose_headers_end():
-    pass
+            with self._lock:
+                self._decrypt = False
+
 
 
 def query_label(label: str, comment: str = None):
@@ -78,6 +96,7 @@ def query_label(label: str, comment: str = None):
             return info
     
     return None
+
 
 def wrap_server_header(func):
     def wrap(*args, **kwargs):
@@ -331,7 +350,8 @@ def main():
     """
 
     global SECRET
-    SECRET = LoadFile(args.config)
+    oneday = 24 * 3600
+    SECRET = LoadFile(args.config, oneday)
     
     # print(f"{CONF=}")
 
