@@ -604,6 +604,9 @@ def main():
     if ENV_PORT:
         args.port = int(ENV_PORT)
 
+    if ENV_HOST:
+        args.host = ENV_HOST
+
     client(args)
 
 
