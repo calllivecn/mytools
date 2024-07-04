@@ -22,8 +22,8 @@ def urlmethod(url, method="GET"):
     b = result.rstrip(b"\n")
     return json.loads(b)
 
-def checkapiv2():
-    req = request.Request(URL + "/v2/")
+def checkapiv2(url):
+    req = request.Request(url + "/v2/")
     result = request.urlopen(req)
     if result.code == 200:
         return True
@@ -63,7 +63,7 @@ args = parse.parse_args()
 #print(args);sys.exit(0)
 
 if args.apiv2:
-    if checkapiv2():
+    if checkapiv2(args.url):
         print("支持API v2")
     else:
         print("不支持API v2, 还没实现v1。也许不会实现")
@@ -92,3 +92,4 @@ elif args.image:
 
 else:
     getimages(REGISTRY)
+
