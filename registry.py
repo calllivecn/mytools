@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2018-09-14 15:38:09
+# update 2024-07-06 16:53:37
 # author calllivecn <calllivecn@outlook.com>
 
 
@@ -8,19 +9,17 @@
 import os
 import sys
 import json
-import pprint
+# import pprint
 import argparse
 from urllib import request
 
 
 headers = {"Context-Type": "application/json"}
 
-def urlmethod(url, method="GET"):
+def urlmethod(url, method="GET", headers=headers):
     req = request.Request(url, method=method, headers=headers)
     result = request.urlopen(req).read()
-
-    b = result.rstrip(b"\n")
-    return json.loads(b)
+    return result.decode("utf-8")
 
 def checkapiv2(url):
     req = request.Request(url + "/v2/")
@@ -31,22 +30,58 @@ def checkapiv2(url):
         print("status code:", result.code)
         return False
     
+
 def getimages(url):
-    j = urlmethod(url + "/v2/_catalog")
-    pprint.pprint(j)
+    j = urlmethod(f"{url}/v2/_catalog")
+    print(j)
 
 
 def gettaglist(url, image):
-    j = urlmethod(url + "/v2/{}/tags/list".format(image))
-    pprint.pprint(j)
+    j = urlmethod(f"{url}/v2/{image}/tags/list")
+    print(j)
+
 
 def getimageinfo(url, image, tag):
-    j = urlmethod(url + "/v2/{}/manifests/{}".format(image, tag))
-    pprint.pprint(j)
+    headers = {
+        "Accept": "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json"
+    }
+    j = urlmethod(f"{url}/v2/{image}/manifests/{tag}", headers=headers)
+    print(j)
+
+
+def query_delete_digest(url, image, tag):
+    headers = {
+        "Context-Type": "application/json",
+        # "Accept": "application/vnd.docker.distribution.manifest.v2+json"
+        "Accept": "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json"
+        }
+
+    req = request.Request(f"{url}/v2/{image}/manifests/{tag}", method="GET", headers=headers)
+
+    response = request.urlopen(req)
+    result = response.read()
+
+    print(f"{response=}, {dir(response)=}")
+
+    return response.headers["Docker-Content-Digest"]
+
 
 def deleteimage(url, image, tag):
-    j = urlmethod(url + "/v2/{}/manifests/{}".format(image, tag), method="DELETE")
-    pprint.pprint(j)
+
+    digest =  query_delete_digest(url, image, tag)
+
+    req = request.Request(f"{url}/v2/{image}/manifests/{digest}", method="DELETE")
+
+    response = request.urlopen(req)
+
+    result = response.read().decode("utf-8")
+
+    if 200 <= response.status < 300:
+        print(f"{result}")
+    else:
+        print(f"Response code: {response.status}")
+        sys.exit(1)
+
 
 
 parse = argparse.ArgumentParser(usage="%(prog)s <url> [-2|--apiv2] [-i <image>] [-t <tag>] [-d|--delete]")
@@ -78,11 +113,9 @@ elif not REGISTRY:
     sys.exit(1)
 
 
-#if args.info and args.image and args.tag:
-#    getimageinfo(REGISTRY, args.image, args.tag)
-
 if args.delete and args.image and args.tag:
     deleteimage(REGISTRY, args.image, args.tag)
+    print(f"如果需要回收硬盘空间，可能还需要在registry 容器里运行：register registry garbage-collect /etc/docker/registry/config.yml")
 
 elif args.image and args.tag:
     getimageinfo(REGISTRY, args.image, args.tag)
