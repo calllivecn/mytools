@@ -344,7 +344,7 @@ mk_file
 #################
 
 #sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
-sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/* --exclude=snap/*'
+sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/*'
 
 #user_excludes='./home/* ./mnt/* ./media/*'
 user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
