@@ -1,18 +1,14 @@
 #!/bin/bash
 
-install_lists='adjbacklight-ext.py
-dos2unix.py
-hash.py
+install_lists='hash.py
 io.sh
 netio.py
 crypto.py
 jsonfmt.py
 '
-HOME_BIN='youtube-dl.sh
-'
 
-install_libs='libpy
-sh'
+#install_libs='libpy
+#sh'
 
 if [ "$EUID"x != "0"x ];then
 	echo "need root user execoute."
