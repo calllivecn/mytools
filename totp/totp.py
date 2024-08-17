@@ -146,19 +146,19 @@ class Handler(BaseHTTPRequestHandler):
         if not SECRET.is_decrypt():
 
             SECRET_HTML=f"""\
-            <!DOCTYPE html>
-            <html>
-            <meta charset="UTF-8">
-            <title>需要输入密码:</title>
-            <body>
-                <form action="{URL_PREFIX}" method="post">
-                <label for="password">密码：</label>
-                <input type="password" name="password" id="password" required>
-                <input type="submit" value="提交">
-                </form>
-            </body>
-            </html>
-            """
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<title>需要输入密码:</title>
+<body>
+    <form action="{URL_PREFIX}" method="post">
+    <label for="password">密码：</label>
+    <input type="password" name="password" id="password" required>
+    <input type="submit" value="提交">
+    </form>
+</body>
+</html>
+"""
 
             self.urlparse()
             # 解密文件
@@ -204,7 +204,7 @@ class Handler(BaseHTTPRequestHandler):
         html_buf = io.BytesIO()
 
         html_buf.write("""<html><meta charset="UTF-8">""".encode("utf-8"))
-        html_buf.write("""<title>TOTP(基于时间的一性密码)</title>""".encode("utf-8"))
+        html_buf.write("""<title>TOTP(基于时间的一致性密码)</title>""".encode("utf-8"))
 
         html_buf.write("<body>".encode())
 
@@ -258,13 +258,13 @@ class Handler(BaseHTTPRequestHandler):
                 CONF = SECRET.decrypt(pw)
             except ValueError:
                 msg=f"""\
-                <!DOCTYPE>
-                <html>
-                <meta charset="UTF-8">
-                <h1>密码错误。</h1>
-                <a href="{URL_PREFIX}">重新输入</a>
-                </html>
-                """
+<!DOCTYPE>
+<html>
+<meta charset="UTF-8">
+<h1>密码错误。</h1>
+<a href="{URL_PREFIX}">重新输入</a>
+</html>
+"""
                 buf.write(msg.encode("utf-8"))
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
@@ -360,3 +360,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
