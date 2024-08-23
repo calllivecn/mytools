@@ -56,7 +56,7 @@ checkhash(){
 	fi
 }
 
-SPLIT_OUTPUT_DIR=
+SPLIT_OUTPUT_DIR="."
 split_output_dir(){
 
 	while :;
