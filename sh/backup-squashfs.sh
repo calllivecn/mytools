@@ -3,16 +3,6 @@
 # author calllivecn <calllivecn@outlook.com>
 
 
-exclude_sys="proc/*
-sys/*
-run/*
-tmp/*
-dev/*
-var/log/*
-home/*
-mnt/*
-media/*
-"
 
 HOSTNAME=$(hostname)
 DATETIME=$(date +%F-%H-%M-%S)
@@ -33,7 +23,6 @@ backup_filename_or_dirname(){
 }
 
 HASH=1
-# 需要sha256吗？
 sha(){
 	local data backup_filename
 	echo "本次需要计算sha256吗？[Y/n]"
@@ -47,17 +36,23 @@ sha(){
 
 }
 
+
+backup(){
+	echo "备份文件路径为当前目录"
+	
+	backup_filename_or_dirname
+	
+	EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
+	
+	mksquashfs / ${BACKUP_NAME}.squashfs -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
+	
+}
+
+#echo "请选择任务，切分文件计算sha值"
+
 sha
+backup
 
-echo "备份文件路径为当前目录"
-
-backup_filename_or_dirname
-
-EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
-
-#mksquashfs / ${BACKUP_NAME}.squashfs -b 1M -comp zstd -Xcompression-level 7 -wildcards -ef exclude.sys
-
-mksquashfs / ${BACKUP_NAME}.squashfs -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
 
 if [ "$HASH" = 1 ];then
 	sha256sum "${BACKUP_NAME}.squashfs" |tee "${BACKUP_NAME}.squashfs.sha256"
