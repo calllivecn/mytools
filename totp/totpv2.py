@@ -142,7 +142,7 @@ totp_password_html = """
         <div class="centered-element">
 
     {% if pw_is_wrong %}
-        <h1>密码错误, 请重新输入。</h1>
+        <h2>密码错误, 请重新输入。</h2>
     {% endif %}
 
     <form action="{{ url_prefix }}" method="post">
@@ -154,26 +154,28 @@ totp_password_html = """
     </div>
 """
 
+
 totp_result_html = """
 <body>
     <div class="container">
         <div class="centered-element">
 
-    <h1>TOTP(基于时间的一致性密码)</h1>
+    <h2>TOTP(基于时间的一致性密码)</h2>
+
+    {% if label is defined %}
+    <label>没有标签: {{ label }}</label>
+    {% endif %}
+
+    <form action="{{ url_prefix }}" method="post">
+    <label for="label">输入标签：</label>
+    <input type="text" name="label" id="label" required>
+    <input type="submit" value="查询">
+    </form>
+
     {% for item in items %}
     <br><label> {{ item.label }} 动态密码：{{ item.pw }} 剩下时间：{{ item.time_left }} </label></br>
     {% endfor %}
 
-        </div>
-    </div>
-"""
-
-label_not_found_html = """
-<body>
-    <div class="container">
-        <div class="centered-element">
-        <h3>在URL输入 {{ url_prefix }}?label=xxx 查询对应TOTP</h3>
-        <a href="{{ url_prefix }}">查询全部</a>
         </div>
     </div>
 """
@@ -187,56 +189,71 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
     
     global conf
 
+
+    @bp.errorhandler(404)
+    def error404(error):
+        return '<h1>404</h1>', 404
+
+
     @bp.get('/')
     def get_totp():
 
-        label = request.args.get("label")
-        comment = request.args.get("comment")
-
+        all = request.args.get("all", "0")
         if secret.is_decrypt():
 
+            temp = Template("".join([head_html, totp_result_html, end_html]))
             totps = []
-            if label is None:
+            if all == "1":
                 for info in conf:
                     label = info["label"]
                     totp = TOTP(info["secret"])
                     pw = totp.generate_totp()
 
                     totps.append({"label": label, "pw": pw, "time_left": totp.time_left})
+                
+                return temp.render(items=totps, url_prefix=url_for(".post_totp"))
+            
+            else:
 
-                temp = Template("".join([head_html, totp_result_html, end_html]))
-                return Response(temp.render(items=totps))
+                return temp.render(items={}, url_prefix=url_for(".post_totp"))
+    
+        else:
+            return redirect(url_for(".login"))
+
+
+    @bp.post('/')
+    def post_totp():
+        comment = request.args.get("comment")
+
+        label = request.form.get("label")
+
+        if secret.is_decrypt():
+
+            info = query_label(conf, label, comment)
+
+            temp = Template("".join([head_html, totp_result_html, end_html]))
+
+            if info is None:
+            
+                return temp.render(url_prefix=url_for(".post_totp"), label=label)
 
             else:
 
-                info = query_label(conf, label, comment)
-                if info is None:
-                
-                    temp = Template("".join([head_html, label_not_found_html, end_html]))
-                    return Response(temp.render(url_prefix=url_for(".get_totp")))
+                lable = info["label"]
+                totp = TOTP(info["secret"])
+                pw = totp.generate_totp()
 
-                else:
-
-                    lable = info["label"]
-                    totp = TOTP(info["secret"])
-                    pw = totp.generate_totp()
-
-                    temp = Template("".join([head_html, totp_result_html, end_html]))
-                    return Response(temp.render(items=[{"label": lable, "pw": pw, "time_left": totp.time_left}]))
+                return temp.render(items=[{"label": lable, "pw": pw, "time_left": totp.time_left}])
         else:
 
-            # return redirect(url_for(".login", next=request.full_path))
             return redirect(url_for(".login"))
 
 
     @bp.get("/login")
     def login():
 
-        # print(f"{request.path=}\n{request.full_path=}\n{request=}")
-        # print(f"{request.args=}\n{request.form=}")
-
         temp = Template("".join([head_html, totp_password_html, end_html]))
-        return Response(temp.render(url_prefix=url_for(".post_login"), pw_is_wrong=False))
+        return temp.render(url_prefix=url_for(".post_login"), pw_is_wrong=False)
 
 
     @bp.post("/login")
@@ -249,9 +266,8 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
             conf = secret.decrypt(pw)
         except ValueError:
             temp = Template("".join([head_html, totp_password_html, end_html]))
-            return Response(temp.render(url_prefix=url_for(".login"), pw_is_wrong=True))
+            return temp.render(url_prefix=url_for(".login"), pw_is_wrong=True)
         
-        # return redirect(request.args.get("next") or url_for(".get_totp"))
         return redirect(url_for(".get_totp"))
 
 
