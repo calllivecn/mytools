@@ -12,9 +12,6 @@ else
 fi
 
 
-
-
-
 checkhash(){
 
 	local yesno=
@@ -160,16 +157,17 @@ main(){
 	checkhash
 	export_vm
 
-	# 创建切割输出目录
-	split_output_dir_export_vmname_timestamp="${SPLIT_OUTPUT_DIR}/${export_vmname%.ova}"
-	if [ -d "${split_output_dir_export_vmname_timestamp}" ];then
-		:
-	else
-		mkdir -v "${split_output_dir_export_vmname_timestamp}"
-	fi
-
 	echo "sha256 ...."
 	if [ "$SPLIT"x = "yes"x ];then
+
+		# 创建切割输出目录
+		split_output_dir_export_vmname_timestamp="${SPLIT_OUTPUT_DIR}/${export_vmname%.ova}"
+		if [ -d "${split_output_dir_export_vmname_timestamp}" ];then
+			:
+		else
+			mkdir -v "${split_output_dir_export_vmname_timestamp}"
+		fi
+
 		eval cat "${export_vmname}" |tee "$FIFO" | split -b 1G - "${split_output_dir_export_vmname_timestamp}/${export_vmname}." &
 
 		sha256_result=$($HASHSUM "${FIFO}")

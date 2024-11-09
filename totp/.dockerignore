@@ -1,0 +1,6 @@
+README.md
+dockerfile
+dockerfile-sed
+tmp
+*.pyz
+*.toml

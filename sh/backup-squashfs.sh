@@ -9,6 +9,7 @@ DATETIME=$(date +%F-%H-%M-%S)
 
 BACKUP_NAME=
 
+
 backup_filename_or_dirname(){
     local ID VERSION_ID
     local OS="/etc/os-release"
@@ -19,8 +20,11 @@ backup_filename_or_dirname(){
         BAKCUP_NAME="Linux-${HOSTNAME}-${DATETIME}"
     fi
 
-    echo "使用这个备份名字: $BACKUP_NAME"
+    # echo "使用这个备份名字: $BACKUP_NAME"
 }
+
+backup_filename_or_dirname
+
 
 HASH=1
 sha(){
@@ -37,25 +41,89 @@ sha(){
 }
 
 
+BACKUP_SQUASHFS="${BACKUP_NAME}.squashfs"
+
 backup(){
-	echo "备份文件路径为当前目录"
-	
-	backup_filename_or_dirname
 	
 	EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
 	
-	mksquashfs / ${BACKUP_NAME}.squashfs -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
+	mksquashfs / ${BACKUP_SQUASHFS} -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
 	
 }
 
-#echo "请选择任务，切分文件计算sha值"
 
-sha
-backup
+temp_fifo=$(mktemp -qu -t squashfs-XXXXX)
+
+mkfifo "$temp_fifo"
+
+safe_exit(){
+
+	rm -v "$temp_fifo"
+}
 
 
-if [ "$HASH" = 1 ];then
-	sha256sum "${BACKUP_NAME}.squashfs" |tee "${BACKUP_NAME}.squashfs.sha256"
-fi
+trap safe_exit ERR EXIT SIGTERM SIGINT
 
+split_func(){
+	local DIR="${1%.squashfs}"
+	local DIR2="${2}/$DIR"
+	mkdir -v "$DIR2"
+	cat "$1" | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs." &
+	sha256sum "$temp_fifo" |tee "${DIR2}/sha256.txt"
+}
+
+
+printusage(){
+	echo "Usage: ${0} [--split]"
+}
+
+main(){
+
+	#echo "请选择任务，切分文件计算sha值"
+
+
+	if [ "$1"x = "--split"x ];then
+
+		if [ -r "$2" ];then
+			# BACKUP_SQUASHFS="$2"
+			:
+		else
+			echo "需要指定 *.squashfs 文件"
+			exit 1
+		fi
+
+		echo "输出的路径(目录)："
+		read OUTPUT_DIR
+
+		if [ -d "$OUTPUT_DIR" ];then
+			echo "输出到: ${OUTPUT_DIR}"
+		else
+
+			echo "给出的路径不存在。"
+			exit 1
+
+		fi
+
+		split_func "${2}" "$OUTPUT_DIR"
+
+	else
+
+		sha
+
+    	echo "使用这个备份名字: $BACKUP_NAME"
+		echo "备份文件路径为当前目录"
+		backup
+
+		if [ "$HASH" = 1 ];then
+			sha256sum "${BACKUP_SQUASHFS}" |tee "${BACKUP_SQUASHFS}.sha256"
+		fi
+
+	
+	fi
+
+
+}
+
+
+main "$@"
 
