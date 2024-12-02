@@ -44,10 +44,12 @@ sha(){
 BACKUP_SQUASHFS="${BACKUP_NAME}.squashfs"
 
 backup(){
+	local output_squahfs="$1"
 	
 	EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
 	
-	mksquashfs / ${BACKUP_SQUASHFS} -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
+	# mksquashfs / ${BACKUP_SQUASHFS} -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
+	mksquashfs / ${output_squahfs} -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
 	
 }
 
@@ -65,7 +67,8 @@ safe_exit(){
 trap safe_exit ERR EXIT SIGTERM SIGINT
 
 split_func(){
-	local DIR="${1%.squashfs}"
+	local tmp="$(basename "$1")"
+	local DIR="${tmp%.squashfs}"
 	local DIR2="${2}/$DIR"
 	mkdir -v "$DIR2"
 	cat "$1" | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs." &
@@ -74,51 +77,45 @@ split_func(){
 
 
 printusage(){
-	echo "Usage: ${0} [--split]"
+	echo "Usage: ${0} <--squashfs output_dir> [--split <split output_dir>]"
 }
+
 
 main(){
 
 	#echo "请选择任务，切分文件计算sha值"
 
-
-	if [ "$1"x = "--split"x ];then
-
-		if [ -r "$2" ];then
-			# BACKUP_SQUASHFS="$2"
-			:
-		else
-			echo "需要指定 *.squashfs 文件"
+	if [ "$1"x != "--squashfs"x ];then
+			printusage
 			exit 1
-		fi
+	fi
 
-		echo "输出的路径(目录)："
-		read OUTPUT_DIR
-
-		if [ -d "$OUTPUT_DIR" ];then
-			echo "输出到: ${OUTPUT_DIR}"
-		else
-
-			echo "给出的路径不存在。"
-			exit 1
-
-		fi
-
-		split_func "${2}" "$OUTPUT_DIR"
-
+	if [ -d "$2" ];then
+		OUTPUT_SQUASHFS="$(realpath "${2}")/${BACKUP_SQUASHFS}"
+		
+		echo "输出到: ${OUTPUT_SQUASHFS}"
 	else
+		echo "给出的路径不存在。"
+		exit 1
+	fi
 
-		sha
 
-    	echo "使用这个备份名字: $BACKUP_NAME"
-		echo "备份文件路径为当前目录"
-		backup
+    echo "使用这个备份名字: $BACKUP_NAME"
+	backup "${OUTPUT_SQUASHFS}"
+    echo "使用这个备份名字: $BACKUP_NAME ... done"
 
-		if [ "$HASH" = 1 ];then
-			sha256sum "${BACKUP_SQUASHFS}" |tee "${BACKUP_SQUASHFS}.sha256"
-		fi
 
+	if [ "$3"x = "--split"x ];then
+
+		if [ -d "$4" ];then
+			output_dir="$(realpath "${4}")"
+			echo "--split 输出到：${output_dir}"
+			split_func "${OUTPUT_SQUASHFS}" "${output_dir}"
+		else
+			echo "--split 的输出目录不存在..."
+			exit 1
 	
+		fi
 	fi
 
 
