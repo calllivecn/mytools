@@ -5,3 +5,6 @@
 *.svg
 *.prof
 *.pyz
+
+build/
+dist/
