@@ -11,7 +11,6 @@ import argparse
 import traceback
 import configparser
 from pathlib import Path
-from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -110,7 +109,7 @@ def main():
     text.add_argument("--text-infile", dest="infile", type=Path, help="从一个文体文件读取内容(Max: 1M)")
     text.add_argument("--text-stdin", dest="stdin", action="store_true", help="从标准输入读取内容(Max: 1M)")
 
-    text.add_argument("--html-stdin", dest="html_stdin", action="store_true", help="从标准输入读取html内容(Max: 1M, 与--test-stdin冲突)")
+    text.add_argument("--html-stdin", dest="html_stdin", action="store_true", help="从标准输入读取html内容(Max: 1M, 与--text-stdin冲突)")
 
     parse.add_argument("--html", dest="html", help="邮件html内容(Max: 1M)")
     parse.add_argument("--html-infile", dest="html_infile", type=Path, help="从标准输入读取html内容(Max: 1M)")
