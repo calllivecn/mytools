@@ -19,6 +19,7 @@ from email.mime.multipart import MIMEMultipart
 CFG="""\
 [Smtp]
 Server = smtp.qq.com
+;Port = 465
 ;Email =
 ;Password =
 """
@@ -47,9 +48,15 @@ def readcfg(filename, init_context=None):
 
 
 # -----------------------------------------------------------
-def send(server, email, passwd, to, msg, verbose):
+def send(server, port, email, passwd, to, msg, verbose):
+
     try:
-        s = smtplib.SMTP_SSL(server)
+        s = smtplib.SMTP_SSL(server, port)
+    except Exception as e:
+        print(f"连接服务器出错：{e}")
+        sys.exit(1)
+
+    try:
 
         if verbose:
             s.set_debuglevel(verbose)
@@ -131,6 +138,12 @@ def main():
     
     # conf 
     cfg = readcfg(CONF, CFG)
+    
+    try:
+        port = config["Port"]
+    except Exception:
+        # port = 25
+        port = 465
 
     try:
         config = cfg["Smtp"]
@@ -207,7 +220,7 @@ def main():
             msg.attach(att)
 
     all_addrs = args.to + args.cc + args.bcc
-    send(server, email, password, all_addrs, msg, args.verbose)
+    send(server, port, email, password, all_addrs, msg, args.verbose)
 
 
 if __name__ == "__main__":
