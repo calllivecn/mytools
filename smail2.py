@@ -74,7 +74,7 @@ class EmailSender:
             with open(a, "rb") as fp:
                 att = MIMEText(fp.read(), "base64", "utf-8")
 
-            att.add_header("Content-Disposition", "attachment", filename=("utf-8", "", p.name))
+            att.add_header("Content-Disposition", "attachment", filename=("utf-8", "", a.name))
 
             self.msg.attach(att)
 
