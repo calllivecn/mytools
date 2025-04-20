@@ -71,13 +71,20 @@ split_func(){
 	local DIR="${tmp%.squashfs}"
 	local DIR2="${2}/$DIR"
 	mkdir -v "$DIR2"
-	cat "$1" | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs." &
+
+	# 是否加密
+	if [ "$3"x = x ];then
+		cat "$1" | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs." &
+	else
+		crypto.py -k "$3" -i "$1" -o - | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs.a." &
+	fi
+
 	sha256sum "$temp_fifo" |tee "${DIR2}/sha256.txt"
 }
 
 
 printusage(){
-	echo "Usage: ${0} <--squashfs output_dir> [--split <split output_dir>]"
+	echo "Usage: ${0} <--squashfs output_dir> [--split <split output_dir> [分割时的加密密码] ]"
 }
 
 
@@ -110,14 +117,18 @@ main(){
 		if [ -d "$4" ];then
 			output_dir="$(realpath "${4}")"
 			echo "--split 输出到：${output_dir}"
-			split_func "${OUTPUT_SQUASHFS}" "${output_dir}"
+
+			if [ "$5"x = x ];then
+				split_func "${OUTPUT_SQUASHFS}" "${output_dir}"
+			else
+				split_func "${OUTPUT_SQUASHFS}" "${output_dir}" "$5"
+			fi
 		else
 			echo "--split 的输出目录不存在..."
 			exit 1
 	
 		fi
 	fi
-
 
 }
 
