@@ -10,6 +10,7 @@ GB = 1<<30
 
 def usage():
     """
+    终端需要使用管理员权限运行。
     Usage: vbox-empty.py <盘符, 比如 C:/ , D:/> <写入的大小单位:GB>
     """
     print(usage.__doc__)
