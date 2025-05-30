@@ -1,92 +1,95 @@
 #!/usr/bin/env python3
 # coding=utf-8
-# date 2020-08-12 05:55:25
+# updated 2025-05-30 16:00:00
 # author calllivecn <calllivecn@outlook.com>
-
 
 import os
 import sys
 import json
-from urllib import request
+import httpx
 
 """
 文档：https://docs.github.com/cn/rest/reference/repos#list-repositories-for-a-user
 """
 
-# github 默认页大小为：30, MAX: 100
-per_page=100
+# GitHub 每页最多返回 100 个仓库
+PER_PAGE = 100
 
 
-def findnext(link):
-
-    if link is None:
+def find_next_link(link_header):
+    if not link_header:
         return None
 
-    for l in link.split(","):
-        if l.find("next") != -1:
-            url = l.split(";")[0]
-            url = url.strip()
-            return url.strip("<>")
-    
+    for part in link_header.split(','):
+        if 'rel="next"' in part:
+            url_part = part.split(';')[0].strip()
+            return url_part.strip('<>')
     return None
 
 
-def get_request(url, headers):
-    req = request.Request(url, headers=headers)
-    return request.urlopen(req)
+def build_request_params(username_or_token):
+    headers = {
+        "Accept": "application/vnd.github.v3+json"
+    }
 
-def build_request(username_or_token):
-
-    url =f"https://api.github.com/users/{username_or_token}/repos?per_page={per_page}"
-
-    # headers = {"Accept": "application/vnd.github.nebula-preview+json"}
-    headers = {"Accept": "application/vnd.github.v3+json"}
-
-    # 是使用的token
+    # 判断是否为 classic token (ghp_xxx)
     if username_or_token.startswith("ghp_") and len(username_or_token) == 40:
-        headers.update({"Authorization": f"Token {username_or_token}"})
-        url = f"https://api.github.com/user/repos?per_page={per_page}"
+        headers["Authorization"] = f"token {username_or_token}"
+        url = f"https://api.github.com/user/repos?per_page={PER_PAGE}"
+        return url, headers
 
-    return url, headers
+    # 判断是否为 fine-grained token (github_pat_xxx)
+    elif username_or_token.startswith("github_pat_"):
+        headers["Authorization"] = f"Bearer {username_or_token}"
+        url = f"https://api.github.com/user/repos?per_page={PER_PAGE}"
+        return url, headers
+
+    # 默认情况：当作用户名处理
+    else:
+        url = f"https://api.github.com/users/{username_or_token}/repos?per_page={PER_PAGE}"
+        return url, headers
 
 
 def get_all_repos(username_or_token):
+    url, headers = build_request_params(username_or_token)
 
-    link_next, headers = build_request(username_or_token)
     jdata = []
     while True:
+        print(f"Fetching: {url}", file=sys.stderr)
+        with httpx.Client(http2=True) as client:
+            response = client.get(url, headers=headers)
 
-        print("link_next:", link_next, file=sys.stderr)
-        result = get_request(link_next, headers)
+        if response.status_code != 200:
+            print(f"Error: HTTP {response.status_code}")
+            print(response.text)
+            sys.exit(1)
 
-        jdata += json.loads(result.read())
+        jdata.extend(response.json())
 
-        link = result.getheader("Link")
-
-        # debug
-        # print("debug: ", link)
-
-        # 拿到下一页的link
-        link_next = findnext(link)
-        if link_next is None:
+        next_url = find_next_link(response.headers.get("Link"))
+        if not next_url:
             break
+        url = next_url
 
-    # output
+    # 输出所有仓库的 clone 地址
     for repo in jdata:
         print(repo["clone_url"])
 
 
-USAGE="""\
-Usage: {} <github username|github token>
-# 使用 github token 可以查看到私人仓库
+USAGE = """\
+Usage: {} <github username|classic_token(ghp_xxx)|fine_grained_token(github_pat_xxx)>
+注意：
+- 使用 ghp_xxx token 可以查看自己的私有仓库（需要 repo 权限）
+- 使用 github_pat_xxx 需要确保 token 有 repository contents 的 read 权限
 """.format(sys.argv[0])
+
 
 def usage():
     print(USAGE)
 
-if __name__ == "__main__":
 
-    if sys.argv[1] == "-h" or sys.argv[1] == "--help":
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         usage()
         sys.exit(0)
 
