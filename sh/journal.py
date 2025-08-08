@@ -3,6 +3,7 @@
 # date 2023-03-28 21:00:56
 # author calllivecn <calllivecn@outlook.com>
 
+# apt install python3-systemd 一般都有安装
 from systemd import journal
 
 
