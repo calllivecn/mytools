@@ -89,13 +89,8 @@ class EmailSender:
 
     def send(self, to_email: list[str], from_name: str|None = None):
 
-        if from_name:
-            self.msg['From'] = formataddr((from_name, self.email))
-        else:
-            self.msg['From'] = self.email
-
+        self.msg['From'] = formataddr((from_name, self.email))
         self.msg['To'] = ', '.join(to_email)
-
         self.msg.attach(self.alternative)
 
         try:
