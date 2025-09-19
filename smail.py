@@ -25,6 +25,7 @@ CFG="""\
 Server = smtp.qq.com
 ;Port = 465
 ;Email =
+# 发件人显示名称[可选]
 ;From_name =
 ;Password =
 """
@@ -168,7 +169,7 @@ def main():
 
     parse.add_argument("-F", "--From", help="从那个邮件发送的。")
 
-    parse.add_argument("-a", "--attach", nargs="+", help="邮件附件")
+    parse.add_argument("-a", "--attach", nargs="+", type=Path, help="邮件附件")
 
     parse.add_argument("-v", "--verbose", action="count", default=0, help="verbose")
 
