@@ -11,7 +11,11 @@ import argparse
 import traceback
 import configparser
 from pathlib import Path
+
+from email import encoders
+from email.utils import formataddr
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 
 
@@ -21,6 +25,7 @@ CFG="""\
 Server = smtp.qq.com
 ;Port = 465
 ;Email =
+;From_name =
 ;Password =
 """
 
@@ -47,60 +52,100 @@ def readcfg(filename, init_context=None):
             return conf
 
 
-# -----------------------------------------------------------
-def send(server, port, email, passwd, to, msg, verbose):
+class EmailSender:
 
-    try:
-        s = smtplib.SMTP_SSL(server, port)
-    except Exception as e:
-        print(f"连接服务器出错：{e}")
-        sys.exit(1)
+    def __init__(self, server: str, email: str, password: str, port: int = 465, verbose=False):
+        self.server = server
+        self.port = port
+        self.email = email
+        self.password = password
+        self.verbose = verbose
+        self.msg = MIMEMultipart("mixed")
+        self.alternative = MIMEMultipart("alternative")
 
-    try:
+    def Subject(self, subject: str):
+        self.msg['Subject'] = subject
 
-        if verbose:
-            s.set_debuglevel(verbose)
+    def set_text(self, text: str):
+        text_content = MIMEText(text, "plain", "utf-8")
+        self.alternative.attach(text_content)
 
-        code = s.ehlo()[0]
-        usesesmtp = True
+    def set_html(self, body):
+        html_content = MIMEText(body, 'html', 'utf-8')
+        self.alternative.attach(html_content)
+    
+    def attach(self, filenames: list[Path]):
+        for a in filenames:
+            with open(a, "rb") as fp:
+                att = MIMEBase("application", "octet-stream")
+                att.set_payload(fp.read())
+                encoders.encode_base64(att)
 
-        if not (200 <= code <= 299):
-            usesesmtp = False
-            code = s.helo()[0]
+            att.add_header("Content-Disposition", "attachment", filename=("utf-8", "", a.name))
+
+            self.msg.attach(att)
+
+
+    def send(self, to_email: list[str], from_name: str|None = None):
+
+        if from_name:
+            self.msg['From'] = formataddr((from_name, self.email))
+        else:
+            self.msg['From'] = self.email
+
+        self.msg['To'] = ', '.join(to_email)
+
+        self.msg.attach(self.alternative)
+
+        try:
+            s = smtplib.SMTP_SSL(self.server, self.port)
+        except Exception as e:
+            print(f"连接服务器出错：{e}")
+            sys.exit(1)
+
+        try:
+            if self.verbose:
+                s.set_debuglevel(self.verbose)
+
+            code = s.ehlo()[0]
+            usesesmtp = True
 
             if not (200 <= code <= 299):
-                raise smtplib.SMTPHeloError
+                usesesmtp = False
+                code = s.helo()[0]
 
-        msg_as_string = msg.as_string()
+                if not (200 <= code <= 299):
+                    raise smtplib.SMTPHeloError(code, "HELO error")
 
-        if usesesmtp and s.has_extn("size"):
-            sizelimit = int(s.esmtp_features["size"])
-            size = round(sizelimit / (1 << 20), 2)
-            print(f"sizelimit: {sizelimit} size: {size}MB")
-            if len(msg_as_string) > sizelimit:
-                print(f"Maximum message size is {size}MB")
-                print("Message too large ; aborting.")
-                sys.exit(2)
+            msg_as_string = self.msg.as_string()
 
-        s.login(email, passwd)
-        if s.sendmail(email, to, msg_as_string):
-            print("Recv : error.")
+            if usesesmtp and s.has_extn("size"):
+                sizelimit = int(s.esmtp_features["size"])
+                size = round(sizelimit / (1 << 20), 2)
+                print(f"sizelimit: {sizelimit} size: {size}MB")
+                if len(msg_as_string) > sizelimit:
+                    print(f"Maximum message size is {size}MB")
+                    print("Message too large ; aborting.")
+                    sys.exit(2)
 
-    except (smtplib.SMTPException, smtplib.SMTPHeloError) as e:
-        print("SMTPException:")
-        traceback.print_exc(e)
-        sys.exit(1)
+            s.login(self.email, self.password)
+            if s.sendmail(self.email, to_email, msg_as_string):
+                print("Recv : error.")
 
-    finally:
-        s.quit()
+        except (smtplib.SMTPException, smtplib.SMTPHeloError) as e:
+            print("SMTPException:")
+            traceback.print_exc()
+            sys.exit(1)
 
+        finally:
+            s.quit()
 
 
 def main():
     PROG = Path(sys.argv[0]).name
     parse = argparse.ArgumentParser(description="%(prog)s SMTP mail 发送工具")
 
-    parse.add_argument("-c", "--conf", default=CONF, help=f"配置(default: ~/.config/smail.conf)")
+    parse.add_argument("-c", "--conf", default=CONF, help="配置(default: ~/.config/smail.conf)")
 
     # parse.add_argument("-u", "--user", help="mail user")
     # parse.add_argument("-p", "--passwd", help="mail password")
@@ -136,15 +181,8 @@ def main():
         print(args)
         sys.exit(0)
     
-    # conf 
     cfg = readcfg(CONF, CFG)
     
-    try:
-        port = config["Port"]
-    except Exception:
-        # port = 25
-        port = 465
-
     try:
         config = cfg["Smtp"]
         server = config["Server"]
@@ -155,27 +193,21 @@ def main():
         print(CFG)
         sys.exit(1)
 
-    msg = MIMEMultipart("mixed")
+    try:
+        port = int(config["Port"])
+    except Exception:
+        port = 465
 
-    alternative = MIMEMultipart("alternative")
 
-    if args.From:
-        msg["From"] = args.From
-    else:
-        msg["From"] = email
-
-    if args.to:
-        msg["To"] = ",".join(args.to)
+    es = EmailSender(server, email, password, port, args.verbose)
 
     if args.cc:
-        msg["Cc"] = ",".join(args.cc)
+        es.msg["Cc"] = ",".join(args.cc)
 
-    msg["Subject"] = args.subject
-
+    es.Subject(args.subject)
 
     # choice: ["text", "html"]
     content_mode = "text"
-
     Text = io.StringIO()
     if args.infile:
         with open(args.infile) as f:
@@ -188,7 +220,7 @@ def main():
     elif args.text:
         Text.write(args.text)
 
-    text_content1 = MIMEText(Text.getvalue(), "plain", "utf-8")
+    es.set_text(Text.getvalue())
     Text.close()
 
     Html = io.StringIO()
@@ -206,28 +238,14 @@ def main():
         Html.write(sys.stdin.read(1<<20))
 
     if content_mode == "html":
-        html_content1 = MIMEText(Html.getvalue(), "html", "utf-8")
-        alternative.attach(html_content1)
+        es.set_html(Html.getvalue())
     Html.close()
 
-    alternative.attach(text_content1)
-
-    msg.attach(alternative)
-
     if args.attach:
-        for a in args.attach:
-            p = Path(a)
-            # att = MIMEBase("Content-Type", "application/octet-stream")
-                # att.set_payload(fp.read())
-            with open(a, "rb") as fp:
-                att = MIMEText(fp.read(), "base64", "utf-8")
-
-            att.add_header("Content-Disposition", "attachment", filename=("utf-8", "", p.name))
-
-            msg.attach(att)
+        es.attach(args.attach)
 
     all_addrs = args.to + args.cc + args.bcc
-    send(server, port, email, password, all_addrs, msg, args.verbose)
+    es.send(all_addrs, config.get("from_name"))
 
 
 if __name__ == "__main__":
