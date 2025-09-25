@@ -66,7 +66,7 @@ def main():
         print(f"{args.dir} 必需是一个存在的目录")
         sys.exit(1)
     
-    file_queue = queue.Queue(100000)
+    file_queue: queue.Queue[Path] = queue.Queue(100000)
 
     t = threading.Thread(target=monitor_dir, args=(watch_dir, file_queue), daemon=True)
     t.start()
