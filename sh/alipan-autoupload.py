@@ -15,10 +15,9 @@ from aligo import Aligo
 def upload_to_alipan(net_path: Path, file_path: Path):
     ali = Aligo("calllivecn")
 
-    if net_path == Path("."):
+    if net_path.parent == Path("."):
         ali.upload_file(file_path)
     else:
-
         remote_folder = ali.get_folder_by_path(net_path.parent.as_posix())
 
         if remote_folder is None:
