@@ -40,8 +40,11 @@ def monitor_dir(dir_path: Path, file_queue: queue.Queue):
                 break
             line = proc.stdout.readline().strip()
             file_path = Path(line)
-            file_queue.put(file_path)
-            print(f"监控到新文件: {file_path}")
+            if file_path.parent == Path("."):
+                print(f"忽略根目录文件: {file_path}")
+            else:
+                file_queue.put(file_path)
+                print(f"监控到新文件: {file_path}")
 
 
 
