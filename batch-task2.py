@@ -285,7 +285,6 @@ class Manager:
     def __init__(self):
         self.q = Q()
         self.ths: list[Executor] = []
-        # self.qs_executors: list[tuple[Q, list[Executor]]] = []
         self.add_executor(1)
 
     def add_task(self, task: Task):
@@ -343,33 +342,33 @@ class Manager:
             title = io.StringIO()
             title.write(f"{SMALL_SPLIT} 编号:{i}")
 
-            if th.status == Status.Running or th.status == Status.Pause:
+            match th.status:
+                case Status.Running | Status.Pause:
 
-                if th.status == Status.Running:
-                    title.write(" -- 执行中")
+                    if th.status == Status.Running:
+                        title.write(" -- 执行中")
 
-                if th.status == Status.Pause:
-                    title.write(" -- 暂停状态(--recover恢复)")
+                    if th.status == Status.Pause:
+                        title.write(" -- 暂停状态(--recover恢复)")
 
-                if th.e.is_set():
-                    self.ths.pop(i)
-                    title.write(" -- 标记: 执行完后退出")
+                    if th.e.is_set():
+                        self.ths.pop(i)
+                        title.write(" -- 标记: 执行完后退出")
 
-                title.write(f"{SMALL_SPLIT}")
-                buf.write(title.getvalue())
-                buf.write("\n")
+                    title.write(f"{SMALL_SPLIT}")
+                    buf.write(title.getvalue())
+                    buf.write("\n")
 
-                # buf.append(f"CMD: {th.task.cmd}")
-                buf.write(f"{th.task}\n")
+                    # buf.append(f"CMD: {th.task.cmd}")
+                    buf.write(f"{th.task}\n")
 
-            elif th.status == Status.Wait:
+                case Status.Wait:
+                    title.write(f"{SMALL_SPLIT}")
+                    buf.write(title.getvalue())
+                    buf.write("等待中\n")
 
-                title.write(f"{SMALL_SPLIT}")
-                buf.write(title.getvalue())
-                buf.write("等待中\n")
-
-            else:
-                print(f"执行器处理未知状态: {th.status}")
+                case _:
+                    print(f"执行器处理未知状态: {th.status}")
 
         return buf.getvalue()
         
@@ -476,102 +475,106 @@ def server(args):
                 traceback.print_exc()
                 continue
 
+            match proto.CmdType:
+                case CmdType.ReOK | CmdType.ReERR | CmdType.Result:
+                    logger.error(f"客户端发送了错误的指令: {proto.CmdType}")
+                    continue
 
-            if proto.CmdType == CmdType.Status:
-                data = m.status()
-                data = f"{'+'*20} 服务器 [{host}]:{port} {'+'*20}\n" + data
-                reply = CmdProtocol(CmdType=CmdType.Result, reply=data).dumps()
+                case CmdType.Status:
+                    data = m.status()
+                    data = f"{'+'*20} 服务器 [{host}]:{port} {'+'*20}\n" + data
+                    reply = CmdProtocol(CmdType=CmdType.Result, reply=data).dumps()
 
-            elif proto.CmdType == CmdType.List:
-                data = m.list()
-                reply = CmdProtocol(CmdType=CmdType.Result, reply=data).dumps()
+                case CmdType.List:
+                    data = m.list()
+                    reply = CmdProtocol(CmdType=CmdType.Result, reply=data).dumps()
 
-            elif proto.CmdType == CmdType.Task:
-                # print(f"添加任务：{task.cmd}")
-                if proto.task is None:
-                    logger.error("没有任务数据")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.add_task(proto.task)
-
-                reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            elif proto.CmdType == CmdType.Insert:
-                if proto.task is None or proto.task_number is None:
-                    logger.error("没有任务数据或任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.insert(proto.task_number, proto.task)
-                    reply = pickle.dumps((CmdType.ReOK,))
-
-            elif proto.CmdType == CmdType.Remove:
-                if proto.task_number is None:
-                    logger.error("没有任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.remove(proto.task_number)
-                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            elif proto.CmdType == CmdType.Move:
-                if proto.move_i is None or proto.move_n is None:
-                    logger.error("没有任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    try:
-                        m.move(proto.move_i, proto.move_n)
-                    except IndexError:
+                case CmdType.Task:
+                    # print(f"添加任务：{task.cmd}")
+                    if proto.task is None:
+                        logger.error("没有任务数据")
                         reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                        traceback.print_exc()
-                    else: 
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            elif proto.CmdType == CmdType.Done:
-                if proto.task_number is None:
-                    logger.error("没有任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.done_executor(proto.task_number)
-                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            elif proto.CmdType == CmdType.Kill:
-                if proto.task_number is None:
-                    logger.error("没有任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.kill(proto.task_number)
-                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            elif proto.CmdType == CmdType.Pause:
-                if proto.task_number is None:
-                    logger.error("没有任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    opr = m.pause(proto.task_number)
-                    if opr.success:
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
                     else:
-                        logger.error(opr.message)
+                        m.add_task(proto.task)
+
+                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case CmdType.Insert:
+                    if proto.task is None or proto.task_number is None:
+                        logger.error("没有任务数据或任务编号")
                         reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        m.insert(proto.task_number, proto.task)
+                        reply = pickle.dumps((CmdType.ReOK,))
 
-            elif proto.CmdType == CmdType.Recover:
-                if proto.task_number is None:
-                    logger.error("没有任务编号")
+                case CmdType.Remove:
+                    if proto.task_number is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        m.remove(proto.task_number)
+                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case CmdType.Move:
+                    if proto.move_i is None or proto.move_n is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        try:
+                            m.move(proto.move_i, proto.move_n)
+                        except IndexError:
+                            reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                            traceback.print_exc()
+                        else:
+                            reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case CmdType.Done:
+                    if proto.task_number is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        m.done_executor(proto.task_number)
+                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case CmdType.Kill:
+                    if proto.task_number is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        m.kill(proto.task_number)
+                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case CmdType.Pause:
+                    if proto.task_number is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        opr = m.pause(proto.task_number)
+                        if opr.success:
+                            reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        else:
+                            logger.error(opr.message)
+                            reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+
+                case CmdType.Recover:
+                    if proto.task_number is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        m.recover(proto.task_number)
+                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case CmdType.ADD:
+                    if proto.task_number is None:
+                        logger.error("没有任务编号")
+                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    else:
+                        m.add_executor(proto.task_number)
+                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+
+                case _:
+                    logger.error(f"未知指令: {proto.CmdType}")
                     reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.recover(proto.task_number)
-                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            elif proto.CmdType == CmdType.ADD:
-                if proto.task_number is None:
-                    logger.error("没有任务编号")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                else:
-                    m.add_executor(proto.task_number)
-                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-
-            else:
-                logger.error(f"未知指令: {proto.CmdType}")
-                reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
 
             # client.send(reply)
             client.sendall(reply)

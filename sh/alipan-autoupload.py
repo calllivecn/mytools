@@ -14,13 +14,18 @@ from aligo import Aligo
 # 上传到阿里云盘
 def upload_to_alipan(net_path: Path, file_path: Path):
     ali = Aligo("calllivecn")
-    remote_folder = ali.get_folder_by_path(net_path.parent.as_posix())
 
-    if remote_folder is None:
-        print(f"远程目录不存在: {net_path.parent}, 现在创建")
-        remote_folder = ali.create_folder(net_path.parent.as_posix())
+    if net_path == Path("."):
+        ali.upload_file(file_path)
+    else:
 
-    ali.upload_file(file_path, remote_folder.file_id)
+        remote_folder = ali.get_folder_by_path(net_path.parent.as_posix())
+
+        if remote_folder is None:
+            print(f"远程目录不存在: {net_path.parent}, 现在创建")
+            remote_folder = ali.create_folder(net_path.parent.as_posix())
+
+        ali.upload_file(file_path, remote_folder.file_id)
 
 
 def monitor_dir(dir_path: Path, file_queue: queue.Queue):
