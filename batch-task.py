@@ -13,6 +13,7 @@ import pickle
 import signal
 import socket
 import argparse
+import selectors
 import subprocess
 from pathlib import Path
 from collections import deque
@@ -78,11 +79,12 @@ class Task:
 
     def run(self):
         self.start = timestamp()
-        p = subprocess.Popen(self.cmd, cwd=self.cwd, env=self.env)
-        self.pid = p.pid
-        recode = p.wait()
+        self.p = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.cwd, env=self.env, text=True, encoding="utf-8")
+        self.pid = self.p.pid
+
+    def wait(self):
+        self.recode = self.p.wait()
         self.end = timestamp()
-        self.recode = recode
 
 
     def __str__(self):
@@ -168,17 +170,20 @@ class Executor:
     """
     def __init__(self, queue: Q):
         self.q = queue
-        self.e = Event()
+        self.e_status = Event()
         self.status = Status.Wait
+
+        self.e_log = Event()
     
         self.th = Thread(target=self.__exec, daemon=True)
         self.th.start()
+
 
     def done(self) -> OpReturn:
         """
         当前执行，执行完后退出。
         """
-        self.e.set()
+        self.e_status.set()
         return OpReturn(success=True, message="执行器已标记为执行完后退出。")
     
     def kill(self, sig: int) -> OpReturn:
@@ -198,7 +203,7 @@ class Executor:
             opreturn.message = "当前执行器没有正在执行的任务, 标记为退出。"
             logger.info(opreturn.message)
 
-        self.e.set()
+        self.e_status.set()
 
         return opreturn
 
@@ -224,11 +229,9 @@ class Executor:
 
     def __exec(self):
         while True:
-            if self.e.is_set():
-                # print(f"{self.th.name} 执行完退出")
+            if self.e_status.is_set():
                 return
 
-            # 当前执行器 正在执行的任务
             self.task: Task = self.q.get()
 
             logger.info(BIG2_SPLIT)
@@ -238,15 +241,54 @@ class Executor:
             self.status = Status.Running
             try:
                 self.task.run()
+                self.e_log.set()
+                self.task.wait()
             except Exception:
                 traceback.print_exc()
                 continue
 
             self.status = Status.Wait
+            self.e_log.clear()
 
             logger.info(BIG2_SPLIT)
             logger.info(f"↓\n开始时间: {self.task.start}, 结束时间: {self.task.end}\n{self.task}")
             logger.info(BIG2_SPLIT)
+    
+
+    def start_log(self, Q_index: int = 0, executor_index: int = 0):
+        self.Q_index = Q_index
+        self.executor_index = executor_index
+        self.th_log = Thread(target=self.__log, name=f"log-{Q_index}-{executor_index}", daemon=True)
+        self.th_log.start()
+
+
+    def __log(self):
+
+        self.selector = selectors.DefaultSelector()
+
+        while True:
+            self.e_log.wait()
+            # logger.info(f"日志线程启动: Q{self.Q_index}-E{self.executor_index}")
+            p: subprocess.Popen = self.task.p
+            if p.stderr and p.stdout:
+                self.selector.register(p.stdout, selectors.EVENT_READ)
+                self.selector.register(p.stderr, selectors.EVENT_READ)
+
+            with open(f"{PROG}-Q{self.Q_index}-E{self.executor_index}.log", "a") as fp:
+
+                while self.e_log.is_set():
+
+                    for key, event in self.selector.select():
+                        line = key.fileobj.readline()
+                        if line:
+                            match key.fileobj:
+                                case p.stdout:
+                                    fp.write(f"[{timestamp()}|pid:{self.task.pid}|STDOUT] {line}")
+                                case p.stderr:
+                                    fp.write(f"[{timestamp()}|pid:{self.task.pid}|STDERR] {line}")
+
+                            fp.flush()
+
     
     def __str__(self) -> str:
         with io.StringIO() as buf:
@@ -308,17 +350,19 @@ class Manager:
         for i in range(number):
             self.qes.append(QueueExecutor(Q(), executor=[]))
             self.add_executor(1, l_len+i)
-        
+            
         return OpReturn(success=True)
 
-    def add_executor(self, i: int, qe_index: int = 0) -> OpReturn:
+    def add_executor(self, n: int, qe_index: int = 0) -> OpReturn:
         r = self.__check_qe_index(qe_index)
         if not r.success:
             return r
 
         qe: QueueExecutor = self.qes[qe_index]
-        for _ in range(i):
-            qe.executor.append(Executor(qe.queue))
+        for i in range(n):
+            e: Executor = Executor(qe.queue)
+            e.start_log(Q_index=qe_index, executor_index=len(qe.executor))
+            qe.executor.append(e)
         
         return OpReturn(success=True)
 
@@ -388,7 +432,7 @@ class Manager:
                         if th.status == Status.Pause:
                             title.write(" -- 暂停状态(--recover恢复)")
 
-                        if th.e.is_set():
+                        if th.e_status.is_set():
                             qe.executor.pop(i)
                             title.write(" -- 标记: 执行完后退出")
 
