@@ -102,39 +102,6 @@ class Task:
         return "\n".join(s)
 
 
-class Q_old(list):
-    """
-    可以调整顺序 任务队列
-    """
-
-    def __init__(self, maxlen=1000):
-        self.maxlen = maxlen
-        self._lock = Lock()
-
-    def put(self, item: Task):
-        with self._lock:
-            self.append(item)
-    
-    def get(self):
-        while len(self) <= 0:
-            time.sleep(1)
-
-        with self._lock:
-            return self.pop(0)
-
-    def insert(self, i, item: Task):
-        with self._lock:
-            super().insert(i, item)
-    
-    def move(self, i: int, n: int):
-        with self._lock:
-            self[i], self[n] = self[n], self[i]
-    
-    def remove(self, i: int):
-        with self._lock:
-            self.pop(i)
-
-
 class Q:
     """
     线程安全的可调整顺序任务队列
@@ -188,6 +155,7 @@ class OpReturn:
     success: bool
     message: str = ""
 
+
 class Executor:
     """
     可以一个行执行器，只属于一个Q任务队列。
@@ -195,9 +163,12 @@ class Executor:
     def __init__(self, queue: Q):
         self.q = queue
         self.e = Event()
+        self.ths: list[Thread] = []
 
         self.status = Status.Wait
-
+        self.add_thread()
+    
+    def add_thread(self):
         self.th = Thread(target=self.__exec, daemon=True)
         self.th.start()
 
@@ -357,10 +328,7 @@ class Manager:
 
                     title.write(f"{SMALL_SPLIT}")
                     buf.write(title.getvalue())
-                    buf.write("\n")
-
-                    # buf.append(f"CMD: {th.task.cmd}")
-                    buf.write(f"{th.task}\n")
+                    buf.write(f"\n{th.task}\n")
 
                 case Status.Wait:
                     title.write(f"{SMALL_SPLIT}")
@@ -576,7 +544,6 @@ def server(args):
                     logger.error(f"未知指令: {proto.CmdType}")
                     reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
 
-            # client.send(reply)
             client.sendall(reply)
             client.close()
 
@@ -586,8 +553,6 @@ def client(args: argparse.Namespace):
     host = args.host
     port = args.port
 
-    cwd = os.getcwd()
-
     if args.status:
         cmd = CmdProtocol(CmdType=CmdType.Status).dumps()
     
@@ -595,7 +560,7 @@ def client(args: argparse.Namespace):
         cmd = CmdProtocol(CmdType=CmdType.List).dumps()
     
     elif args.insert is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Insert, task_number=args.insert, task=Task(args.taskcmd, cwd)).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Insert, task_number=args.insert, task=Task(args.taskcmd, args.cwd)).dumps()
 
     elif args.remove is not None:
         cmd = CmdProtocol(CmdType=CmdType.Remove, task_number=args.remove).dumps()
@@ -619,7 +584,7 @@ def client(args: argparse.Namespace):
         cmd = CmdProtocol(CmdType=CmdType.Recover, task_number=args.recover).dumps()
     
     elif args.task:
-        cmd = CmdProtocol(CmdType=CmdType.Task, task=Task(args.taskcmd, cwd)).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Task, task=Task(args.taskcmd, args.cwd)).dumps()
 
     else:
         # 默认选项
@@ -640,22 +605,23 @@ def client(args: argparse.Namespace):
             print("接收数据异常，可能是服务端异常退出了。")
             return
 
-        if proto.CmdType == CmdType.ReOK:
-            recode = 0
+        match proto.CmdType:
+            case CmdType.ReOK:
+                recode = 0
 
-        elif proto.CmdType == CmdType.ReERR:
-            print("有什么出错了, 查看服务端日志。")
-            recode = 1
+            case CmdType.ReERR:
+                print("有什么出错了, 查看服务端日志。")
+                recode = 1
 
-        elif proto.CmdType == CmdType.Result:
-            try:
-                print(proto.reply, flush=True)
-            except BrokenPipeError:
-                pass
-            recode = 0
-        else:
-            print("未知返回")
-            recode = 1
+            case CmdType.Result:
+                try:
+                    print(proto.reply, flush=True)
+                except BrokenPipeError:
+                    pass
+                recode = 0
+            case _:
+                print("未知返回")
+                recode = 1
 
     sys.exit(recode)
 
@@ -698,6 +664,7 @@ def main():
     group.add_argument("--recover", type=int, metavar="number", help="恢复一个正在的执行器")
 
     c.add_argument("--task", action="store_true", help="添加任务")
+    c.add_argument("--task-workdir", dest="cwd", action="store", help="执行任务目录")
 
     group.add_argument("--status", action="store_true", help="查看状态(默认选项)")
     group.add_argument("--list", action="store_true", help="查看队列")
@@ -719,7 +686,6 @@ def main():
 
     if args.parse:
         print(args)
-        # parse.print_help()
         sys.exit(0)
 
     ENV_HOST = os.environ.get("BATCH_TASK_HOST")
