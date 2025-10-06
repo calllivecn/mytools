@@ -20,7 +20,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 import logging
-# from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 
 from threading import (
     Thread,
@@ -59,6 +59,8 @@ Q_SPLIT = "#"*20
 BIG_SPLIT = "="*20
 SMALL_SPLIT = "-"*20
 BIG2_SPLIT = BIG_SPLIT*2
+
+SOCK_BUF = 4096
 
 class Task:
 
@@ -270,9 +272,10 @@ class Manager:
     可以多个执行器属于一个执行队列，同队列并行。
     """
 
-    def __init__(self):
+    def __init__(self, add_queue: int):
         self.qes: list = []
-        self.add_queue(1)
+
+        self.add_queue(add_queue)
     
 
     def __check_qe_index(self, qe_index: int) -> OpReturn:
@@ -367,14 +370,14 @@ class Manager:
 
     def status(self) -> OpReturn:
         buf = io.StringIO()
-        buf.write(f"{PLUS_SPLIT}\t队列数：{len(self.qes)}\t{PLUS_SPLIT}\n")
+        buf.write(f"{PLUS_SPLIT}\t队列总数：{len(self.qes)}\t{PLUS_SPLIT}\n")
         for n, qe in enumerate(self.qes):
             buf.write(f"{Q_SPLIT}\t队列编号: {n}\t{Q_SPLIT}\n")
-            buf.write(f"{BIG_SPLIT}\t执行器(总数: {len(qe.executor)})\t{BIG_SPLIT}\n")
+            buf.write(f"\t{BIG_SPLIT}\t执行器(总数: {len(qe.executor)})\t{BIG_SPLIT}\n")
 
             for i, th in enumerate(qe.executor):
                 title = io.StringIO()
-                title.write(f"{SMALL_SPLIT}\t编号:{i}")
+                title.write(f"\t\t{SMALL_SPLIT}\t编号:{i} ")
 
                 match th.status:
                     case Status.Running | Status.Pause:
@@ -394,9 +397,10 @@ class Manager:
                         buf.write(f"\n{th.task}\n")
 
                     case Status.Wait:
-                        title.write(f"\t{SMALL_SPLIT}")
+                        title.write("等待中")
+                        title.write(f"\t{SMALL_SPLIT}\n")
                         buf.write(title.getvalue())
-                        buf.write("等待中\n")
+                        buf.write("\n")
 
                     case _:
                         print(f"执行器处理未知状态: {th.status}")
@@ -410,15 +414,16 @@ class Manager:
     def list(self) -> OpReturn:
         buf = io.StringIO()
 
-        buf.write(f"{Q_SPLIT}\t队列总数：{len(self.qes)}\t{Q_SPLIT}\n")
+        buf.write(f"{PLUS_SPLIT}\t队列总数：{len(self.qes)}\t{PLUS_SPLIT}\n")
         for n, qe in enumerate(self.qes):
 
-            buf.write(f"{Q_SPLIT}\t队列编号: {n}\t{Q_SPLIT}\n")
-            buf.write(f"{BIG_SPLIT}\t执行器(总数: {len(qe.executor)})\t{BIG_SPLIT}\n")
+            buf.write(f"\t{Q_SPLIT}\t队列编号: {n}\t{Q_SPLIT}\n")
+            buf.write(f"\t{BIG_SPLIT}\t执行器(总数: {len(qe.executor)})\t{BIG_SPLIT}\n")
 
-            buf.write(f"任务队列(总数: {len(qe.queue)}):\n")
+            buf.write(f"\t\t任务队列(总数: {len(qe.queue)}):\n")
             for i, task in enumerate(qe.queue):
-                buf.write(f"{BIG_SPLIT}\t任务号:{i}\t{BIG_SPLIT}\n{str(task)}\n")
+                buf.write(f"\t\t{BIG_SPLIT}\t任务号:{i}\t{BIG_SPLIT}\n")
+                buf.write(f"\t\t{str(task)}\n")
 
         r = OpReturn(True, buf.getvalue())
         buf.close()
@@ -514,13 +519,16 @@ class CmdProtocol:
         return pickle.loads(data)
 
 
-def server(args):
+def server(args: argparse.Namespace):
     host = args.host
     port = args.port
 
     logger.info(f"启动执行管理器: {host}:{port}")
 
-    m = Manager()
+    if args.add_queue == 0:
+        m = Manager(1)
+    else:
+        m = Manager(args.add_queue)
 
     with socket.create_server((host, port), family=socket.AF_INET6, dualstack_ipv6=True) as sock:
 
@@ -530,7 +538,7 @@ def server(args):
             client.settimeout(60)
 
             try:
-                while (data := client.recv(4096)) != b"":
+                while (data := client.recv(SOCK_BUF)) != b"":
                     data_buf.write(data)
             except socket.timeout:
                 logger.error("接收客户端数据超时")
@@ -702,7 +710,7 @@ def client(args: argparse.Namespace):
         sock.shutdown(socket.SHUT_WR)
 
         buf = io.BytesIO()
-        while (data := sock.recv(8192)) != b"":
+        while (data := sock.recv(SOCK_BUF)) != b"":
             buf.write(data)
 
         try:
@@ -714,23 +722,17 @@ def client(args: argparse.Namespace):
         match proto.CmdType:
             case CmdType.ReOK|CmdType.Result:
                 recode = 0
-                try:
-                    print(proto.reply, flush=True)
-                except BrokenPipeError:
-                    pass
+                print(proto.reply, flush=True)
 
             case CmdType.ReERR:
                 recode = 1
-                try:
-                    print(proto.reply, flush=True)
-                except BrokenPipeError:
-                    pass
+                print(proto.reply, flush=True)
 
             case _:
                 print("未知返回")
                 recode = 1
 
-    sys.exit(recode)
+    return recode
 
 
 Usage = f"""
@@ -796,7 +798,7 @@ def main():
 
     if args.parse:
         print(args)
-        sys.exit(0)
+        return 0
 
     ENV_HOST = os.environ.get("BATCH_TASK_HOST")
     ENV_PORT = os.environ.get("BATCH_TASK_PORT")
@@ -807,8 +809,8 @@ def main():
 
         args.port = int(ENV_PORT) if ENV_PORT else args.port
 
-        fp = logging.FileHandler(f"{PROG}.logs")
-        # fp = TimedRotatingFileHandler(f"{prog}.logs", when="D", interval=1, backupCount=7)
+        # fp = logging.FileHandler(f"{PROG}.log")
+        fp = TimedRotatingFileHandler(f"{PROG}.log", when="D", interval=1, backupCount=7)
         fp.setFormatter(FMT)
         logger.setLevel(logging.INFO)
         logger.addHandler(fp)
@@ -817,8 +819,8 @@ def main():
             server(args)
         except KeyboardInterrupt:
             pass
-
-        sys.exit(0)
+        
+        return 0
     
     if ENV_PORT:
         args.port = int(ENV_PORT)
@@ -826,8 +828,8 @@ def main():
     if ENV_HOST:
         args.host = ENV_HOST
 
-    client(args)
+    return client(args)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
