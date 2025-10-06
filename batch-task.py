@@ -55,6 +55,7 @@ def timestamp():
     return t.strftime("%Y-%m-%d %H:%M:%S")
 
 
+Q_SPLIT = "#"*20
 BIG_SPLIT = "="*20
 SMALL_SPLIT = "-"*20
 BIG2_SPLIT = BIG_SPLIT*2
@@ -163,12 +164,8 @@ class Executor:
     def __init__(self, queue: Q):
         self.q = queue
         self.e = Event()
-        self.ths: list[Thread] = []
-
         self.status = Status.Wait
-        self.add_thread()
     
-    def add_thread(self):
         self.th = Thread(target=self.__exec, daemon=True)
         self.th.start()
 
@@ -247,6 +244,12 @@ class Executor:
             logger.info(BIG2_SPLIT)
 
 
+@dataclass
+class QueueExecutor:
+    queue: Q
+    executor: list[Executor]
+
+
 class Manager:
     """
     执行器之间是并行关系，每个执行器属于一个执行队列。
@@ -254,51 +257,68 @@ class Manager:
     """
 
     def __init__(self):
-        self.q = Q()
-        self.ths: list[Executor] = []
+        self.qes: list = [QueueExecutor(Q(), executor=[])]
+        # self.q = Q()
+        # self.ths: list[Executor] = []
         self.add_executor(1)
 
-    def add_task(self, task: Task):
-        self.q.put(task)
+    def add_queue(self):
+        """
+        添加一个新的任务队列, 默认一个执行器
+        """
+        self.qes.append(QueueExecutor(Q(), executor=[]))
+        self.add_executor(1, len(self.qes)-1)
 
-    def add_executor(self, i: int):
+
+    def add_executor(self, i: int, qe_index: int = 0):
+        qe: QueueExecutor = self.qes[qe_index]
         for _ in range(i):
-            self.ths.append(Executor(self.q))
+            qe.executor.append(Executor(qe.queue))
 
-    def done_executor(self, seq: int) -> OpReturn:
-        ll = len(self.ths)
+    def done_executor(self, seq: int, qe_index: int = 0) -> OpReturn:
+        ths: list[Executor] = self.qes[qe_index].executor
+        ll = len(ths)
         if 0 <= seq <= ll - 1:
-            t = self.ths[seq]
+            t = ths[seq]
             opr = t.done()
         else:
             opr = OpReturn(success=False, message=f"没有执行器: {seq}")
 
         return opr
     
-    def kill(self, seq: int, sig: int = signal.SIGTERM) -> OpReturn:
-        ll = len(self.ths)
+    def add_task(self, task: Task, qe_index: int = 0):
+        q: Q = self.qes[qe_index].queue
+        q.put(task)
+
+    def kill(self, seq: int, qe_index: int = 0, sig: int = signal.SIGTERM) -> OpReturn:
+        qe :QueueExecutor = self.qes[qe_index]
+
+        ll = len(qe.executor)
         if 0 <= seq <= ll - 1:
-            th = self.ths.pop(seq)
+            th = qe.executor.pop(seq)
             opr = th.kill(sig)
         else:
             opr = OpReturn(success=False, message=f"没有执行器: {seq}") 
 
         return opr
 
-    def pause(self, seq: int) -> OpReturn:
-        ll = len(self.ths)
+    def pause(self, seq: int, qe_index: int = 0) -> OpReturn:
+        qe :QueueExecutor = self.qes[qe_index]
+
+        ll = len(qe.executor)
         if 0 <= seq <= ll - 1:
-            th = self.ths[seq]
+            th = qe.executor[seq]
             opr = th.pause()
         else:
             opr = OpReturn(success=False, message=f"没有执行器: {seq}")
 
         return opr
 
-    def recover(self, seq: int) -> OpReturn:
-        ll = len(self.ths)
+    def recover(self, seq: int, qe_index: int = 0) -> OpReturn:
+        qe :QueueExecutor = self.qes[qe_index]
+        ll = len(qe.executor)
         if 0 <= seq <= ll - 1:
-            th = self.ths[seq]
+            th = qe.executor[seq]
             opr = th.recover()
         else:
             opr = OpReturn(success=False, message=f"没有执行器: {seq}")
@@ -307,60 +327,73 @@ class Manager:
 
     def status(self) -> str:
         buf = io.StringIO()
-        buf.write(f"{BIG_SPLIT} 执行器(总数: {len(self.ths)}) {BIG_SPLIT}\n")
-        for i, th in enumerate(self.ths):
+        buf.write(f"{Q_SPLIT} 队列数：{len(self.qes)} {Q_SPLIT}\n")
+        for n, qe in enumerate(self.qes):
+            buf.write(f"{Q_SPLIT} 队列编号: {n} {Q_SPLIT}\n")
+            buf.write(f"{BIG_SPLIT} 执行器(总数: {len(qe.exector)}) {BIG_SPLIT}\n")
 
-            title = io.StringIO()
-            title.write(f"{SMALL_SPLIT} 编号:{i}")
+            for i, th in enumerate(qe.executor):
+                title = io.StringIO()
+                title.write(f"{SMALL_SPLIT} 编号:{i}")
 
-            match th.status:
-                case Status.Running | Status.Pause:
+                match th.status:
+                    case Status.Running | Status.Pause:
 
-                    if th.status == Status.Running:
-                        title.write(" -- 执行中")
+                        if th.status == Status.Running:
+                            title.write(" -- 执行中")
 
-                    if th.status == Status.Pause:
-                        title.write(" -- 暂停状态(--recover恢复)")
+                        if th.status == Status.Pause:
+                            title.write(" -- 暂停状态(--recover恢复)")
 
-                    if th.e.is_set():
-                        self.ths.pop(i)
-                        title.write(" -- 标记: 执行完后退出")
+                        if th.e.is_set():
+                            qe.executor.pop(i)
+                            title.write(" -- 标记: 执行完后退出")
 
-                    title.write(f"{SMALL_SPLIT}")
-                    buf.write(title.getvalue())
-                    buf.write(f"\n{th.task}\n")
+                        title.write(f"{SMALL_SPLIT}")
+                        buf.write(title.getvalue())
+                        buf.write(f"\n{th.task}\n")
 
-                case Status.Wait:
-                    title.write(f"{SMALL_SPLIT}")
-                    buf.write(title.getvalue())
-                    buf.write("等待中\n")
+                    case Status.Wait:
+                        title.write(f"{SMALL_SPLIT}")
+                        buf.write(title.getvalue())
+                        buf.write("等待中\n")
 
-                case _:
-                    print(f"执行器处理未知状态: {th.status}")
+                    case _:
+                        print(f"执行器处理未知状态: {th.status}")
 
         return buf.getvalue()
         
     def list(self) -> str:
         buf = io.StringIO()
-        buf.write(f"任务队列(总数: {len(self.q)}):\n")
-        for i, task in enumerate(self.q):
-            s = BIG_SPLIT
-            buf.write(f"{s} 任务号:{i} {s}\n{str(task)}\n")
+
+        buf.write(f"{Q_SPLIT} 队列数：{len(self.qes)} {Q_SPLIT}\n")
+
+        for n, qe in enumerate(self.qes):
+            buf.write(f"{Q_SPLIT} 队列编号: {n} {Q_SPLIT}\n")
+            buf.write(f"{BIG_SPLIT} 执行器(总数: {len(qe.exector)}) {BIG_SPLIT}\n")
+
+            buf.write(f"任务队列(总数: {len(qe.executor)}):\n")
+            for i, task in enumerate(qe.executor):
+                s = BIG_SPLIT
+                buf.write(f"{s} 任务号:{i} {s}\n{str(task)}\n")
 
         return buf.getvalue()
 
-    def insert(self, i: int, task: Task):
-        self.q.insert(i, task)
+    def insert(self, i: int, task: Task, qe_index: int = 0):
+        q: Q = self.qes[qe_index].queue
+        q.insert(i, task)
 
-    def remove(self, i: int):
+    def remove(self, i: int, qe_index: int = 0):
+        q: Q = self.qes[qe_index].queue
         try:
-            self.q.remove(i)
+            q.remove(i)
         except IndexError:
             print(f"没有任务: {i}")
 
-    def move(self, i: int, n: int):
+    def move(self, i: int, n: int, qe_index: int = 0):
+        q: Q = self.qes[qe_index].queue
         try:
-            self.q.move(i, n)
+            q.move(i, n)
         except IndexError:
             print(f"没有任务: {i} or {n}")
 
@@ -389,6 +422,7 @@ class CmdType(enum.IntEnum):
 @dataclass
 class CmdProtocol:
     CmdType: CmdType
+    qe_number: int|None = 0
     task: Task|None = None
     task_number: int|None = None
     reply: str|None = None
@@ -560,31 +594,31 @@ def client(args: argparse.Namespace):
         cmd = CmdProtocol(CmdType=CmdType.List).dumps()
     
     elif args.insert is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Insert, task_number=args.insert, task=Task(args.taskcmd, args.cwd)).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Insert, task_number=args.insert, qe_number=args.queue_number, task=Task(args.taskcmd, args.cwd)).dumps()
 
     elif args.remove is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Remove, task_number=args.remove).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Remove, task_number=args.remove, qe_number=args.queue_number).dumps()
 
     elif args.move:
-        cmd = CmdProtocol(CmdType=CmdType.Move, move_i=int(args.move[0]), move_n=int(args.move[1])).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Move, move_i=int(args.move[0]), move_n=int(args.move[1]), qe_number=args.queue_number).dumps()
     
     elif args.done is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Done, task_number=args.done).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Done, task_number=args.done, qe_number=args.queue_number).dumps()
 
     elif args.add:
-        cmd = CmdProtocol(CmdType=CmdType.ADD, task_number=args.add).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.ADD, task_number=args.add, qe_number=args.queue_number).dumps()
     
     elif args.kill is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Kill, task_number=args.kill).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Kill, task_number=args.kill, qe_number=args.queue_number).dumps()
     
     elif args.pause is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Pause, task_number=args.pause).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Pause, task_number=args.pause, qe_number=args.queue_number).dumps()
     
     elif args.recover is not None:
-        cmd = CmdProtocol(CmdType=CmdType.Recover, task_number=args.recover).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Recover, task_number=args.recover, qe_number=args.queue_number).dumps()
     
     elif args.task:
-        cmd = CmdProtocol(CmdType=CmdType.Task, task=Task(args.taskcmd, args.cwd)).dumps()
+        cmd = CmdProtocol(CmdType=CmdType.Task, task=Task(args.taskcmd, args.cwd), qe_number=args.queue_number).dumps()
 
     else:
         # 默认选项
@@ -657,6 +691,8 @@ def main():
 
     c = parse.add_argument_group(title="client 参数")
     group = c.add_mutually_exclusive_group()
+    group.add_argument("--add-queue", dest="queue", type=int, metavar="number", default=1, help="添加<number>个新的执行队列，并在这个队列上添加一个默认执行器")
+    group.add_argument("--queue-number", dest="queue_number", type=int, metavar="number", default=0, help="在指定的队列上添加任务，默认0号队列")
     group.add_argument("--add-executor", dest="add", type=int, metavar="number", help="添加一个并行执行器")
     group.add_argument("--done-executor", dest="done", type=int, metavar="number", help="指定一个执行器，本次执行完后退出。(减少一个并行执行)")
     group.add_argument("--kill", type=int, metavar="number", help="kill一个执行器(减少一个并行执行)")
