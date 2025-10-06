@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # coding=utf-8
 # date 2022-11-21 20:39:09
-# author calllivecn <calllivecn@outlook.com>
 
 
 import io
@@ -55,6 +54,7 @@ def timestamp():
     return t.strftime("%Y-%m-%d %H:%M:%S")
 
 
+PLUS_SPLIT = '+'*20
 Q_SPLIT = "#"*20
 BIG_SPLIT = "="*20
 SMALL_SPLIT = "-"*20
@@ -78,29 +78,32 @@ class Task:
         self.start = timestamp()
         p = subprocess.Popen(self.cmd, cwd=self.cwd, env=self.env)
         self.pid = p.pid
-        while (recode := p.poll()) is None:
-            time.sleep(1)
+        recode = p.wait()
         self.end = timestamp()
         self.recode = recode
-        return self.recode
 
 
     def __str__(self):
-        s=[]
-        if self.env is not None:
-            s.append(f"env: {self.env}")
+        with io.StringIO() as buf:
 
-        if hasattr(self, "pid"):
-            s.append(f"PID: {self.pid}")
+            if hasattr(self, "start"):
+                buf.write(f"START: {self.start}\n")
 
-        s.append(f"CWD: {self.cwd}")
+            if self.env is not None:
+                buf.write(f"ENV: {self.env}\n")
 
-        s.append(f"CMD: {self.cmd}")
+            if hasattr(self, "pid"):
+                buf.write(f"PID: {self.pid}\n")
 
-        if hasattr(self, "recode"):
-            s.append(f"RECODE: {self.recode}")
+            if self.cwd is not None:
+                buf.write(f"CWD: {self.cwd}\n")
+
+            buf.write(f"CMD: {self.cmd}\n")
+
+            if hasattr(self, "recode"):
+                buf.write(f"RECODE: {self.recode}\n")
         
-        return "\n".join(s)
+            return buf.getvalue()
 
 
 class Q:
@@ -224,11 +227,11 @@ class Executor:
                 return
 
             # 当前执行器 正在执行的任务
-            self.task = self.q.get()
+            self.task: Task = self.q.get()
 
-            logger.info(f"{BIG2_SPLIT}")
+            logger.info(BIG2_SPLIT)
             logger.info(f"↓\n开始时间: {timestamp()}\n{self.task}")
-            logger.info(f"{BIG2_SPLIT}")
+            logger.info(BIG2_SPLIT)
 
             self.status = Status.Running
             try:
@@ -239,9 +242,20 @@ class Executor:
 
             self.status = Status.Wait
 
-            logger.info(f"{BIG2_SPLIT}")
+            logger.info(BIG2_SPLIT)
             logger.info(f"↓\n开始时间: {self.task.start}, 结束时间: {self.task.end}\n{self.task}")
             logger.info(BIG2_SPLIT)
+    
+    def __str__(self) -> str:
+        with io.StringIO() as buf:
+            buf.write(f"状态: {self.status.name}\n")
+            if hasattr(self, "task"):
+                buf.write(str(self.task))
+                buf.write("\n")
+            else:
+                buf.write("当前没有任务\n")
+            return buf.getvalue()
+
 
 
 @dataclass
@@ -257,84 +271,110 @@ class Manager:
     """
 
     def __init__(self):
-        self.qes: list = [QueueExecutor(Q(), executor=[])]
-        # self.q = Q()
-        # self.ths: list[Executor] = []
-        self.add_executor(1)
+        self.qes: list = []
+        self.add_queue(1)
+    
 
-    def add_queue(self):
+    def __check_qe_index(self, qe_index: int) -> OpReturn:
+        ll = len(self.qes)
+        if 0 <= qe_index <= ll - 1:
+            return OpReturn(success=True)
+        else:
+            return OpReturn(success=False, message=f"没有队列: {qe_index}")
+
+
+    def __check_executor(self, qe_index: int, executor_index: int) -> OpReturn:
+        r = self.__check_qe_index(qe_index)
+        if not r.success:
+            return r
+
+        e: list[Executor] = self.qes[qe_index].executor
+
+        ll = len(e)
+        if 0 <= executor_index <= ll - 1:
+            return OpReturn(success=True)
+        else:
+            return OpReturn(success=False, message=f"没有执行器: {qe_index}")
+
+
+    def add_queue(self, number: int) -> OpReturn:
         """
-        添加一个新的任务队列, 默认一个执行器
+        添加<number>个新的任务队列, 默认一个执行器
         """
-        self.qes.append(QueueExecutor(Q(), executor=[]))
-        self.add_executor(1, len(self.qes)-1)
+        l_len = len(self.qes)
+        for i in range(number):
+            self.qes.append(QueueExecutor(Q(), executor=[]))
+            self.add_executor(1, l_len+i)
+        
+        return OpReturn(success=True)
 
+    def add_executor(self, i: int, qe_index: int = 0) -> OpReturn:
+        r = self.__check_qe_index(qe_index)
+        if not r.success:
+            return r
 
-    def add_executor(self, i: int, qe_index: int = 0):
         qe: QueueExecutor = self.qes[qe_index]
         for _ in range(i):
             qe.executor.append(Executor(qe.queue))
+        
+        return OpReturn(success=True)
 
     def done_executor(self, seq: int, qe_index: int = 0) -> OpReturn:
-        ths: list[Executor] = self.qes[qe_index].executor
-        ll = len(ths)
-        if 0 <= seq <= ll - 1:
-            t = ths[seq]
-            opr = t.done()
-        else:
-            opr = OpReturn(success=False, message=f"没有执行器: {seq}")
 
-        return opr
+        r = self.__check_executor(qe_index, seq)
+        if not r.success:
+            return r
+
+        ths: list[Executor] = self.qes[qe_index].executor
+        t = ths[seq]
+        return t.done()
     
-    def add_task(self, task: Task, qe_index: int = 0):
+    def add_task(self, task: Task, qe_index: int = 0) -> OpReturn:
+        r = self.__check_qe_index(qe_index)
+        if not r.success:
+            return r
+
         q: Q = self.qes[qe_index].queue
         q.put(task)
+        return OpReturn(success=True)
 
     def kill(self, seq: int, qe_index: int = 0, sig: int = signal.SIGTERM) -> OpReturn:
+        r = self.__check_executor(qe_index, seq)
+        if not r.success:
+            return r
+
         qe :QueueExecutor = self.qes[qe_index]
-
-        ll = len(qe.executor)
-        if 0 <= seq <= ll - 1:
-            th = qe.executor.pop(seq)
-            opr = th.kill(sig)
-        else:
-            opr = OpReturn(success=False, message=f"没有执行器: {seq}") 
-
-        return opr
+        th = qe.executor.pop(seq)
+        return th.kill(sig)
 
     def pause(self, seq: int, qe_index: int = 0) -> OpReturn:
+        r = self.__check_executor(qe_index, seq)
+        if not r.success:
+            return r
+
         qe :QueueExecutor = self.qes[qe_index]
-
-        ll = len(qe.executor)
-        if 0 <= seq <= ll - 1:
-            th = qe.executor[seq]
-            opr = th.pause()
-        else:
-            opr = OpReturn(success=False, message=f"没有执行器: {seq}")
-
-        return opr
+        th = qe.executor[seq]
+        return th.pause()
 
     def recover(self, seq: int, qe_index: int = 0) -> OpReturn:
+        r = self.__check_executor(qe_index, seq)
+        if not r.success:
+            return r
+
         qe :QueueExecutor = self.qes[qe_index]
-        ll = len(qe.executor)
-        if 0 <= seq <= ll - 1:
-            th = qe.executor[seq]
-            opr = th.recover()
-        else:
-            opr = OpReturn(success=False, message=f"没有执行器: {seq}")
+        th = qe.executor[seq]
+        return th.recover()
 
-        return opr
-
-    def status(self) -> str:
+    def status(self) -> OpReturn:
         buf = io.StringIO()
-        buf.write(f"{Q_SPLIT} 队列数：{len(self.qes)} {Q_SPLIT}\n")
+        buf.write(f"{PLUS_SPLIT}\t队列数：{len(self.qes)}\t{PLUS_SPLIT}\n")
         for n, qe in enumerate(self.qes):
-            buf.write(f"{Q_SPLIT} 队列编号: {n} {Q_SPLIT}\n")
-            buf.write(f"{BIG_SPLIT} 执行器(总数: {len(qe.exector)}) {BIG_SPLIT}\n")
+            buf.write(f"{Q_SPLIT}\t队列编号: {n}\t{Q_SPLIT}\n")
+            buf.write(f"{BIG_SPLIT}\t执行器(总数: {len(qe.executor)})\t{BIG_SPLIT}\n")
 
             for i, th in enumerate(qe.executor):
                 title = io.StringIO()
-                title.write(f"{SMALL_SPLIT} 编号:{i}")
+                title.write(f"{SMALL_SPLIT}\t编号:{i}")
 
                 match th.status:
                     case Status.Running | Status.Pause:
@@ -349,53 +389,75 @@ class Manager:
                             qe.executor.pop(i)
                             title.write(" -- 标记: 执行完后退出")
 
-                        title.write(f"{SMALL_SPLIT}")
+                        title.write(f"\t{SMALL_SPLIT}")
                         buf.write(title.getvalue())
                         buf.write(f"\n{th.task}\n")
 
                     case Status.Wait:
-                        title.write(f"{SMALL_SPLIT}")
+                        title.write(f"\t{SMALL_SPLIT}")
                         buf.write(title.getvalue())
                         buf.write("等待中\n")
 
                     case _:
                         print(f"执行器处理未知状态: {th.status}")
 
-        return buf.getvalue()
+                title.close()
+
+        r = OpReturn(True, buf.getvalue())
+        buf.close()
+        return r
         
-    def list(self) -> str:
+    def list(self) -> OpReturn:
         buf = io.StringIO()
 
-        buf.write(f"{Q_SPLIT} 队列数：{len(self.qes)} {Q_SPLIT}\n")
-
+        buf.write(f"{Q_SPLIT}\t队列总数：{len(self.qes)}\t{Q_SPLIT}\n")
         for n, qe in enumerate(self.qes):
-            buf.write(f"{Q_SPLIT} 队列编号: {n} {Q_SPLIT}\n")
-            buf.write(f"{BIG_SPLIT} 执行器(总数: {len(qe.exector)}) {BIG_SPLIT}\n")
 
-            buf.write(f"任务队列(总数: {len(qe.executor)}):\n")
-            for i, task in enumerate(qe.executor):
-                s = BIG_SPLIT
-                buf.write(f"{s} 任务号:{i} {s}\n{str(task)}\n")
+            buf.write(f"{Q_SPLIT}\t队列编号: {n}\t{Q_SPLIT}\n")
+            buf.write(f"{BIG_SPLIT}\t执行器(总数: {len(qe.executor)})\t{BIG_SPLIT}\n")
 
-        return buf.getvalue()
+            buf.write(f"任务队列(总数: {len(qe.queue)}):\n")
+            for i, task in enumerate(qe.queue):
+                buf.write(f"{BIG_SPLIT}\t任务号:{i}\t{BIG_SPLIT}\n{str(task)}\n")
 
-    def insert(self, i: int, task: Task, qe_index: int = 0):
+        r = OpReturn(True, buf.getvalue())
+        buf.close()
+        return r
+
+    def insert(self, i: int, task: Task, qe_index: int = 0) -> OpReturn:
+        r = self.__check_qe_index(qe_index)
+        if not r.success:
+            return r
+
         q: Q = self.qes[qe_index].queue
         q.insert(i, task)
+        return OpReturn(success=True)
 
-    def remove(self, i: int, qe_index: int = 0):
+    def remove(self, i: int, qe_index: int = 0) -> OpReturn:
+        r = self.__check_qe_index(qe_index)
+        if not r.success:
+            return r
+
         q: Q = self.qes[qe_index].queue
         try:
             q.remove(i)
         except IndexError:
-            print(f"没有任务: {i}")
+            return OpReturn(success=False, message=f"没有任务: {i}")
+        
+        return OpReturn(success=True)
 
-    def move(self, i: int, n: int, qe_index: int = 0):
+    def move(self, i: int, n: int, qe_index: int = 0) -> OpReturn:
+        r = self.__check_qe_index(qe_index)
+        if not r.success:
+            return r
+
         q: Q = self.qes[qe_index].queue
         try:
             q.move(i, n)
         except IndexError:
-            print(f"没有任务: {i} or {n}")
+            return OpReturn(success=False, message=f"没有任务: {i} or {n}")
+        
+        return OpReturn(success=True)
 
 
 class CmdType(enum.IntEnum):
@@ -407,6 +469,7 @@ class CmdType(enum.IntEnum):
     Remove = enum.auto()
     Move = enum.auto()
     Done = enum.auto()
+    Queue = enum.auto()
 
     ADD = enum.auto()
     Kill = enum.auto()
@@ -422,10 +485,10 @@ class CmdType(enum.IntEnum):
 @dataclass
 class CmdProtocol:
     CmdType: CmdType
-    qe_number: int|None = 0
+    reply: str = ""
+    qe_number: int = 0
     task: Task|None = None
     task_number: int|None = None
-    reply: str|None = None
     move_i: int|None = None
     move_n: int|None = None
 
@@ -462,20 +525,36 @@ def server(args):
     with socket.create_server((host, port), family=socket.AF_INET6, dualstack_ipv6=True) as sock:
 
         while True:
+            data_buf = io.BytesIO()
             client, addr = sock.accept()
-            data =  client.recv(8192)
-            if not data:
+            client.settimeout(60)
+
+            try:
+                while (data := client.recv(4096)) != b"":
+                    data_buf.write(data)
+            except socket.timeout:
+                logger.error("接收客户端数据超时")
+                client.close()
+                data_buf.close()
+                continue
+
+            # if not data:
+            if data_buf.tell() == 0:
                 logger.info("peer close()")
                 client.close()
+                data_buf.close()
                 continue
 
             try:
-                # proto = pickle.loads(data)
-                proto = CmdProtocol.loads(data)
+                proto = CmdProtocol.loads(data_buf.getvalue())
             except Exception:
                 logger.error("接收客户端数据异常")
                 traceback.print_exc()
                 continue
+
+            finally:
+                data_buf.close()
+
 
             match proto.CmdType:
                 case CmdType.ReOK | CmdType.ReERR | CmdType.Result:
@@ -483,100 +562,90 @@ def server(args):
                     continue
 
                 case CmdType.Status:
-                    data = m.status()
-                    data = f"{'+'*20} 服务器 [{host}]:{port} {'+'*20}\n" + data
-                    reply = CmdProtocol(CmdType=CmdType.Result, reply=data).dumps()
+                    r = m.status()
 
                 case CmdType.List:
-                    data = m.list()
-                    reply = CmdProtocol(CmdType=CmdType.Result, reply=data).dumps()
+                    r = m.list()
 
                 case CmdType.Task:
-                    # print(f"添加任务：{task.cmd}")
                     if proto.task is None:
-                        logger.error("没有任务数据")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务数据")
                     else:
-                        m.add_task(proto.task)
+                        r = m.add_task(proto.task, qe_index=proto.qe_number)
 
-                    reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
 
                 case CmdType.Insert:
                     if proto.task is None or proto.task_number is None:
-                        logger.error("没有任务数据或任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务数据或任务编号")
                     else:
-                        m.insert(proto.task_number, proto.task)
-                        reply = pickle.dumps((CmdType.ReOK,))
+                        r = m.insert(proto.task_number, proto.task, qe_index=proto.qe_number)
+
 
                 case CmdType.Remove:
                     if proto.task_number is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        m.remove(proto.task_number)
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        r = m.remove(proto.task_number, qe_index=proto.qe_number)
+
 
                 case CmdType.Move:
                     if proto.move_i is None or proto.move_n is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        try:
-                            m.move(proto.move_i, proto.move_n)
-                        except IndexError:
-                            reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
-                            traceback.print_exc()
-                        else:
-                            reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        r = m.move(proto.move_i, proto.move_n, qe_index=proto.qe_number)
+
 
                 case CmdType.Done:
                     if proto.task_number is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        m.done_executor(proto.task_number)
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        r = m.done_executor(proto.task_number, qe_index=proto.qe_number)
+
 
                 case CmdType.Kill:
                     if proto.task_number is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        m.kill(proto.task_number)
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        r = m.kill(proto.task_number, qe_index=proto.qe_number)
+
 
                 case CmdType.Pause:
                     if proto.task_number is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        opr = m.pause(proto.task_number)
-                        if opr.success:
-                            reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
-                        else:
-                            logger.error(opr.message)
-                            reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = m.pause(proto.task_number, qe_index=proto.qe_number)
+
 
                 case CmdType.Recover:
                     if proto.task_number is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        m.recover(proto.task_number)
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        r = m.recover(proto.task_number, qe_index=proto.qe_number)
+
 
                 case CmdType.ADD:
                     if proto.task_number is None:
-                        logger.error("没有任务编号")
-                        reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                        r = OpReturn(False, "没有任务编号")
                     else:
-                        m.add_executor(proto.task_number)
-                        reply = CmdProtocol(CmdType=CmdType.ReOK).dumps()
+                        r = m.add_executor(proto.task_number, qe_index=proto.qe_number)
+
+                
+                case CmdType.Queue:
+                    if proto.qe_number is None:
+                        r = OpReturn(False, "没有队列编号")
+                    else:
+                        r =  m.add_queue(proto.qe_number)
+
 
                 case _:
-                    logger.error(f"未知指令: {proto.CmdType}")
-                    reply = CmdProtocol(CmdType=CmdType.ReERR).dumps()
+                    r = OpReturn(False, f"未知指令: {proto.CmdType}")
+
+
+            if r.success:
+                reply = CmdProtocol(CmdType=CmdType.ReOK, reply=r.message).dumps()
+            else:
+                logger.error(r.message)
+                reply = CmdProtocol(CmdType=CmdType.ReERR, reply=r.message).dumps()
 
             client.sendall(reply)
             client.close()
@@ -587,10 +656,7 @@ def client(args: argparse.Namespace):
     host = args.host
     port = args.port
 
-    if args.status:
-        cmd = CmdProtocol(CmdType=CmdType.Status).dumps()
-    
-    elif args.list:
+    if args.list:
         cmd = CmdProtocol(CmdType=CmdType.List).dumps()
     
     elif args.insert is not None:
@@ -617,9 +683,14 @@ def client(args: argparse.Namespace):
     elif args.recover is not None:
         cmd = CmdProtocol(CmdType=CmdType.Recover, task_number=args.recover, qe_number=args.queue_number).dumps()
     
+    elif args.add_queue:
+        cmd = CmdProtocol(CmdType=CmdType.Queue, qe_number=args.add_queue).dumps()
+
     elif args.task:
         cmd = CmdProtocol(CmdType=CmdType.Task, task=Task(args.taskcmd, args.cwd), qe_number=args.queue_number).dumps()
 
+    elif args.status:
+        cmd = CmdProtocol(CmdType=CmdType.Status, qe_number=args.queue_number).dumps()
     else:
         # 默认选项
         cmd = CmdProtocol(CmdType=CmdType.Status).dumps()
@@ -628,6 +699,7 @@ def client(args: argparse.Namespace):
     with socket.create_connection((host, port)) as sock:
 
         sock.send(cmd)
+        sock.shutdown(socket.SHUT_WR)
 
         buf = io.BytesIO()
         while (data := sock.recv(8192)) != b"":
@@ -640,19 +712,20 @@ def client(args: argparse.Namespace):
             return
 
         match proto.CmdType:
-            case CmdType.ReOK:
+            case CmdType.ReOK|CmdType.Result:
                 recode = 0
-
-            case CmdType.ReERR:
-                print("有什么出错了, 查看服务端日志。")
-                recode = 1
-
-            case CmdType.Result:
                 try:
                     print(proto.reply, flush=True)
                 except BrokenPipeError:
                     pass
-                recode = 0
+
+            case CmdType.ReERR:
+                recode = 1
+                try:
+                    print(proto.reply, flush=True)
+                except BrokenPipeError:
+                    pass
+
             case _:
                 print("未知返回")
                 recode = 1
@@ -689,10 +762,11 @@ def main():
     option.add_argument("--port", type=int, default=1122, help="server 端口(default: 1122，如果有BATCH_TASK_PORT环境变量优先使用)")
     option.add_argument("--log", help=f"指定日志输出文件(default: {PROG}.log)")
 
+
     c = parse.add_argument_group(title="client 参数")
+    c.add_argument("--add-queue", dest="add_queue", action="store", type=int, metavar="number", default=0, help="添加<number>个新的执行队列，并在这个队列上添加一个默认执行器")
+    c.add_argument("--queue-number", dest="queue_number", type=int, metavar="number", default=0, help="添加，移动，删除，等等... 任务时指定队列号，默认0号队列")
     group = c.add_mutually_exclusive_group()
-    group.add_argument("--add-queue", dest="queue", type=int, metavar="number", default=1, help="添加<number>个新的执行队列，并在这个队列上添加一个默认执行器")
-    group.add_argument("--queue-number", dest="queue_number", type=int, metavar="number", default=0, help="在指定的队列上添加任务，默认0号队列")
     group.add_argument("--add-executor", dest="add", type=int, metavar="number", help="添加一个并行执行器")
     group.add_argument("--done-executor", dest="done", type=int, metavar="number", help="指定一个执行器，本次执行完后退出。(减少一个并行执行)")
     group.add_argument("--kill", type=int, metavar="number", help="kill一个执行器(减少一个并行执行)")
