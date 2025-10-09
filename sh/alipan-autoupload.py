@@ -84,6 +84,7 @@ def main():
             file_path = file_queue.get(timeout=60)
         except queue.Empty:
             clear_empty_dirs(watch_dir)
+            file_queue.task_done()
             continue
 
         print(f"处理文件: {file_path}")
