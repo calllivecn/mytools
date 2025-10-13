@@ -46,10 +46,12 @@ BACKUP_SQUASHFS="${BACKUP_NAME}.squashfs"
 backup(){
 	local output_squahfs="$1"
 	
-	EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
+	#EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
+	# mksquashfs / ${BACKUP_SQUASHFS} -b 1M -comp zstd -Xcompression-level 3 -wildcards ${EXCLUDE_SYS}
 	
-	# mksquashfs / ${BACKUP_SQUASHFS} -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
-	mksquashfs / ${output_squahfs} -b 1M -comp zstd -Xcompression-level 7 -wildcards ${EXCLUDE_SYS}
+	# 使用-one-file-system 参数了减少-e的使用
+	EXCLUDE_SYS='-e var/log/*'
+	mksquashfs / /boot ${output_squahfs} -b 1M -comp zstd -Xcompression-level 3 -one-file-system -wildcards ${EXCLUDE_SYS}
 	
 }
 
@@ -133,5 +135,5 @@ main(){
 }
 
 
-main "$@"
+time main "$@"
 

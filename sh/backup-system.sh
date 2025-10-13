@@ -1,7 +1,12 @@
 #!/bin/bash
 # update 2018-04-28 23:29:32
 # update 2022-08-18 09:24:24
+# update 2025-10-14 01:41:47
 # author calllivecn <calllivecn@outlook.com>
+
+
+# 需要备份的系统，分在多个硬盘分区上。
+BAK_DIRS="/ /boot"
 
 
 set -e
@@ -181,7 +186,7 @@ RESTORE=0
 ENCRYPT=0
 AES_CMD=
 AES_PASSWORD=
-COMP_CMD="zstd -T0 -7 -c"
+COMP_CMD="zstd -T0 -3 -c"
 COMP_SUFFIX="zst"
 
 argc=0
@@ -343,23 +348,21 @@ mk_file
 # main process
 #################
 
-#sys_excludes='./proc/* ./sys/* ./run/* ./tmp/* ./dev/*'
-sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/*'
+# 使用了 --one-file-system 这些可以简化了
+#sys_excludes='--exclude=proc/* --exclude=sys/* --exclude=run/* --exclude=tmp/* --exclude=dev/* --exclude=var/log/*'
+#user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
 
-#user_excludes='./home/* ./mnt/* ./media/*'
-user_excludes='--exclude=home/* --exclude=mnt/* --exclude=media/*'
+
 
 # 添加 /var/log/journal/
-var_log_journal='--exclude=var/log/journal/* --add-file=var/log/journal/'
+sys_excludes='--exclude=var/log/*'
+var_log_journal='--add-file=var/log/journal/'
 
 excludes="$var_log_journal $sys_excludes $user_excludes"
 
 # 一个段一个段的添加 成指令(未开发完成)
-BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
-
-# test
-#BACKUP_CMD="tar -C /home/zx/work/ --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
-
+#BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
+BACKUP_CMD="tar -C / --one-file-system --format=posix --acls --selinux --xattrs -pc ${excludes} ${BAK_DIRS} "
 
 # 添加压缩方式
 BACKUP_CMD="$BACKUP_CMD""| ${COMP_CMD} "
@@ -378,16 +381,14 @@ fi
 
 
 if [ $SPLIT = 0 ];then
-	#tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $out_file > $FIFO &
 	debug "$BACKUP_CMD | tee $out_file > $FIFO &"
 	eval $BACKUP_CMD | tee $out_file > $FIFO &
 	TAR_PID=$!
 	time { SHA256="$(sha256sum $FIFO)"; }
-	echo "${SHA256::64} ${out_file}" > "${out_file}.${SHA_SUFFIX}"
+	echo "${SHA256::64} ${out_filename}" > "${out_file}.${SHA_SUFFIX}"
 
 elif [ $SPLIT = 1 ];then
 
-	#tar -C / --acls -pc ${excludes} -I "$TAR_USE" . 2>/dev/null |show_speed |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
 	debug "$BACKUP_CMD |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &"
 	eval $BACKUP_CMD |tee $FIFO |split -b "${SPLIT_BLOCK}" - "${out_dir}/${out_filename}." &
 	TAR_PID=$!
@@ -396,4 +397,6 @@ elif [ $SPLIT = 1 ];then
 
 fi
 
-# 之前的这么: 恢复 pixz < *.tar.xz | tar -vx -C /tmp/<***>
+# 之前的这么: 恢复 pixz < *.tar.xz | tar -p -vx -C /tmp/<***>
+# 现在的先不写。
+
