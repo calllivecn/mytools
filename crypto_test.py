@@ -6,21 +6,21 @@ import tempfile
 
 from pathlib import Path
 
-import crypto2
+import crypto
 
 def run_main(argv):
-    """在受控环境下运行 crypto2.main，捕获 stdout/stderr，并返回 (exit_code, stdout, stderr)."""
+    """在受控环境下运行 crypto.main，捕获 stdout/stderr，并返回 (exit_code, stdout, stderr)."""
     saved_argv = sys.argv
     saved_stdout = sys.stdout
     saved_stderr = sys.stderr
     out = io.StringIO()
     err = io.StringIO()
     try:
-        sys.argv = ['crypto2.py'] + argv
+        sys.argv = ['crypto.py'] + argv
         sys.stdout = out
         sys.stderr = err
         try:
-            crypto2.main()
+            crypto.main()
             return 0, out.getvalue(), err.getvalue()
         except SystemExit as e:
             return (e.code, out.getvalue(), err.getvalue())
@@ -40,7 +40,7 @@ class IntegrationTests(unittest.TestCase):
         # 准备一个带 header 的文件
         tmpdir = tempfile.TemporaryDirectory()
         p = Path(tmpdir.name) / "hdr.bin"
-        header = crypto2.FileFormat()
+        header = crypto.FileFormat()
         header.set_prompt("unit-prompt")
         with open(p, "wb") as f:
             f.write(header.encode())  # 不写 payload
