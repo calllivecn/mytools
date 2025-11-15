@@ -100,7 +100,7 @@ class FileFormat:
         """
         prompt = prompt.encode("utf-8")
         if len(prompt) > 65535:
-            raise ValueError("密码提示信息太长，必须小于 65535 字节。")
+            raise PromptTooLong("你给的密码提示信息太长。(需要 <=65535字节 或 <=21845中文字符)")
         self.prompt = prompt
         self.prompt_len = len(prompt)
 
@@ -254,14 +254,9 @@ class AESCrypto:
     AES 加密/解密类，支持流式数据处理。
     """
 
-    def __init__(self, password: str|bytes):
+    def __init__(self, password: bytes):
 
-        if isinstance(password, str):
-            self.password = password.encode("utf-8")
-        if isinstance(password, bytes):
-            self.password = password
-        else:
-            raise TypeError("password must be str or bytes")
+        self.password = password
 
     def _derive_key(self, salt: bytes) -> bytes:
         """
@@ -326,27 +321,29 @@ class AESCrypto:
 
 def main():
     parse = argparse.ArgumentParser(usage="Usage: %(prog)s [-d ] [-p prompt] [-I filename] [-k password] [-v] [-i in_filename|-] [-o out_filename|-]",
-                                    description="AES 加密",
+                                    description="AES系列算法加密",
                                     epilog=f"""%(prog)s {VERSION} https://github.com/calllivecn/mytools"""
                                     )
 
     groups = parse.add_mutually_exclusive_group()
-    groups.add_argument("-d", action="store_false", help="decrypto (default: encrypto)")
-    groups.add_argument("-p", action="store", help="password prompt")
-    groups.add_argument("-I", action="store", type=isregulerfile, help="AES crypto file")
+    groups.add_argument("-d", action="store_true", help="加密/解密(不指定则为加密)")
+    groups.add_argument("-p", action="store", help="提示信息(需要 <=65535字节 或 <=21845中文字符)")
+    groups.add_argument("-I", action="store", type=isregulerfile, help="查看文件信息")
 
-    parse.add_argument("-k", action="store", type=isstring, help="password")
+    parse.add_argument("-k", action="store", type=isstring, help="密码字符串(如果没有指定本参数，则交互式输入密码)")
+    parse.add_argument("--key-count", action="count", help="交互式输入密码次数(默认1次)，使用多密码时起用。")
     # date: 2023-04-12
     # 提取 keyfile 文件的，从offset 位置开始的1K内容(从offset位置开始必须要有1K的数据, keyfile文件只使用1~3个为好。)
     # 选择keyfile文件时，在有固定头格式的文件时，最好使用offset.
+    # 多个 keyfile 时，offset 也需要指定多个。按顺序对应
     parse.add_argument("--keyfile", action="store", nargs="+", type=isregulerfile, help=argparse.SUPPRESS)
-    parse.add_argument("--keysize", action="store", nargs="+", type=int, default=1024, help=argparse.SUPPRESS)
-    parse.add_argument("--offset", action="store", nargs="+", type=int, help=argparse.SUPPRESS)
+    parse.add_argument("--offset", action="store", nargs="+", type=int, default=[0], help=argparse.SUPPRESS)
+    parse.add_argument("--keysize", action="store", type=int, default=1024, help=argparse.SUPPRESS)
 
-    parse.add_argument("-v", action="count", help="verbose")
+    parse.add_argument("-v", action="count", help="增加日志输出详细级别，可以使用多个 -v 参数")
 
-    parse.add_argument("-i", action="store", default="-", type=isregulerfile, help="in file")
-    parse.add_argument("-o", action="store", default="-", type=notexists, help="out file")
+    parse.add_argument("-i", action="store", default="-", type=isregulerfile, help="输入文件")
+    parse.add_argument("-o", action="store", default="-", type=notexists, help="输出文件")
 
     parse.add_argument("--parse", action="store_true", help=argparse.SUPPRESS)
 
@@ -356,7 +353,6 @@ def main():
     if args.parse:
         print(args)
         sys.exit(0)
-
 
     if args.I:
         fileinfo(args.I)
@@ -369,70 +365,62 @@ def main():
     else:
         logger.setLevel(logging.INFO)
 
-    if args.k is None:
+    """
+    使用密码或者 keyfile 进行加密/解密。
+    keyfile 可以指定多个，每个 keyfile 读取指定offset 之后的 1K 内容作为密钥的一部分。
+    """
+    if args.k is None and not args.keyfile:
 
-        # 加密
         if args.d is True:
+            password = getpass.getpass("Password:")
+        else:
             password = getpass.getpass("Password:")
             password2 = getpass.getpass("Password(again):")
             if password != password2:
                 logger.info("password mismatches.")
                 sys.exit(2)
             
-        else:
-            password = getpass.getpass("Password:")
-
-    else:
-        password = args.k
+        key = password.encode("utf-8")
     
-    # 需要在 key_derived 之前转为 bytes
-    password = password.encode("utf8")
-    keyfiles = [password]
+    elif args.k is not None:
+        key = args.k.encode("utf-8")
 
-    if args.keyfile:
+    elif args.keyfile:
 
-        # 使用的offset
-        if args.offset:
-            if len(args.offset) != len(args.keyfile):
-                print("If an offset is specified, it must be specified for each keyfile.")
+        # keyfile， offset, keysize 参数必须是一样多
+        if len(args.keyfile or []) != len(args.offset or []):
+            print("keyfile, offset 参数必须是一样多")
+            sys.exit(3) 
+
+        keyfiles = []
+        file: Path
+        for i, file in enumerate(args.keyfile):
+            # keyfile 需要大于 1k
+            if (file.stat().st_size - args.offset[i]) < args.keysize:
+                print("密钥文件 (keyfile) 在偏移量 (offset) 之后需要大于或等于 keysize 大小")
                 sys.exit(3)
 
-            for i, file in enumerate(args.keyfile):
-
-                # keyfile 需要大于 1k
-                if (file.stat().st_size - args.offset[i]) < 1024:
-                    print("keyfile needs to be >=1k after offset.")
-                    sys.exit(3)
-
-                with open(file, "rb") as f:
-                    f.seek(args.offset[i], os.SEEK_SET)
-                    keyfiles.append(f.read(1024))
+            with open(file, "rb") as f:
+                f.seek(args.offset[i], os.SEEK_SET)
+                keyfiles.append(f.read(args.keysize))
         
-        else:
-            for file in args.keyfile:
+        key = b"".join(keyfiles)
+    
+    else:
+        logger.error("无法获取加密/解密密钥。")
+        sys.exit(2)
 
-                # keyfile 需要大于 1k
-                if file.stat().st_size < 1024:
-                    print("keyfile need >= 1k")
-                    sys.exit(3)
 
-                with open(file, "rb") as f:
-                    keyfiles.append(f.read(1024))
-        
+    with open_stream(args.i, "rb") as in_stream, open_stream(args.o, "wb") as out_stream:
 
-    with open_stream(args.i, "rb") as in_stream, open_stream(args.o, "rb") as out_stream:
+        crypto = AESCrypto(key)
 
-        # keyfile 处理成 key
-        crypto = AESCrypto(b"".join(keyfiles))
-
-        # 加密
         if args.d:
-            logger.debug("开始加密...")
-            crypto.encrypt(in_stream, out_stream, args.p)
-        # 解密
-        else:
             logger.debug("开始解密...")
             crypto.decrypt(in_stream, out_stream)
+        else:
+            logger.debug("开始加密...")
+            crypto.encrypt(in_stream, out_stream, args.p)
 
 
 if __name__ == "__main__":
