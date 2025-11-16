@@ -40,6 +40,13 @@ sha(){
 
 }
 
+# 检测使用的 更新到 pyinstaller 打包的 crypto.py v1.5.0
+CRYPTO="crypto"
+if ! command -v "$CRYPTO" &> /dev/null; then
+	echo "未找到 $CRYPTO ，请先安装它。"
+	exit 1
+fi
+
 
 BACKUP_SQUASHFS="${BACKUP_NAME}.squashfs"
 
@@ -78,7 +85,7 @@ split_func(){
 	if [ "$3"x = x ];then
 		cat "$1" | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs." &
 	else
-		crypto.py -k "$3" -i "$1" -o - | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs.a." &
+		$CRYPTO -k "$3" -i "$1" -o - | tee "$temp_fifo" | split -b 1G - "${DIR2}/squashfs.a." &
 	fi
 
 	sha256sum "$temp_fifo" |tee "${DIR2}/sha256.txt"

@@ -113,15 +113,20 @@ zstd_tool(){
 # ase.py -- 2022-06-02 改为备用，优先使用 crypto.py
 AES_PY="aes.py"
 CRYPTO_PY="crypto.py"
+# 2025-11-16 更新使用 pyinstaller 打包的 crypto.py v1.5.0
+CRYPTO="crypto"
 aes_type(){
-	if type -p ${CRYPTO_PY} 2>&1 > /dev/null;then
+	if type -p ${CRYPTO} 2>&1 > /dev/null;then
+		AES_PATH="${CRYPTO}"
+
+	elif type -p ${CRYPTO_PY} 2>&1 > /dev/null;then
 		AES_PATH="${CRYPTO_PY}"
 
 	elif type -p aes.py 2>&1 > /dev/null;then
 		AES_PATH="${AES_PY}"
 	else
-		echo "需要 ${CRYPTO_PY} 下载地址 https://github.com/calllivecn/mytools/${CRYPTO_PY}"
-		echo "使用 --aes-path /path/to/${CRYPTO_PY} 指定."
+		echo "需要 ${CRYPTO} 下载地址 https://github.com/calllivecn/mytools/${CRYPTO}"
+		echo "使用 --aes-path /path/to/${CRYPTO} 指定."
 		exit 1
 	fi
 	debug "aes_type() --> AES_PATH: ${AES_PATH}"
