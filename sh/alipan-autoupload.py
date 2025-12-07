@@ -85,7 +85,7 @@ def main():
     parse.add_argument("dir", type=Path, help="要监控的目录")
     args = parse.parse_args()
     if args.dir.exists() and args.dir.is_dir():
-        watch_dir = args.dir
+        watch_dir = args.dir.absolute()
     else:
         logger.info(f"{args.dir} 必需是一个存在的目录")
         sys.exit(1)
