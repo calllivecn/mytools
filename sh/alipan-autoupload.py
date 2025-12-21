@@ -98,7 +98,7 @@ def main():
     # 示例：主线程处理队列中的文件
     while True:
         try:
-            file_path = file_queue.get(timeout=60)
+            file_path = file_queue.get(timeout=5)
         except queue.Empty:
             clear_empty_dirs(watch_dir)
             continue
