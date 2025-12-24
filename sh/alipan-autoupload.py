@@ -84,10 +84,11 @@ def main():
     parse = argparse.ArgumentParser(description="监控目录中的新文件")
     parse.add_argument("dir", type=Path, help="要监控的目录")
     args = parse.parse_args()
-    if args.dir.exists() and args.dir.is_dir():
-        watch_dir = args.dir.absolute()
+    adir: Path = args.dir
+    if adir.exists() and adir.is_dir():
+        watch_dir = adir.absolute()
     else:
-        logger.info(f"{args.dir} 必需是一个存在的目录")
+        logger.info(f"{adir} 必需是一个存在的目录")
         sys.exit(1)
     
     file_queue: queue.Queue[Path] = queue.Queue(100000)
@@ -98,7 +99,7 @@ def main():
     # 示例：主线程处理队列中的文件
     while True:
         try:
-            file_path = file_queue.get(timeout=5)
+            file_path = file_queue.get(timeout=120)
         except queue.Empty:
             clear_empty_dirs(watch_dir)
             continue
