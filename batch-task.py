@@ -33,6 +33,7 @@ import traceback
 
 from typing import (
     Self,
+    BinaryIO,
 )
 
 
@@ -64,6 +65,17 @@ BIG2_SPLIT = BIG_SPLIT*2
 SOCK_BUF = 4096
 
 class Task:
+    """
+    2026-01-12
+    问题原因：
+    1. 内存与缓冲区拷贝：数据必须从子进程的内核缓冲区拷贝到父进程（Python）的缓冲区，Python 还需要不断地从 PIPE 读取数据以防止子进程阻塞（Deadlock）。
+    2. 编解码开销（CPU 杀手）：你使用了 text=True 和 encoding="utf-8"。这意味着 Python 必须把接收到的每一个字节流实时解码成 Python 字符串对象。对于大量输出，这个解码过程非常消耗 CPU。
+    3. GIL 限制：Python 的处理受全局解释器锁（GIL）限制，大量的 I/O 和字符串处理会争抢 CPU 资源。
+
+    解决方案：直接将文件描述符传给 Popen
+    这是性能最好的方法。直接把打开的文件对象传给 stdout 和 stderr。
+    这样做的原理是： 利用操作系统的文件描述符重定向。数据流直接由操作系统内核从子进程写入磁盘文件，完全绕过 Python 进程。Python 进程不需要读取、缓存或解码任何数据，CPU 占用率将降至接近 0%。
+    """
 
     def __init__(self, cmd: str|list[str], cwd=None, env=None):
         self.cwd = cwd
@@ -76,6 +88,12 @@ class Task:
             self.cmd = cmd
         else:
             raise ValueError("给出的命令格式不对")
+
+
+    def run2(self, log_file: BinaryIO):
+        self.start = timestamp()
+        self.p = subprocess.Popen(self.cmd, stdout=log_file, stderr=subprocess.STDOUT, cwd=self.cwd, env=self.env)
+        self.pid = self.p.pid
 
     def run(self):
         self.start = timestamp()
@@ -102,7 +120,7 @@ class Task:
             if self.cwd is not None:
                 buf.write(f"CWD: {self.cwd}\n")
 
-            buf.write(f"CMD: {self.cmd}\n")
+            buf.write(f"CMD: {" ".join(self.cmd)}\n")
 
             if hasattr(self, "recode"):
                 buf.write(f"RECODE: {self.recode}\n")
@@ -167,6 +185,7 @@ class OpReturn:
 class Executor:
     """
     可以一个行执行器，只属于一个Q任务队列。
+    2026-01-12: 解决使用subporcess.PIPE + text=True + encoding="utf-8" 导致的日志CPU100%
     """
     def __init__(self, queue: Q):
         self.q = queue
@@ -240,7 +259,8 @@ class Executor:
 
             self.status = Status.Running
             try:
-                self.task.run()
+                # self.task.run()
+                self.append_log()
                 self.e_log.set()
                 self.task.wait()
             except Exception:
@@ -254,6 +274,11 @@ class Executor:
             logger.info(f"↓\n开始时间: {self.task.start}, 结束时间: {self.task.end}\n{self.task}")
             logger.info(BIG2_SPLIT)
     
+
+    def append_log(self):
+        log_file = Path(f"{PROG}-Q{self.Q_index}-E{self.executor_index}.log")
+        with open(log_file, "ab") as fp:
+            self.task.run2(fp)
 
     def start_log(self, Q_index: int = 0, executor_index: int = 0):
         self.Q_index = Q_index
