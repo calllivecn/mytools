@@ -3,9 +3,7 @@ FROM alpine-py3:latest AS builder
 RUN mkdir /app
 
 COPY requireuments.txt /app/
-COPY crypto.py /app/
-COPY totplib.py /app/
-COPY totpv2.py /app/
+COPY src/ /app/
 
 FROM alpine-py3:latest
 
@@ -18,7 +16,7 @@ WORKDIR /app
 
 VOLUME /data
 
-ENTRYPOINT ["python", "totpv2.py"]
+ENTRYPOINT ["python", "totpv3.py"]
 CMD ["--config", "/data/totp.a"]
 
 EXPOSE 12201

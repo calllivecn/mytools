@@ -22,7 +22,7 @@ from flask import (
     Flask,
     request,
     Response,
-    redirect,
+    # redirect,
     Blueprint,
     send_from_directory,
 )
@@ -233,8 +233,8 @@ def main():
         ("server", "nginx")
     ]
 
-    # uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="info")
-    uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="debug")
+    uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="info")
+    # uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="debug")
 
 if __name__ == "__main__":
     main()
