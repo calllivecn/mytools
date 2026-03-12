@@ -1,0 +1,44 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <style>
+        .container {
+            display: flex;
+            justify-content: center;
+            /* align-items: center; */
+            align-items: flex-start;
+            height: 100vh; /* 使用视口单位让容器填满整个高度 */
+        }
+
+        .centered-element {
+            /* background-color: #f0f0f0; */
+            padding: 20px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+    </style>
+    <script src="/assets/index.js"></script>
+    <title>TOTP</title>
+</head>
+<body>
+
+    <div class="container">
+        <div class="centered-element">
+
+        {% if pw_is_wrong %}
+            <h2>密码错误, 请重新输入。</h2>
+        {% endif %}
+
+        <form action="/totp/assets/index.js" method="post">
+        <label for="password">密码：</label>
+        <input type="password" name="password" id="password" required>
+        <input type="submit" value="提交">
+        </form>
+        </div>
+    </div>
+
+</body>
+</html>
