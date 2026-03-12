@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <base id="base-url" href="/">
+	<base id="base-url" href="{{% base_url %}}">
     <meta charset="UTF-8">
      <meta name="viewport" content="width=device-width, initial-scale=1.0">
      <style>
@@ -21,7 +21,7 @@
             text-align: center;
         }
     </style>
-
+<!-- 使用 ESM 模块，的方式。
     <script type="module">
         // 这里是动态获取配置的站点前缀，和nginx location /totpprefix {} 配置使用的。
         // 方便把TOTP配置到任务路径。
@@ -30,7 +30,7 @@
         base_url.href = window.location.pathname;
         console.log("修改后的:", base_url.href);
     </script>
-
+-->
     <script src="assets/index.js" type="module"></script>
 
     <title>TOTP</title>

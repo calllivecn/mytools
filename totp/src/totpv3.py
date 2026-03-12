@@ -21,6 +21,7 @@ import uvicorn
 from flask import (
     Flask,
     request,
+    render_template,
     Response,
     # redirect,
     Blueprint,
@@ -99,17 +100,12 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
 
 
     bp = Blueprint("prefix", app.name, url_prefix=prefix)
-
-    @bp.errorhandler(404)
-    def error404(error):
-    #   return '<h1>404</h1>', 404
-        print(f"这里是blueprint: {request.path=}")
-        return send_from_directory(bp.static_folder, 'index.html')
     
-    
-    # @bp.get("/assets/<path:path>")
-    # def index(path):
-    #     return send_from_directory(bp.static_folder, path)
+    @bp.get("/")
+    def index():
+        print(f"这是 @bp.get('/')  {request.path=}")
+        # return send_from_directory(bp.static_folder, 'index.html')
+        return render_template("index.html", base_url=prefix)
 
     @bp.get('/totpall')
     def get_totp():
@@ -187,6 +183,15 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
         
         return {"code": 0, "msg": "登录成功"}
 
+    @bp.app_errorhandler(404) # 全局捕获触发
+    # @bp.errorhandler(404) # bp捕获触发
+    def error404(error):
+    #   return '<h1>404</h1>', 404
+        print(f"这里是blueprint: {request.path=} {prefix=}")
+        # return send_from_directory(app.static_folder, 'index.html')
+        return render_template("index.html", base_url=prefix)
+    
+
     return bp
 
 
@@ -214,11 +219,11 @@ def main():
     # def index():
     #     return send_from_directory(app.static_folder, 'index.html')
 
-    @app.errorhandler(404)
-    def handle_global_404(e):
-        # 无论哪个蓝图没匹配到，最终都会走到这里
-        print(f"这里是app: {request.path=}")
-        return send_from_directory(app.static_folder, 'index.html')
+    # @app.errorhandler(404)
+    # def handle_global_404(e):
+    #     # 无论哪个蓝图没匹配到，最终都会走到这里
+    #     print(f"这里是app: {request.path=}")
+    #     return send_from_directory(app.static_folder, 'index.html')
     
     @app.get("/favicon.ico")
     def favicon():

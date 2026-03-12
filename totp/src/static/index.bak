@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <base id="base-url" href="/">
+    <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <style>
+        .container {
+            display: flex;
+            justify-content: center;
+            /* align-items: center; */
+            align-items: flex-start;
+            height: 100vh; /* 使用视口单位让容器填满整个高度 */
+        }
+
+        .centered-element {
+            /* background-color: #f0f0f0; */
+            padding: 20px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+    </style>
+<!-- 使用 ESM 模块，的方式。
+    <script type="module">
+        // 这里是动态获取配置的站点前缀，和nginx location /totpprefix {} 配置使用的。
+        // 方便把TOTP配置到任务路径。
+        const base_url = document.getElementById("base-url")
+        console.log("当前默认的前缀：", base_url.href);
+        base_url.href = window.location.pathname;
+        console.log("修改后的:", base_url.href);
+    </script>
+-->
+    <script src="assets/index.js" type="module"></script>
+
+    <title>TOTP</title>
+
+</head>
+<body>
+
+    <div class="container">
+        <div class="centered-element" id="display">
+
+            <!-- 用于显示结果或错误信息的区域 -->
+            <div id="message-area" style="margin-top: 10px; color: red;"></div>
+    
+            <form id="input-form">
+                <label for="input-value" id="input-label">密码：</label>
+                <!-- 添加 id 方便 JS 获取，name 保留以便如果需要 FormData 时使用 -->
+                <!-- <input type="password" id="input-value" required placeholder="请输入密码"> -->
+                <input type="password" id="input-value" placeholder="请输入密码">
+                <button type="submit" id="submit-btn">提交</button>
+            </form>
+            
+            <div id="totp-result-list"></div>
+
+        </div>
+    </div>
+
+</body>
+</html>
