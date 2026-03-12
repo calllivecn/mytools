@@ -49,7 +49,7 @@ class LoadFile:
 
         self._lock = Lock()
         # 解密结果
-        self.conf: list[dict]
+        self.conf: list[dict] = []
 
         self.th = Thread(target=self.re_dectypt, daemon=True)
         self.th.start()
@@ -80,6 +80,7 @@ class LoadFile:
 
             with self._lock:
                 self._decrypt = False
+                self.conf = []
 
 
 
@@ -110,7 +111,7 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
     # def index(path):
     #     return send_from_directory(bp.static_folder, path)
 
-    @bp.get('/all')
+    @bp.get('/totpall')
     def get_totp():
         if secret.is_decrypt():
 
@@ -138,6 +139,9 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
         totps = []
         if secret.is_decrypt():
 
+            if not label:
+                return {"code": -1, "msg": "需要查询的名称", "data": []}
+
             infos = query_label(secret.conf, label)
 
             if infos:
@@ -154,7 +158,8 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
                 return {"code": 0, "msg": "没有查询", "data": []}
         else:
             print("是执行到跳转了吗？")
-            return redirect("/")
+            # return redirect("/")
+            return {"code": -1, "msg": "需要登录"}
 
 
     @bp.get("/login")
@@ -202,7 +207,9 @@ def main():
 
 
     app = Flask("totp", static_folder='static', static_url_path='')
-    
+    # 或者在较新版本中直接配置 provider
+    app.json.ensure_ascii = False
+
     # @app.get("/")
     # def index():
     #     return send_from_directory(app.static_folder, 'index.html')
