@@ -45,7 +45,7 @@ async function label_query(response){
         // 4. 拼接并一次性写入 DOM
         // join('') 把数组变成一个大字符串
         totp_list.innerHTML = htmlList.join('');
-        messageArea.textContent = '输入查询名称';
+        messageArea.textContent = response.msg;
     }
 }
 
@@ -70,13 +70,14 @@ if(result.code == 0){
 
 // 先处理 直接 填写URL 访问的情况
 // if(window.Location.pathname == path + "/all" && login_status){
+let arg1 = 0;
 if(login_status){
     // 1. 创建 URLSearchParams 对象. 获取当前完整的查询字符串 (?arg1=...&arg2=...)
     const urlParams = new URLSearchParams(window.location.search);
     console.log("URLSearchParams=", urlParams);
 
     // 2. 获取特定参数值
-    const arg1 = urlParams.get('all');
+    arg1 = urlParams.get('all');
     console.log("拿到url里的参数信息：", arg1);
 
     if(arg1 == 1){
@@ -95,6 +96,11 @@ async function submit_eventListener(event){
     const Value = Input.value;
     Input.value = ''; // 拿到之后清理
     console.log("Value：", Value, "prevValse", prevValue);
+
+    if(arg1 == 1){
+        label_query(await http.get('totpall'));
+        return;
+    }
 
     // 2. 此时浏览器已经完成了原生验证 (如 required)
     // 如果验证失败，代码根本不会运行到这里
