@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <base id="base-url" href="/">
     <meta charset="UTF-8">
      <meta name="viewport" content="width=device-width, initial-scale=1.0">
      <style>
@@ -20,23 +21,39 @@
             text-align: center;
         }
     </style>
-    <script src="/assets/index.js"></script>
+
+    <script type="module">
+        // 这里是动态获取配置的站点前缀，和nginx location /totpprefix {} 配置使用的。
+        // 方便把TOTP配置到任务路径。
+        const base_url = document.getElementById("base-url")
+        console.log("当前默认的前缀：", base_url.href);
+        base_url.href = window.location.pathname;
+        console.log("修改后的:", base_url.href);
+    </script>
+
+    <script src="assets/index.js" type="module"></script>
+
     <title>TOTP</title>
+
 </head>
 <body>
 
     <div class="container">
-        <div class="centered-element">
+        <div class="centered-element" id="display">
 
-        {% if pw_is_wrong %}
-            <h2>密码错误, 请重新输入。</h2>
-        {% endif %}
+            <!-- 用于显示结果或错误信息的区域 -->
+            <div id="message-area" style="margin-top: 10px; color: red;"></div>
+    
+            <form id="input-form">
+                <label for="input-value" id="input-label">密码：</label>
+                <!-- 添加 id 方便 JS 获取，name 保留以便如果需要 FormData 时使用 -->
+                <input type="password" id="input-value" required placeholder="请输入密码">
+                
+                <button type="submit" id="submit-btn">提交</button>
+            </form>
+            
+            <div id="totp-result-list"></div>
 
-        <form action="/totp/assets/index.js" method="post">
-        <label for="password">密码：</label>
-        <input type="password" name="password" id="password" required>
-        <input type="submit" value="提交">
-        </form>
         </div>
     </div>
 

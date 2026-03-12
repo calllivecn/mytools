@@ -17,13 +17,12 @@ from threading import (
 
 
 import uvicorn
-from jinja2 import Template
+# from jinja2 import Template
 from flask import (
     Flask,
     request,
     Response,
     redirect,
-    url_for,
     Blueprint,
     send_from_directory,
 )
@@ -49,24 +48,25 @@ class LoadFile:
         self.time_ = time_
 
         self._lock = Lock()
+        # 解密结果
+        self.conf: list[dict]
 
         self.th = Thread(target=self.re_dectypt, daemon=True)
         self.th.start()
 
-    def decrypt(self, pw: str) -> dict:
+    def decrypt(self, pw: str):
 
         with self._lock:
 
             p = subprocess.run(["crypto.py", "-d", "-k", pw, "-i", self.sf, "-o", "-"], stdout=subprocess.PIPE)
-            p.check_returncode()
+            
             try:
-                conf = json.loads(p.stdout)
-            except json.JSONDecodeError:
+                p.check_returncode()
+                self.conf = json.loads(p.stdout)
+            except (json.JSONDecodeError, subprocess.CalledProcessError):
                 raise ValueError("密码错误")
 
             self._decrypt = True
-
-        return conf
 
 
     def is_decrypt(self) -> bool:
@@ -83,96 +83,14 @@ class LoadFile:
 
 
 
-def query_label(conf: list[dict], label: str, comment: str|None = None):
+def query_label(conf: list[dict], label: str) -> list:
 
+    result = []
     for info in conf:
         if label in info["label"]:
-            if comment is not None:
-                if comment in info["comment"]:
-                    return info
-                else:
-                    continue
+            result.append(info)
 
-            return info
-
-    return None
-
-
-
-head_html = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <style>
-        .container {
-            display: flex;
-            justify-content: center;
-            /* align-items: center; */
-            align-items: flex-start;
-            height: 100vh; /* 使用视口单位让容器填满整个高度 */
-        }
-
-        .centered-element {
-            /* background-color: #f0f0f0; */
-            padding: 20px;
-            border: 1px solid #ccc;
-            text-align: center;
-        }
-    </style>
-    <title>TOTP</title>
-</head>
-"""
-
-end_html = """
-</body>
-</html>
-"""
-
-totp_password_html = """
-<body>
-    <div class="container">
-        <div class="centered-element">
-
-    {% if pw_is_wrong %}
-        <h2>密码错误, 请重新输入。</h2>
-    {% endif %}
-
-    <form action="{{ url_prefix }}" method="post">
-    <label for="password">密码：</label>
-    <input type="password" name="password" id="password" required>
-    <input type="submit" value="提交">
-    </form>
-        </div>
-    </div>
-"""
-
-
-totp_result_html = """
-<body>
-    <div class="container">
-        <div class="centered-element">
-
-    <h2>TOTP(基于时间的一致性密码)</h2>
-
-    {% if label is defined %}
-    <label>没有标签: {{ label }}</label>
-    {% endif %}
-
-    <form action="{{ url_prefix }}" method="post">
-    <label for="label">输入标签：</label>
-    <input type="text" name="label" id="label" required>
-    <input type="submit" value="查询">
-    </form>
-
-    {% for item in items %}
-    <br><label> {{ item.label }} 动态密码：{{ item.pw }} 剩下时间：{{ item.time_left }} </label></br>
-    {% endfor %}
-
-        </div>
-    </div>
-"""
+    return result
 
 
 
@@ -180,90 +98,89 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
 
 
     bp = Blueprint("prefix", app.name, url_prefix=prefix)
-    
-    global conf
-
 
     @bp.errorhandler(404)
     def error404(error):
-        return '<h1>404</h1>', 404
-
-
-    @bp.get('/')
-    def get_totp():
-
-        all = request.args.get("all", "0")
-        if secret.is_decrypt():
-
-            temp = Template("".join([head_html, totp_result_html, end_html]))
-            totps = []
-            if all == "1":
-                for info in conf:
-                    label = info["label"]
-                    totp = TOTP(info["secret"])
-                    pw = totp.generate_totp()
-
-                    totps.append({"label": label, "pw": pw, "time_left": totp.time_left})
-                
-                return temp.render(items=totps, url_prefix=url_for(".post_totp"))
-            
-            else:
-
-                return temp.render(items={}, url_prefix=url_for(".post_totp"))
+    #   return '<h1>404</h1>', 404
+        print(f"这里是blueprint: {request.path=}")
+        return send_from_directory(bp.static_folder, 'index.html')
     
-        else:
-            return redirect(url_for(".login"))
+    
+    # @bp.get("/assets/<path:path>")
+    # def index(path):
+    #     return send_from_directory(bp.static_folder, path)
 
-
-    @bp.post('/')
-    def post_totp():
-        comment = request.args.get("comment")
-
-        label = request.form.get("label")
-
+    @bp.get('/all')
+    def get_totp():
         if secret.is_decrypt():
 
-            info = query_label(conf, label, comment)
-
-            temp = Template("".join([head_html, totp_result_html, end_html]))
-
-            if info is None:
-            
-                return temp.render(url_prefix=url_for(".post_totp"), label=label)
-
-            else:
-
-                lable = info["label"]
+            totps = []
+            for info in secret.conf:
+                label = info["label"]
                 totp = TOTP(info["secret"])
                 pw = totp.generate_totp()
 
-                return temp.render(items=[{"label": lable, "pw": pw, "time_left": totp.time_left}])
+                totps.append({"label": label, "pw": pw, "time_left": totp.time_left})
+            
+            return {"code": 0, "msg": "查询全部", "data": totps}
+    
         else:
+            return {"code": 0, "msg": "请输入查询名"}
 
-            return redirect(url_for(".login"))
+
+    @bp.post('/totp')
+    def post_totp():
+
+        js = request.get_json()
+
+        label = js.get("label")
+
+        totps = []
+        if secret.is_decrypt():
+
+            infos = query_label(secret.conf, label)
+
+            if infos:
+                for info in infos:
+                    lable = info["label"]
+                    totp = TOTP(info["secret"])
+                    pw = totp.generate_totp()
+
+                    totps.append({"label": lable, "pw": pw, "time_left": totp.time_left})
+                
+                return {"code": 0, "msg": "查询结果", "data": totps}
+            
+            else:
+                return {"code": 0, "msg": "没有查询", "data": []}
+        else:
+            print("是执行到跳转了吗？")
+            return redirect("/")
 
 
     @bp.get("/login")
     def login():
-
-        temp = Template("".join([head_html, totp_password_html, end_html]))
-        return temp.render(url_prefix=url_for(".post_login"), pw_is_wrong=False)
-
+        """
+        检查是否已经解密
+        """
+        if secret.is_decrypt():
+            return {"code": 0, "msg": "登录成功"}
+        else:
+            return {"code": -1, "msg": "需要登录"}
+        
 
     @bp.post("/login")
     def post_login():
 
         global conf
 
-        pw = request.form.get("password")
+        js = request.get_json()
+        pw = js.get("password", "not found pw")
         try:
             conf = secret.decrypt(pw)
         except ValueError:
-            temp = Template("".join([head_html, totp_password_html, end_html]))
-            return temp.render(url_prefix=url_for(".login"), pw_is_wrong=True)
+            return {"code": -1, "msg": "密码错误"}
         
-        return redirect(url_for(".get_totp"))
-
+        return {"code": 0, "msg": "登录成功"}
 
     return bp
 
@@ -285,11 +202,20 @@ def main():
 
 
     app = Flask("totp", static_folder='static', static_url_path='')
-        
+    
+    # @app.get("/")
+    # def index():
+    #     return send_from_directory(app.static_folder, 'index.html')
+
     @app.errorhandler(404)
-    def not_found(e):
-        # 当 Flask 找不到路由（即前端路由）时，返回 SPA 入口
+    def handle_global_404(e):
+        # 无论哪个蓝图没匹配到，最终都会走到这里
+        print(f"这里是app: {request.path=}")
         return send_from_directory(app.static_folder, 'index.html')
+    
+    @app.get("/favicon.ico")
+    def favicon():
+        return Response("not found favicon.ico", status=404)
 
     bp = totp_main(app, LoadFile(args.config, 24 * 3600), args.prefix)
     app.register_blueprint(bp)
@@ -300,8 +226,8 @@ def main():
         ("server", "nginx")
     ]
 
-    uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="info")
-
+    # uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="info")
+    uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="debug")
 
 if __name__ == "__main__":
     main()
