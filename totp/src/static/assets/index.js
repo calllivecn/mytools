@@ -69,8 +69,19 @@ if(result.code == 0){
 }
 
 // 先处理 直接 填写URL 访问的情况
-if(window.Location.pathname == path + "/all" && login_status){
-    label_query(await http.post('totpall', {label: Value}));
+// if(window.Location.pathname == path + "/all" && login_status){
+if(login_status){
+    // 1. 创建 URLSearchParams 对象. 获取当前完整的查询字符串 (?arg1=...&arg2=...)
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log("URLSearchParams=", urlParams);
+
+    // 2. 获取特定参数值
+    const arg1 = urlParams.get('all');
+    console.log("拿到url里的参数信息：", arg1);
+
+    if(arg1 == 1){
+        label_query(await http.get('totpall'));
+    }
 }
 
 
