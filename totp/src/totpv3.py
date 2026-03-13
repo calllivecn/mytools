@@ -97,14 +97,14 @@ def query_label(conf: list[dict], label: str) -> list:
 
 
 def totp_main(app: Flask, secret: LoadFile, prefix: str):
-
+    print(f"{prefix=}")
 
     bp = Blueprint("prefix", app.name, url_prefix=prefix)
     
     @bp.get("/")
+    @bp.get("/index.html")
     def index():
         print(f"这是 @bp.get('/')  {request.path=}")
-        # return send_from_directory(bp.static_folder, 'index.html')
         return render_template("index.html", base_url=prefix)
 
     @bp.get('/totpall')
@@ -187,9 +187,12 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
     # @bp.errorhandler(404) # bp捕获触发
     def error404(error):
     #   return '<h1>404</h1>', 404
-        print(f"这里是blueprint: {request.path=} {prefix=}")
-        # return send_from_directory(app.static_folder, 'index.html')
-        return render_template("index.html", base_url=prefix)
+        order_path = request.path.removeprefix(prefix)
+        print(f"这里是blueprint: {request.path=} {prefix=} {order_path=}")
+        if order_path:
+            return send_from_directory(app.static_folder, order_path)
+        else:
+            return render_template("index.html", base_url=prefix)
     
 
     return bp
