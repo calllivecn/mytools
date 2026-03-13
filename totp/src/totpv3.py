@@ -190,8 +190,10 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
         order_path = request.path.removeprefix(prefix)
         print(f"这里是blueprint: {request.path=} {prefix=} {order_path=}")
         if order_path:
+            # print("send_from_directory()")
             return send_from_directory(app.static_folder, order_path)
         else:
+            # print("render_template(index.html)")
             return render_template("index.html", base_url=prefix)
     
 
@@ -240,12 +242,7 @@ def main():
     app.register_blueprint(bp)
     app2 = WsgiToAsgi(app)
 
-
-    headers = [
-        ("server", "nginx")
-    ]
-
-    uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="info")
+    uvicorn.run(app2, host=args.addr, port=args.port, server_header=False, log_level="info", date_header=False)
     # uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="debug")
 
 if __name__ == "__main__":

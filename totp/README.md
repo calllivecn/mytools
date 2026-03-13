@@ -2,7 +2,7 @@
 
 ## 需要运行在nginx 后面，没有加密的。
 
-- 默认监听[::1]:12201
+- 默认监听[::]:12201
 - 如果在 nginx 中配置了 location /prefix/ {} 路径的， 需要通过 --prefix /prefix 参数指定前缀。
 
 ```shell
