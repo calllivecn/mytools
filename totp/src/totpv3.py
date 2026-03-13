@@ -213,6 +213,10 @@ def main():
 
     args = parse.parse_args()
 
+    prefix: str = args.prefix
+    if not prefix.endswith("/"):
+        args.prefix = prefix + "/"
+        print("--prefix 参数 必须要/结尾，已经自动添加上：", args.prefix)
 
     app = Flask("totp", static_folder='static', static_url_path='')
     # 或者在较新版本中直接配置 provider
