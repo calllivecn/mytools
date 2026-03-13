@@ -10,10 +10,6 @@ import base64
 import argparse
 from pathlib import Path
 
-from typing import (
-    Any,
-    Optional,
-)
 
 """
 有一个开源模块: pip install pyotp
@@ -28,7 +24,7 @@ class TOTP:
 
         self.time_left = 0
 
-    def generate_totp(self, current_time: Optional[int] = None) -> str:
+    def generate_totp(self, current_time: int|None = None) -> str:
         # 获取当前时间戳，单位为秒
         if current_time is None:
             current_time = int(time.time())
@@ -62,7 +58,7 @@ class TOTP:
         return otp_str
     
 
-    def verify(self, opt: str, for_time: Optional[int] = None, valid_window: int = 0) -> bool:
+    def verify(self, opt: str, for_time: int|None = None, valid_window: int = 0) -> bool:
 
         if for_time is None:
             for_time = int(time.time())

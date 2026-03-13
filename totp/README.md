@@ -18,3 +18,18 @@ podman run -d --name totp -p 12201:12201 --secret totp localhost/totp:latest --p
 ## 在浏览器中使用时
 
 - 登录后。可以在地址栏原本的路径后面追加 ?all=1 的参数，回车，就是查询所有。
+
+
+## 添加上3种启动方式
+
+- flask cli 
+
+```shell
+# 需要环境变量TOTP_CONFIG TOTP_PREFIX 传参
+flask --app totpv3:flask_run run --reload --debug -p 12201
+```
+
+- flask-run.py --help 
+
+- uvicorn.py --help
+

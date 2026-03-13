@@ -8,7 +8,7 @@
 import json
 import time
 import subprocess
-import argparse
+
 from pathlib import Path
 from threading import (
     Thread,
@@ -16,25 +16,22 @@ from threading import (
 )
 
 
-import uvicorn
 # from jinja2 import Template
 from flask import (
     Flask,
     request,
     render_template,
-    Response,
+    # Response,
     # redirect,
     Blueprint,
     send_from_directory,
 )
-from asgiref.wsgi import WsgiToAsgi
 
 
 from totplib import (
     TOTP,
     issecretfile,
 )
-
 
 
 # 使用外部命令解密
@@ -102,10 +99,10 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
     bp = Blueprint("prefix", app.name, url_prefix=prefix)
     
     @bp.get("/")
-    @bp.get("/index.html")
     def index():
-        print(f"这是 @bp.get('/')  {request.path=}")
+        print(f"这是 @bp.get()  {request.path=}")
         return render_template("index.html", base_url=prefix)
+
 
     @bp.get('/totpall')
     def get_totp():
@@ -183,13 +180,11 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
         
         return {"code": 0, "msg": "登录成功"}
 
-    @bp.app_errorhandler(404) # 全局捕获触发
-    # @bp.errorhandler(404) # bp捕获触发
+    @bp.errorhandler(404)
     def error404(error):
-    #   return '<h1>404</h1>', 404
         order_path = request.path.removeprefix(prefix)
         print(f"这里是blueprint: {request.path=} {prefix=} {order_path=}")
-        if order_path:
+        if order_path and order_path != "/":
             # print("send_from_directory()")
             return send_from_directory(app.static_folder, order_path)
         else:
@@ -200,50 +195,38 @@ def totp_main(app: Flask, secret: LoadFile, prefix: str):
     return bp
 
 
+def create_app(config: Path, prefix: str):
 
-def main():
-
-    parse = argparse.ArgumentParser()
-
-    parse.add_argument("--addr", action="store", type=str, default="::", help="默认listen 地址(default: [::])")
-
-    parse.add_argument("--port", action="store", type=int, default=12201, help="默认监听端口(default: 12201)")
-
-    parse.add_argument("--prefix", action="store", type=str, default="/", help="默认 nginx 反向代理前缀(default: /)")
-
-    parse.add_argument("--config", type=issecretfile, required=True, help="指定配置文件json")
-
-    args = parse.parse_args()
-
-    prefix: str = args.prefix
     if not prefix.endswith("/"):
-        args.prefix = prefix + "/"
-        print("--prefix 参数 必须要/结尾，已经自动添加上：", args.prefix)
+        prefix = prefix + "/"
 
-    app = Flask("totp", static_folder='static', static_url_path='')
+    app = Flask("totp", static_url_path=prefix, static_folder='static')
     # 或者在较新版本中直接配置 provider
     app.json.ensure_ascii = False
 
-    # @app.get("/")
-    # def index():
-    #     return send_from_directory(app.static_folder, 'index.html')
-
-    # @app.errorhandler(404)
-    # def handle_global_404(e):
-    #     # 无论哪个蓝图没匹配到，最终都会走到这里
-    #     print(f"这里是app: {request.path=}")
-    #     return send_from_directory(app.static_folder, 'index.html')
+    @app.errorhandler(404)
+    def handle_global_404(e):
+        # 无论哪个蓝图没匹配到，最终都会走到这里
+        print(f"这里是 global_404(): {request.path=} {prefix=}")
+        return "<h1>404</h1>", 404
     
-    @app.get("/favicon.ico")
-    def favicon():
-        return Response("not found favicon.ico", status=404)
-
-    bp = totp_main(app, LoadFile(args.config, 24 * 3600), args.prefix)
+    bp = totp_main(app, LoadFile(config, 24 * 3600), prefix)
     app.register_blueprint(bp)
-    app2 = WsgiToAsgi(app)
 
-    uvicorn.run(app2, host=args.addr, port=args.port, server_header=False, log_level="info", date_header=False)
-    # uvicorn.run(app2, host=args.addr, port=args.port, headers=headers, log_level="debug")
+    return app
 
-if __name__ == "__main__":
-    main()
+
+def flask_run():
+    # 这是直接使用flask run 时使用的。
+    # flask --app totpv3:flask_run run --reload --debug -p 12201
+    import os
+    import sys
+    try:
+        config: Path = Path(os.environ["TOTP_CONFIG"])
+        prefix: str = os.environ["TOTP_PREFIX"]
+    except ValueError:
+        print("开发环境中需要配置环境变量：TOTP_CONFIG TOTP_PREFIX")
+        sys.exit(1)
+        
+    return create_app(config, prefix)
+
