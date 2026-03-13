@@ -17,4 +17,4 @@ podman run -d --name totp -p 12201:12201 --secret totp localhost/totp:latest --p
 
 ## 在浏览器中使用时
 
-- 登录后。可以在地址栏原本的路径后面追加 /?all=1 的参数，回车，就是查询所有。
+- 登录后。可以在地址栏原本的路径后面追加 ?all=1 的参数，回车，就是查询所有。
