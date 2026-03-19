@@ -159,22 +159,22 @@ class VMBackup:
                 dest = self.staging_path / src.name
                 
                 # --- 硬链接逻辑 (优先) ---
-                try:
-                    os.link(src, dest)
-                    print(f"[+] 硬链接创建成功: {dest.name}")
-                    continue # 硬链接成功，跳过当前循环
-                except OSError as e:
-                    # 如果是跨分区错误 (Errno 18) 或其他错误，尝试 fallback 或报错
-                    print(f"[-] 硬链接失败 ({src.name}): {e}")
+                # try:
+                #     os.link(src, dest)
+                #     print(f"[+] 硬链接创建成功: {dest.name}")
+                #     continue # 硬链接成功，跳过当前循环
+                # except OSError as e:
+                #     # 如果是跨分区错误 (Errno 18) 或其他错误，尝试 fallback 或报错
+                #     print(f"[-] 硬链接失败 ({src.name}): {e}")
                 
                 # --- 软链接逻辑 (作为备选，或者如果你想强制改这里) ---
                 # 如果你想完全保留软链接代码，可以在这里解开注释作为 fallback
-                # print(f"[*] 尝试降级为软链接: {src.name}")
-                # try:
-                #     os.symlink(src.resolve(), dest)
-                #     print(f"[+] 软链接创建成功: {dest.name}")
-                # except OSError as e:
-                #     print(f"[-] 软链接也失败了: {e}")
+                print(f"[*] 尝试降级为软链接: {src.name}")
+                try:
+                    os.symlink(src.resolve(), dest)
+                    print(f"[+] 软链接创建成功: {dest.name}")
+                except OSError as e:
+                    print(f"[-] 软链接也失败了: {e}")
 
             else:
                 print(f"[-] 警告: 源磁盘文件不存在: {src}")
@@ -197,8 +197,9 @@ class VMBackup:
 
         cmd = [
             "tar",
+            "--dereference", # 追踪软链接(如果混用了软链接), -v: 显示过程
             "--zstd",
-            "-chvf",  # -h: 追踪软链接(如果混用了软链接), -v: 显示过程
+            "-cvf",
             str(archive_path),
             str(self.staging_dir_name)
         ]
@@ -241,6 +242,7 @@ class VMBackup:
 
         cmd = [
             "tarpy",
+            "--dereference", # 追踪软链接(如果混用了软链接)
             "-ezcv",
             "--split",
             str(archive_path),
