@@ -91,8 +91,9 @@ class VMBackup:
             print(f"    请在另一个终端执行以下命令来手动复制文件：")
             print("-" * 60)
             # 生成方便用户复制的命令
+            username = os.getenv("USER", "<替换为当前用户名>")
             print(f"sudo cp -v \"{src}\" \"{dest}\"")
-            print(f"sudo chown {os.getenv("USER", "<替换为当前用户名>")} \"{dest}\"")
+            print(f"sudo chown {username} \"{dest}\"")
             print("-" * 60)
             
             while True:
