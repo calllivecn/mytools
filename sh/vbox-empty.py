@@ -1,3 +1,7 @@
+"""
+Path("C:/") 根目录 (Root)   C 盘的最顶层目录。
+Path("C:")  驱动器相对路径  该盘符下的当前工作目录 (Current Working Directory)。
+"""
 
 import os
 import sys
