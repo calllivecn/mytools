@@ -32,7 +32,7 @@ if not disk_fd.is_dir():
     usage()
 
 
-open_file = disk_fd / "empty"
+open_file = Path(f"{sys.argv[1]}/empty")
 print(f"{open_file=}")
 try:
     with open(open_file, "ab") as f:
@@ -50,10 +50,14 @@ try:
             if v == 0:
                 print(f"已写入{G}GB")
 
+except PermissionError:
+    print("权限不够，需要管理员执行。")
+    sys.exit(1)
+
 except OSError:
     print("磁盘已满。")
     #os.remove("empty")
-
+    sys.exit(1)
 
 print(f"可以删除：{open_file}，然后导出虚拟机了。")
 
