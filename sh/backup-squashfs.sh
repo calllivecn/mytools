@@ -52,15 +52,28 @@ BACKUP_SQUASHFS="${BACKUP_NAME}.squashfs"
 
 backup(){
 	local output_squahfs="$1"
+	MOUNT_POINT=$(mktemp -q -d -t squashfs-mountpoint-XXXXX)
 	
 	#EXCLUDE_SYS='-e proc/* -e sys/* -e run/* -e tmp/* -e dev/* -e var/log/* -e home/* -e mnt/* -e media/*'
 	# mksquashfs / ${BACKUP_SQUASHFS} -b 1M -comp zstd -Xcompression-level 3 -wildcards ${EXCLUDE_SYS}
 	
-	# 使用-one-file-system 参数了减少-e的使用
-	EXCLUDE_SYS='-e var/log/*'
-	mksquashfs / /boot ${output_squahfs} -b 1M -comp zstd -Xcompression-level 3 -no-xattrs -no-fragments -one-file-system -wildcards ${EXCLUDE_SYS}
-	#mksquashfs / /boot ${output_squahfs} -b 1M -comp xz -one-file-system -wildcards ${EXCLUDE_SYS}
+	# --bind 是为什么
+	mount --bind / "${MOUNT_POINT}"
+	mount --bind /boot "${MOUNT_POINT}/boot"
 	
+	pushd "$MOUNT_POINT"
+
+	# 使用-one-file-system 参数了减少-e的使用
+	#mksquashfs "${MOUNT_POINT}" "${MOUNT_POINT}/boot/" ${output_squahfs} -b 1M -comp zstd -Xcompression-level 3 -one-file-system -wildcards -e "var/log/*"
+
+	# --bind 之后就可以不用 -one-file-system 了
+	mksquashfs "${MOUNT_POINT}" ${output_squahfs} -b 1M -comp zstd -Xcompression-level 3 -wildcards -e "var/log/*" -e "tmp/*"
+
+	popd
+
+	umount -v "${MOUNT_POINT}/boot"
+	umount -v "${MOUNT_POINT}"
+
 }
 
 
@@ -69,8 +82,8 @@ temp_fifo=$(mktemp -qu -t squashfs-XXXXX)
 mkfifo "$temp_fifo"
 
 safe_exit(){
-
 	rm -v "$temp_fifo"
+	rmdir -v "$MOUNT_POINT"
 }
 
 
