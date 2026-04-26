@@ -55,8 +55,15 @@ def monitor_dir(dir_path: Path, file_queue: queue.Queue):
         while True:
             if proc.stdout is None:
                 break
+
             line = proc.stdout.readline().strip()
+
+            # 添加检查，避免处理空行或 "." 目录
+            if not line or line == str(Path(".")) or line == ".":
+                continue
+
             file_path = Path(line)
+
             if file_path.parent == Path("."):
                 logger.info(f"忽略根目录文件: {file_path}")
             else:

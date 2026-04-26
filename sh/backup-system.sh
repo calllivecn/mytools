@@ -367,7 +367,7 @@ excludes="$var_log_journal $sys_excludes $user_excludes"
 
 # 一个段一个段的添加 成指令(未开发完成)
 #BACKUP_CMD="tar -C / --format=posix --acls --selinux --xattrs -pc ${excludes} . 2>/dev/null "
-BACKUP_CMD="tar -C / --one-file-system --format=posix --acls --selinux --xattrs -pc ${excludes} ${BAK_DIRS} "
+BACKUP_CMD="tar -C / --one-file-system --format=posix --acls --selinux --xattrs --numeric-owner -pc ${excludes} ${BAK_DIRS} "
 
 # 添加压缩方式
 BACKUP_CMD="$BACKUP_CMD""| ${COMP_CMD} "

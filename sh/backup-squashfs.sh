@@ -58,7 +58,8 @@ backup(){
 	
 	# 使用-one-file-system 参数了减少-e的使用
 	EXCLUDE_SYS='-e var/log/*'
-	mksquashfs / /boot ${output_squahfs} -b 1M -comp zstd -Xcompression-level 3 -one-file-system -wildcards ${EXCLUDE_SYS}
+	mksquashfs / /boot ${output_squahfs} -b 1M -comp zstd -Xcompression-level 3 -no-xattrs -no-fragments -one-file-system -wildcards ${EXCLUDE_SYS}
+	#mksquashfs / /boot ${output_squahfs} -b 1M -comp xz -one-file-system -wildcards ${EXCLUDE_SYS}
 	
 }
 
