@@ -59,7 +59,10 @@ backup(){
 	
 	# --bind 是为什么
 	mount --bind / "${MOUNT_POINT}"
-	mount --bind /boot "${MOUNT_POINT}/boot"
+
+    if mountpoint -q /boot;then
+	    mount --bind /boot "${MOUNT_POINT}/boot"
+    fi
 	
 	pushd "$MOUNT_POINT"
 
@@ -71,7 +74,9 @@ backup(){
 
 	popd
 
-	umount -v "${MOUNT_POINT}/boot"
+    if mountpoint -q /boot;then
+	    umount -v "${MOUNT_POINT}/boot"
+    fi
 	umount -v "${MOUNT_POINT}"
 
 }
