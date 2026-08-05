@@ -24,7 +24,7 @@
 ### 配置文件
 
 - `--db` 是唯一的 **SQLite 数据库文件**（不存在则新建），TOTP 与密码库共用：TOTP 用 `totp_entries` 表 + `totp:` meta 前缀，密码库用 `vault_entries` 表 + `vault:` meta 前缀，各自独立主密码。
-- TOTP 与密码库都在进程内用 `cryptography` 加解密（AES-GCM + Argon2id），**不依赖 `crypto.py`**。
+- TOTP 与密码库都在进程内用 `cryptography` 加解密（AES-GCM + Argon2id）。
 
 ### 构建（容器）
 
@@ -33,7 +33,7 @@ cd totp
 ./build.sh
 ```
 
-`build.sh` 运行 `podman build`。容器镜像不再安装 `crypto.py`。
+`build.sh` 运行 `podman build`。
 
 ### 依赖文件
 

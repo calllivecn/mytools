@@ -1,6 +1,6 @@
 # 尝试开始使用 容器 跑小服务
 
-## 需要运行在nginx 后面(当前没有通讯加密功能)。
+## 需要运行在nginx 后面(当前没有通讯加密功能)
 
 - 默认监听[::]:12201
 - 如果在 nginx 中配置了 location /prefix/ {} 路径的， 需要通过 --prefix /prefix 参数指定前缀。
@@ -73,4 +73,3 @@ flask --app totpv3:flask_run run --reload --debug -p 12201
 - flask-run.py --help 
 
 - uvicorn.py --help
-

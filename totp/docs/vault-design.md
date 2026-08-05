@@ -38,7 +38,7 @@ totp/
 ```
 
 - `requirements.txt` 无需改动（`cryptography` 已在依赖中）。
-- `Dockerfile` / `build.sh` 不安装/复制 `crypto.py`（运行时无子进程依赖）。
+- `Dockerfile` / `build.sh` 不安装（运行时无子进程依赖）。
 
 ## 存储与加密（`VaultStore` / `TOTPStore`）
 
