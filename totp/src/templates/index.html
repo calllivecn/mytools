@@ -20,41 +20,186 @@
             border: 1px solid #ccc;
             text-align: center;
         }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin: 12px 20px;
+        }
+
+        .tabs button {
+            padding: 6px 18px;
+            border: 1px solid #ccc;
+            background: #f8f8f8;
+            cursor: pointer;
+        }
+
+        .tabs button.active {
+            background: #2c7be5;
+            color: #fff;
+            border-color: #2c7be5;
+        }
+
+        .view {
+            padding: 0 20px;
+        }
+
+        #vault-main .toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        #vault-tbody td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+
+        #vault-tbody td button {
+            margin-right: 4px;
+        }
+
+        #vault-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .mono {
+            font-family: monospace;
+        }
+
+        /* 弹窗 */
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-mask[hidden] {
+            display: none;
+        }
+
+        .modal-box {
+            background: #fff;
+            border: 1px solid #ccc;
+            padding: 20px;
+            min-width: 320px;
+        }
+
+        .modal-box label {
+            display: inline-block;
+            width: 70px;
+            text-align: right;
+            margin-right: 8px;
+        }
+
+        .modal-box input, .modal-box textarea {
+            margin-bottom: 10px;
+        }
     </style>
-<!-- 使用 ESM 模块，的方式。
-    <script type="module">
-        // 这里是动态获取配置的站点前缀，和nginx location /totpprefix {} 配置使用的。
-        // 方便把TOTP配置到任务路径。
-        const base_url = document.getElementById("base-url")
-        console.log("当前默认的前缀：", base_url.href);
-        base_url.href = window.location.pathname;
-        console.log("修改后的:", base_url.href);
+
+    <script>
+        window.VAULT_ENABLED = {{ 'true' if vault_enabled else 'false' }};
     </script>
--->
     <script src="assets/index.js" type="module"></script>
 
-    <title>TOTP</title>
+    <title>TOTP / 密码库</title>
 
 </head>
 <body>
 
-    <div class="container">
-        <div class="centered-element" id="display">
+    <nav class="tabs" id="tabs">
+        <button id="tab-totp" class="active">TOTP</button>
+        <button id="tab-vault" hidden>密码库</button>
+    </nav>
 
-            <!-- 用于显示结果或错误信息的区域 -->
-            <div id="message-area" style="margin-top: 10px; color: red;"></div>
-    
-            <form id="input-form">
-                <label for="input-value" id="input-label">密码：</label>
-                <!-- 添加 id 方便 JS 获取，name 保留以便如果需要 FormData 时使用 -->
-                <!-- <input type="password" id="input-value" required placeholder="请输入密码"> -->
-                <input type="password" id="input-value" placeholder="请输入密码">
-                <button type="submit" id="submit-btn">提交</button>
-            </form>
-            
-            <div id="totp-result-list"></div>
+    <!-- TOTP 视图 -->
+    <div id="view-totp" class="view">
+        <div class="container">
+            <div class="centered-element" id="display">
 
+                <!-- 用于显示结果或错误信息的区域 -->
+                <div id="message-area" style="margin-top: 10px; color: red;"></div>
+
+                <form id="input-form">
+                    <label for="input-value" id="input-label">密码：</label>
+                    <!-- 添加 id 方便 JS 获取，name 保留以便如果需要 FormData 时使用 -->
+                    <!-- <input type="password" id="input-value" required placeholder="请输入密码"> -->
+                    <input type="password" id="input-value" placeholder="请输入密码">
+                    <button type="submit" id="submit-btn">提交</button>
+                </form>
+
+                <div id="totp-result-list"></div>
+
+            </div>
         </div>
+    </div>
+
+    <!-- 密码库视图 -->
+    <div id="view-vault" class="view" hidden>
+        <div id="vault-login">
+            <div id="vault-login-message" style="color: red;"></div>
+            <form id="vault-login-form">
+                <label for="vault-password">密码库密码：</label>
+                <input type="password" id="vault-password" placeholder="请输入密码库密码">
+                <button type="submit">解锁</button>
+            </form>
+        </div>
+
+        <div id="vault-main" hidden>
+            <div class="toolbar">
+                <input type="text" id="vault-search" placeholder="搜索站点/用户名/备注/分类...">
+                <button id="vault-refresh">刷新</button>
+                <button id="vault-add-btn">新增</button>
+                <button id="vault-chpw-btn">修改主密码</button>
+                <button id="vault-lock">锁定</button>
+            </div>
+            <table id="vault-table">
+                <thead><tr><th>站点</th><th>用户名</th><th>密码</th><th>分类</th><th>操作</th></tr></thead>
+                <tbody id="vault-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 新增/编辑条目弹窗 -->
+    <div id="vault-modal" class="modal-mask" hidden>
+        <form id="vault-form" class="modal-box">
+            <input type="hidden" id="vf-id">
+            <div><label>站点</label><input type="text" id="vf-site" required></div>
+            <div><label>用户名</label><input type="text" id="vf-username"></div>
+            <div>
+                <label>密码</label><input type="text" id="vf-password" required>
+                <button type="button" id="vf-gen">生成</button>
+            </div>
+            <div><label>分类</label><input type="text" id="vf-category"></div>
+            <div><label>备注</label><textarea id="vf-notes" rows="3" cols="24"></textarea></div>
+            <div style="text-align:center;">
+                <button type="submit" id="vf-save">保存</button>
+                <button type="button" id="vf-cancel">取消</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 修改主密码弹窗 -->
+    <div id="vault-pw-modal" class="modal-mask" hidden>
+        <form id="vault-pw-form" class="modal-box">
+            <div style="margin-bottom:10px;font-size:13px;color:#666;">
+                修改主密码是可选的。旧密码为当前主密码，即解锁时输入的密码。
+            </div>
+            <div><label>旧密码</label><input type="password" id="vpw-old" required></div>
+            <div><label>新密码</label><input type="password" id="vpw-new" required></div>
+            <div><label>确认新密码</label><input type="password" id="vpw-confirm" required></div>
+            <div style="text-align:center;">
+                <button type="submit">确定</button>
+                <button type="button" id="vpw-cancel">取消</button>
+            </div>
+        </form>
     </div>
 
 </body>

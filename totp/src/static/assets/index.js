@@ -1,6 +1,37 @@
 
- import { http, configure } from './request.js'
+ import { http } from './request.js'
+ import { initVault } from './vault.js'
 
+const base = document.getElementById('base-url').getAttribute('href');
+const baseURL = base.endsWith('/') ? base : base + '/';
+
+const vaultEnabled = window.VAULT_ENABLED === true;
+const vaultBase = baseURL + 'vault';
+
+// ============ Tab 切换 ============
+const tabTotp = document.getElementById('tab-totp');
+const tabVault = document.getElementById('tab-vault');
+const viewTotp = document.getElementById('view-totp');
+const viewVault = document.getElementById('view-vault');
+
+if (!vaultEnabled) {
+    tabVault.remove();
+} else {
+    tabVault.hidden = false;
+}
+
+function switch_tab(name){
+    const isTotp = name === 'totp';
+    viewTotp.hidden = !isTotp;
+    viewVault.hidden = isTotp;
+    tabTotp.classList.toggle('active', isTotp);
+    tabVault.classList.toggle('active', !isTotp);
+}
+
+tabTotp.addEventListener('click', () => switch_tab('totp'));
+tabVault.addEventListener('click', () => switch_tab('vault'));
+
+// ============ TOTP 视图 ============
 const div_display = document.getElementById('display');
 
 const form = document.getElementById('input-form');
@@ -49,14 +80,8 @@ async function label_query(response){
     }
 }
 
-// 为http 配置  baseURL
-const path = window.location.pathname;
-console.log("当前是那个路径：", path);
-configure({baseURL: path});
-
-
 // 检测当前登录状态
-let result = await http.get("login")
+let result = await http.get(baseURL + "login")
 let login_status = false;
 
 if(result.code == 0){
@@ -69,7 +94,6 @@ if(result.code == 0){
 }
 
 // 先处理 直接 填写URL 访问的情况
-// if(window.Location.pathname == path + "/all" && login_status){
 let arg1 = 0;
 if(login_status){
     // 1. 创建 URLSearchParams 对象. 获取当前完整的查询字符串 (?arg1=...&arg2=...)
@@ -81,7 +105,7 @@ if(login_status){
     console.log("拿到url里的参数信息：", arg1);
 
     if(arg1 == 1){
-        label_query(await http.get('totpall'));
+        label_query(await http.get(baseURL + 'totpall'));
     }
 }
 
@@ -98,27 +122,19 @@ async function submit_eventListener(event){
     console.log("Value：", Value, "prevValse", prevValue);
 
     if(arg1 == 1){
-        label_query(await http.get('totpall'));
+        label_query(await http.get(baseURL + 'totpall'));
         return;
     }
 
     // 2. 此时浏览器已经完成了原生验证 (如 required)
     // 如果验证失败，代码根本不会运行到这里
 
-    // // 可选：简单的客户端验证
+    // 可选：简单的客户端验证
     if (Value) {
         prevValue = Value;
-
-        // if(login_status){
-        //     messageArea.textContent = "名称不能为空";
-        // }else{
-        //     messageArea.textContent = "密码不能为空";
-        // }
-
     }else{
-
         if(prevValue){
-            label_query(await http.post('totp', {label: prevValue}));
+            label_query(await http.post(baseURL + 'totp', {label: prevValue}));
         }
         return;
     }
@@ -128,16 +144,12 @@ async function submit_eventListener(event){
     submitBtn.disabled = true;
 
     try {
-        // 3. 使用 request.js 发送请求
-        // 假设你的库支持 post(url, data) 语法
-        // 后端接口路径根据你的实际情况修改，例如 'api/login'
-        
+        // 使用 request.js 发送请求
         // 如果已经是登录的。直接直接到查询页面。
         if(login_status){
-            label_query(await http.post('totp', {label: Value}));
+            label_query(await http.post(baseURL + 'totp', {label: Value}));
         }else{
-            const r = await http.post('login', {password: Value});
-            // 如果后端需要 username，也可以在这里添加: username: 'admin'
+            const r = await http.post(baseURL + 'login', {password: Value});
 
             // 4. 处理成功响应
             if(r.code == 0){
@@ -151,10 +163,6 @@ async function submit_eventListener(event){
                 messageArea.textContent = r.msg;
             }
         }
- 
-        // 可以在这里执行跳转或保存 Token
-        // window.location.href = '/dashboard'; 
-        // 或者 localStorage.setItem('token', response.token);
 
         submitBtn.disabled = false;
 
@@ -174,3 +182,8 @@ async function submit_eventListener(event){
 
 // 2. 监听表单的 submit 事件
 form.addEventListener('submit', submit_eventListener);
+
+// ============ 密码库视图 ============
+if (vaultEnabled) {
+    initVault(vaultBase);
+}

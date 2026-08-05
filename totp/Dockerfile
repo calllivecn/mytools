@@ -2,15 +2,14 @@ FROM alpine-py3:latest AS builder
 
 RUN mkdir /app
 
-COPY requireuments.txt /app/
+COPY requirements.txt /app/
 COPY src/ /app/
 
 FROM alpine-py3:latest
 
 COPY --from=builder /app /app
 
-RUN pip install --break-system-packages -r /app/requireuments.txt \
-&& cp -v /app/crypto.py /usr/bin/
+RUN pip install --break-system-packages -r /app/requirements.txt
 
 WORKDIR /app
 
