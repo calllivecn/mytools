@@ -5,7 +5,6 @@
 const base = document.getElementById('base-url').getAttribute('href');
 const baseURL = base.endsWith('/') ? base : base + '/';
 
-const vaultEnabled = window.VAULT_ENABLED === true;
 const vaultBase = baseURL + 'vault';
 
 // ============ Tab 切换 ============
@@ -13,12 +12,6 @@ const tabTotp = document.getElementById('tab-totp');
 const tabVault = document.getElementById('tab-vault');
 const viewTotp = document.getElementById('view-totp');
 const viewVault = document.getElementById('view-vault');
-
-if (!vaultEnabled) {
-    tabVault.remove();
-} else {
-    tabVault.hidden = false;
-}
 
 function switch_tab(name){
     const isTotp = name === 'totp';
@@ -30,7 +23,7 @@ function switch_tab(name){
 
 // 依据地址栏 hash(#totp/#vault) 切换视图，两个视图可直接用链接访问
 function apply_hash(){
-    if (location.hash === '#vault' && vaultEnabled) {
+    if (location.hash === '#vault') {
         switch_tab('vault');
     } else {
         switch_tab('totp');
@@ -276,6 +269,4 @@ if (totp_status.code === 0) {
 }
 
 // ============ 密码库视图 ============
-if (vaultEnabled) {
-    initVault(vaultBase);
-}
+initVault(vaultBase);

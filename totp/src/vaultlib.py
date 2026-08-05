@@ -22,10 +22,12 @@ from secretstore import (
 class VaultStore(SecretStore):
 
     CHECK_VALUE = b"vault-check"
+    ENTRIES_TABLE = "vault_entries"
+    META_PREFIX = "vault"
 
     def _init_db(self):
         self._conn.execute(
-            """CREATE TABLE IF NOT EXISTS entries(
+            f"""CREATE TABLE IF NOT EXISTS {self.ENTRIES_TABLE}(
                 id         TEXT PRIMARY KEY,
                 data       BLOB NOT NULL,
                 created_at INTEGER NOT NULL,
@@ -39,7 +41,7 @@ class VaultStore(SecretStore):
                 return []
 
             rows = self._conn.execute(
-                "SELECT id, data, created_at, updated_at FROM entries ORDER BY created_at"
+                f"SELECT id, data, created_at, updated_at FROM {self.ENTRIES_TABLE} ORDER BY created_at"
             ).fetchall()
 
             result = []
@@ -60,7 +62,7 @@ class VaultStore(SecretStore):
             payload = json.dumps(entry, ensure_ascii=False).encode("utf-8")
             blob = self._aesgcm_encrypt(self._kek, payload)
             self._conn.execute(
-                "INSERT INTO entries(id, data, created_at, updated_at) VALUES(?, ?, ?, ?)",
+                f"INSERT INTO {self.ENTRIES_TABLE}(id, data, created_at, updated_at) VALUES(?, ?, ?, ?)",
                 (eid, blob, now, now),
             )
             self._conn.commit()
@@ -71,14 +73,14 @@ class VaultStore(SecretStore):
             if self._kek is None:
                 raise ValueError("需要登录")
 
-            row = self._conn.execute("SELECT 1 FROM entries WHERE id=?", (eid,)).fetchone()
+            row = self._conn.execute(f"SELECT 1 FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,)).fetchone()
             if row is None:
                 return False
 
             now = int(time.time())
             payload = json.dumps(entry, ensure_ascii=False).encode("utf-8")
             blob = self._aesgcm_encrypt(self._kek, payload)
-            self._conn.execute("UPDATE entries SET data=?, updated_at=? WHERE id=?", (blob, now, eid))
+            self._conn.execute(f"UPDATE {self.ENTRIES_TABLE} SET data=?, updated_at=? WHERE id=?", (blob, now, eid))
             self._conn.commit()
             return True
 
@@ -87,7 +89,7 @@ class VaultStore(SecretStore):
             if self._kek is None:
                 raise ValueError("需要登录")
 
-            cur = self._conn.execute("DELETE FROM entries WHERE id=?", (eid,))
+            cur = self._conn.execute(f"DELETE FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,))
             self._conn.commit()
             return cur.rowcount > 0
 

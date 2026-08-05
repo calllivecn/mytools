@@ -46,6 +46,7 @@ class SecretStore:
 
     CHECK_VALUE = b"secret-store-check"
     ENTRIES_TABLE = "entries"
+    META_PREFIX = ""
 
     def __init__(self, db_path: Path, time_: float = 30 * 60):
         self.db_path = Path(db_path)
@@ -64,6 +65,11 @@ class SecretStore:
 
     def _init_db(self):
         raise NotImplementedError
+
+    def _meta_key(self, name: str) -> str:
+        if self.META_PREFIX:
+            return f"{self.META_PREFIX}:{name}"
+        return name
 
     def _auto_lock(self):
         while True:
@@ -92,12 +98,12 @@ class SecretStore:
         return decryptor.update(ct) + decryptor.finalize()
 
     def _verify(self, password: str) -> bytes | None:
-        row = self._conn.execute("SELECT v FROM meta WHERE k='salt'").fetchone()
+        row = self._conn.execute("SELECT v FROM meta WHERE k=?", (self._meta_key("salt"),)).fetchone()
         if row is None:
             return None
 
         kek = self._derive_kek(password, row[0])
-        check = self._conn.execute("SELECT v FROM meta WHERE k='check'").fetchone()
+        check = self._conn.execute("SELECT v FROM meta WHERE k=?", (self._meta_key("check"),)).fetchone()
         if check is None:
             return None
 
@@ -112,14 +118,16 @@ class SecretStore:
         salt = os.urandom(SALT_LEN)
         kek = self._derive_kek(password, salt)
         check = self._aesgcm_encrypt(kek, self.CHECK_VALUE)
-        self._conn.execute("INSERT INTO meta(k, v) VALUES('salt', ?)", (salt,))
-        self._conn.execute("INSERT INTO meta(k, v) VALUES('check', ?)", (check,))
+        self._conn.execute("INSERT INTO meta(k, v) VALUES(?, ?)", (self._meta_key("salt"), salt))
+        self._conn.execute("INSERT INTO meta(k, v) VALUES(?, ?)", (self._meta_key("check"), check))
         self._conn.commit()
         self._kek = kek
 
     def unlock(self, password: str) -> bool:
         with self._lock:
-            has_salt = self._conn.execute("SELECT 1 FROM meta WHERE k='salt'").fetchone() is not None
+            has_salt = self._conn.execute(
+                "SELECT 1 FROM meta WHERE k=?", (self._meta_key("salt"),)
+            ).fetchone() is not None
             if not has_salt:
                 self._init_vault(password)
                 return True
@@ -157,8 +165,8 @@ class SecretStore:
                 )
 
             check = self._aesgcm_encrypt(new_kek, self.CHECK_VALUE)
-            self._conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES('salt', ?)", (new_salt,))
-            self._conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES('check', ?)", (check,))
+            self._conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", (self._meta_key("salt"), new_salt))
+            self._conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", (self._meta_key("check"), check))
             self._conn.commit()
             self._kek = new_kek
             return True

@@ -38,7 +38,7 @@ def query_label(conf: list[dict], label: str) -> list:
     return result
 
 
-def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = False):
+def totp_main(app: Flask, store: TOTPStore, prefix: str):
     print(f"{prefix=}")
 
     bp = Blueprint("prefix", app.name, url_prefix=prefix)
@@ -46,7 +46,7 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
     @bp.get("/")
     def index():
         print(f"这是 @bp.get()  {request.path=}")
-        return render_template("index.html", base_url=prefix, vault_enabled=vault_enabled)
+        return render_template("index.html", base_url=prefix)
 
     @bp.get('/totpall')
     def get_totp():
@@ -193,12 +193,12 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
             return send_from_directory(app.static_folder, order_path)
         else:
             # print("render_template(index.html)")
-            return render_template("index.html", base_url=prefix, vault_enabled=vault_enabled)
+            return render_template("index.html", base_url=prefix)
 
     return bp
 
 
-def create_app(config: Path, prefix: str, vault: Path | None = None):
+def create_app(db: Path, prefix: str):
 
     if not prefix.endswith("/"):
         prefix = prefix + "/"
@@ -213,16 +213,14 @@ def create_app(config: Path, prefix: str, vault: Path | None = None):
         print(f"这里是 global_404(): {request.path=} {prefix=}")
         return "<h1>404</h1>", 404
 
-    vault_enabled = vault is not None
-
-    store = TOTPStore(config, 24 * 3600)
-    bp = totp_main(app, store, prefix, vault_enabled)
+    # TOTP 与密码库共用同一个 SQLite 数据库（各自独立表与主密码）
+    store = TOTPStore(db, 24 * 3600)
+    bp = totp_main(app, store, prefix)
     app.register_blueprint(bp)
 
-    if vault is not None:
-        vstore = VaultStore(vault)
-        vbp = vault_main(app, vstore, prefix)
-        app.register_blueprint(vbp)
+    vstore = VaultStore(db)
+    vbp = vault_main(app, vstore, prefix)
+    app.register_blueprint(vbp)
 
     return app
 
@@ -233,14 +231,10 @@ def flask_run():
     import os
     import sys
     try:
-        config: Path = Path(os.environ["TOTP_CONFIG"])
+        db: Path = Path(os.environ["TOTP_DB"])
         prefix: str = os.environ["TOTP_PREFIX"]
     except ValueError:
-        print("开发环境中需要配置环境变量：TOTP_CONFIG TOTP_PREFIX")
+        print("开发环境中需要配置环境变量：TOTP_DB TOTP_PREFIX")
         sys.exit(1)
 
-    vault: Path | None = None
-    if os.environ.get("TOTP_VAULT"):
-        vault = Path(os.environ["TOTP_VAULT"])
-
-    return create_app(config, prefix, vault)
+    return create_app(db, prefix)

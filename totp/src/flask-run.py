@@ -16,9 +16,7 @@ def main():
 
     parse.add_argument("--prefix", action="store", type=str, default="/", help="默认 nginx 反向代理前缀(default: /)")
 
-    parse.add_argument("--config", type=Path, required=True, help="指定totp数据库sqlite文件(不存在则新建)")
-
-    parse.add_argument("--vault", action="store", type=Path, default=None, help="指定密码库sqlite文件(default: 禁用密码库)")
+    parse.add_argument("--db", type=Path, required=True, help="指定 sqlite 数据库文件(不存在则新建, TOTP 与密码库共用)")
 
     args = parse.parse_args()
 
@@ -27,7 +25,7 @@ def main():
         args.prefix = prefix + "/"
         print("--prefix 参数 必须要/结尾，已经自动添加上：", args.prefix)
 
-    app = create_app(args.config, args.prefix, args.vault)
+    app = create_app(args.db, args.prefix)
     app.run(args.addr, args.port)
 
 

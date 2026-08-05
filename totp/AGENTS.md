@@ -8,11 +8,11 @@
 
 ### 架构
 
-- `src/secretstore.py` — 加密 SQLite 存储基类 `SecretStore`（TOTP 与密码库共用）：主密码 Argon2id 派生 KEK（内存驻留，超时自动锁定）、AES-GCM 整体加密条目、`meta` 表存 salt/校验值。
+- `src/secretstore.py` — 加密 SQLite 存储基类 `SecretStore`（TOTP 与密码库共用）：主密码 Argon2id 派生 KEK（内存驻留，超时自动锁定）、AES-GCM 整体加密条目、`meta` 表存 salt/校验值（键按 `META_PREFIX` 命名空间隔离）。
 - `src/totpv3.py` — Flask 应用工厂 (`create_app()`)，Blueprint 支持可配置的 URL 前缀；TOTP 配置解密的密钥在 24 小时后自动过期。
 - `src/totplib.py` — 独立的 TOTP 实现（RFC 6238，HMAC-SHA1），也可作为 CLI 工具使用。
-- `src/totpstore.py` — TOTP 密钥存储：SQLite + 与密码库相同的加密方式（`TOTPStore` 继承 `SecretStore`），`--config` 指向该数据库文件。
-- `src/vaultlib.py` — 密码库（Vault）：SQLite 存储 + 独立主密码（`VaultStore` 继承 `SecretStore`），含 `/vault` Blueprint。仅在 `create_app()` 传入 `vault` 参数（入口点 `--vault`）时启用。
+- `src/totpstore.py` — TOTP 密钥存储（`TOTPStore` 继承 `SecretStore`，表 `totp_entries`、meta 前缀 `totp:`）。
+- `src/vaultlib.py` — 密码库（Vault，`VaultStore` 继承 `SecretStore`，表 `vault_entries`、meta 前缀 `vault:`），含 `/vault` Blueprint。
 - `src/totp-manage.py` — TOTP 条目管理 CLI（`add/list/update/delete`）。Web 端 TOTP 视图也提供条目的增删改查。
 - `src/flask-run.py` — 使用 Flask 内置开发服务器的入口点。
 - `src/uvicorn-run.py` — 生产环境入口点，使用 uvicorn（Flask 通过 `asgiref.wsgi.WsgiToAsgi` 包装）。
@@ -23,7 +23,7 @@
 
 ### 配置文件
 
-- `--config` 是 TOTP 的 **SQLite 数据库文件**（不存在则新建），不再是加密 JSON。
+- `--db` 是唯一的 **SQLite 数据库文件**（不存在则新建），TOTP 与密码库共用：TOTP 用 `totp_entries` 表 + `totp:` meta 前缀，密码库用 `vault_entries` 表 + `vault:` meta 前缀，各自独立主密码。
 - TOTP 与密码库都在进程内用 `cryptography` 加解密（AES-GCM + Argon2id），**不依赖 `crypto.py`**。
 
 ### 构建（容器）
@@ -44,19 +44,17 @@ pip 的依赖文件为 `requirements.txt`。`Dockerfile` 和源代码都引用�
 使用 Flask CLI 入口点时需要两个环境变量：
 
 ```
-TOTP_CONFIG=/path/to/totp.db TOTP_PREFIX=/ flask --app totpv3:flask_run run --reload --debug -p 12201
-# 可选：TOTP_VAULT=/path/to/vault.db 启用密码库
+TOTP_DB=/path/to/totp.db TOTP_PREFIX=/ flask --app totpv3:flask_run run --reload --debug -p 12201
 ```
 
 或直接使用 CLI 入口点：
 
 ```bash
-python src/uvicorn-run.py --config /path/to/totp.db --prefix /totp [--vault /path/to/vault.db] [--addr 0.0.0.0 --port 12201]
-python src/flask-run.py   --config /path/to/totp.db --prefix /totp [--vault /path/to/vault.db] [--addr 0.0.0.0 --port 12201]
+python src/uvicorn-run.py --db /path/to/totp.db --prefix /totp [--addr 0.0.0.0 --port 12201]
+python src/flask-run.py   --db /path/to/totp.db --prefix /totp [--addr 0.0.0.0 --port 12201]
 ```
 
-- `--config` 为 TOTP SQLite 数据库（不存在则新建），条目可在 Web 端或 `totp-manage.py` 管理。
-- `--vault` 可选：指定密码库 SQLite 文件；省略则密码库功能禁用（前端隐藏「密码库」Tab）。
+- `--db` 为 TOTP 与密码库共用的 SQLite 数据库（不存在则新建），条目可在 Web 端或 `totp-manage.py` 管理。
 - 密码库设计文档：`docs/vault-design.md`（含未来多端同步方案）。
 
 ### 运行（容器）
@@ -64,7 +62,7 @@ python src/flask-run.py   --config /path/to/totp.db --prefix /totp [--vault /pat
 ```bash
 podman run -d --name totp -p 12201:12201 \
   -v /path/to/totp.db:/data/totp.db \
-  localhost/totp:latest --prefix /totp --config /data/totp.db
+  localhost/totp:latest --prefix /totp --db /data/totp.db
 ```
 
 ### 约定

@@ -14,7 +14,7 @@
 
 | 议题 | 决策 |
 |---|---|
-| 数据存储 | SQLite（独立 `vault.db`），不用加密 JSON 文件 |
+| 数据存储 | SQLite（与 TOTP 共用同一个数据库文件，各自独立表与主密码），不用加密 JSON 文件 |
 | 加密方式 | 字段整体 AES-GCM 加密后存入 SQLite；主密码用 Argon2id 派生 KEK |
 | 解锁密码 | 与 TOTP 主密码**完全独立** |
 | 前端组织 | 单页多视图（Tab 切换：TOTP / 密码库） |
@@ -26,56 +26,55 @@
 ```
 totp/
 ├── src/
-│   ├── secretstore.py         # 新增：加密 SQLite 存储基类 SecretStore（TOTP 与密码库共用）
-│   ├── vaultlib.py            # 修改：VaultStore 继承 SecretStore + /vault Blueprint
-│   ├── totpstore.py           # 新增：TOTPStore 继承 SecretStore（TOTP 也迁移到相同加密方案）
-│   ├── totpv3.py              # 修改：create_app 增加 vault 参数，TOTP 改用 TOTPStore（去掉 crypto.py 子进程）
-│   ├── totp-manage.py         # 新增：TOTP 条目管理 CLI（add/list/update/delete）
-│   ├── uvicorn-run.py         # 修改：新增 --vault 参数
-│   ├── flask-run.py           # 修改：新增 --vault 参数
-│   ├── templates/index.html   # 修改：加 Tab 导航（TOTP / 密码库）
-│   └── static/assets/
-│       ├── index.js           # 修改：改为 Tab 控制器 + TOTP 视图
-│       └── vault.js           # 新增：密码库视图
+│   ├── secretstore.py         # 加密 SQLite 存储基类 SecretStore（TOTP 与密码库共用）
+│   ├── vaultlib.py            # VaultStore 继承 SecretStore + /vault Blueprint
+│   ├── totpstore.py           # TOTPStore 继承 SecretStore（相同加密方案）
+│   ├── totpv3.py              # create_app()，注册 TOTP 与 /vault 两个 Blueprint
+│   ├── totp-manage.py         # TOTP 条目管理 CLI（add/list/update/delete）
+│   ├── uvicorn-run.py / flask-run.py  # 入口点，--db 指定共用数据库
+│   ├── templates/index.html   # Tab 导航（TOTP / 密码库）
+│   └── static/assets/         # index.js / vault.js / request.js
 └── docs/vault-design.md      # 本文档
 ```
 
 - `requirements.txt` 无需改动（`cryptography` 已在依赖中）。
 - `Dockerfile` / `build.sh` 不安装/复制 `crypto.py`（运行时无子进程依赖）。
 
-## 存储与加密（`VaultStore`）
+## 存储与加密（`VaultStore` / `TOTPStore`）
 
-### 文件位置
+### 数据库
 
-- SQLite 文件 `vault.db`，默认与 `--config` 同目录（容器内即 `/data/vault.db`），可用 `--vault <path>` 覆盖。
-- 未传 `--vault` 时密码库功能**禁用**，前端隐藏「密码库」Tab。
+- 唯一数据库由 `--db` 指定（不存在则新建）。TOTP 与密码库共用同一文件，但表与 meta 键按 `META_PREFIX` / `ENTRIES_TABLE` 命名空间隔离：
+  - TOTP：表 `totp_entries`，meta 键 `totp:salt` / `totp:check`
+  - Vault：表 `vault_entries`，meta 键 `vault:salt` / `vault:check`
 
 ### Schema
 
 ```sql
-CREATE TABLE meta(k TEXT PRIMARY KEY, v BLOB);          -- argon2id salt / 校验值
-CREATE TABLE entries(
+CREATE TABLE meta(k TEXT PRIMARY KEY, v BLOB);          -- 各前缀的 argon2id salt / 校验值
+CREATE TABLE totp_entries(
   id         TEXT PRIMARY KEY,                          -- uuid4 hex
   data       BLOB NOT NULL,                             -- AES-GCM 加密后的条目 JSON
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE vault_entries( ... 同上 ... );
 ```
 
-- `meta.salt`：Argon2id 盐（16B），解锁时派生 KEK。
-- `meta.check`：AES-GCM 加密的固定字符串（`vault-check`），用于校验密码是否正确（GCM tag 校验失败即密码错误）。
-- `entries.data`：`nonce(12) + ciphertext + tag(16)`，明文为 JSON `{"site","username","password","notes","category"}`。
+- `meta.<prefix>:salt`：Argon2id 盐（16B），解锁时派生 KEK。
+- `meta.<prefix>:check`：AES-GCM 加密的固定字符串，用于校验密码是否正确（GCM tag 校验失败即密码错误）。
+- `entries.data`：`nonce(12) + ciphertext + tag(16)`，明文为 JSON（TOTP：`{"label","secret","notes","secret_info"}`；Vault：`{"site","username","password","notes","category"}`）。
 - 元数据列（id、时间戳）明文存储，不含敏感信息。
 
 ### 密钥派生与加解密
 
-- 复用 `crypto.py` 的 Argon2id 参数（`iterations=13, lanes=4, memory_cost=64MiB`），通过 `cryptography` 库在进程内实现（不对每个字段起子进程）。
+- 与 `crypto.py` 的 AES-GCM (v0x0003) 使用相同 Argon2id 参数（`iterations=13, lanes=4, memory_cost=64MiB`），通过 `cryptography` 库在进程内实现（不对每个字段起子进程）。
 - 解锁后**只在内存保留 KEK（32B）**，不缓存明文，条目按请求按需解密。
-- 自动锁定时长默认 30 分钟（常量可调），后台线程到期清空 KEK。
+- 自动锁定时长：TOTP 默认 24h（`create_app` 传入），Vault 默认 30 分钟（常量可调），后台线程到期清空 KEK。
 
 ### 首次使用
 
-- `vault.db` 不存在盐时视为首次初始化：以当前输入的密码作为主密码，写入 salt 与 check。
+- 数据库某前缀不存在 salt 时视为首次初始化：以当前输入的密码作为主密码，写入该前缀的 salt 与 check。
 
 ## 后端 API（Blueprint，前缀 `{prefix}vault`）
 
@@ -114,10 +113,10 @@ CREATE TABLE entries(
 
 ## 共享存储基类（TOTP 复用）
 
-密码库的方案也复用于 TOTP：`SecretStore`（`src/secretstore.py`）提供主密码派生 KEK、AES-GCM 加密、`meta` 表校验、解锁/锁定/超时自动锁定与改主密码；`VaultStore` 与 `TOTPStore` 各自继承并定义 `entries` 表与业务方法。
+密码库的方案也复用于 TOTP：`SecretStore`（`src/secretstore.py`）提供主密码派生 KEK、AES-GCM 加密、`meta` 表校验、解锁/锁定/超时自动锁定与改主密码；`VaultStore` 与 `TOTPStore` 各自继承并定义自己的 `ENTRIES_TABLE` / `META_PREFIX` 与业务方法。
 
-- TOTP `--config` 指向 SQLite 数据库，条目 `{label, secret}` 整体加密；Web 端仍只读查询。
-- TOTP 主密码独立（默认 24h 自动锁定，沿用旧行为）。
+- TOTP 与密码库共用 `--db` 指定的 SQLite 数据库，条目整体加密；Web 端 TOTP 视图支持实时动态密码与增删改查。
+- TOTP 主密码独立（默认 24h 自动锁定），Vault 主密码独立（默认 30min 自动锁定）。
 - 不再支持旧版 `crypto.py` 加密的 `totp.a` 文件，TOTP 与密码库均不依赖 `crypto.py`。
 
 ## 未来：多端同步（本期不实现）
