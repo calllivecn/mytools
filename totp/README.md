@@ -15,15 +15,15 @@ podman run -d --name totp -p 12201:12201 \
 
 ## TOTP 条目管理
 
-TOTP 数据存在 SQLite 中。Web 页面解锁后可直接新增/编辑/删除条目，也可用命令行工具管理：
+TOTP 数据存在 SQLite 中。Web 页面解锁后可直接新增/编辑/删除条目，也可用命令行工具管理。每条目包含：名称、Base32 密钥、说明（可选）、附加信息（可选，如恢复码，与密钥一起加密保存）。
 
 ```shell
 # 新建数据库并添加条目
-python src/totp-manage.py --db /path/to/totp.db add "example.com" "JBSWY3DPEHPK3PXP"
+python src/totp-manage.py --db /path/to/totp.db add "example.com" "JBSWY3DPEHPK3PXP" --notes "我的账号" --secret-info "恢复码 xxx"
 
 # 列出 / 更新 / 删除（可按 id 或 label 定位）
 python src/totp-manage.py --db /path/to/totp.db list
-python src/totp-manage.py --db /path/to/totp.db update "example.com" "example.com" "NEWSECRET"
+python src/totp-manage.py --db /path/to/totp.db update "example.com" "example.com" "NEWSECRET" --notes "改一下说明"
 python src/totp-manage.py --db /path/to/totp.db delete "example.com"
 ```
 

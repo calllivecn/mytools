@@ -57,7 +57,17 @@ const totpForm = document.getElementById('totp-form');
 const tfId = document.getElementById('tf-id');
 const tfLabel = document.getElementById('tf-label');
 const tfSecret = document.getElementById('tf-secret');
+const tfNotes = document.getElementById('tf-notes');
+const tfSecretInfo = document.getElementById('tf-secret-info');
 const tfCancel = document.getElementById('tf-cancel');
+
+const infoModal = document.getElementById('totp-info-modal');
+const tiLabel = document.getElementById('ti-label');
+const tiNotes = document.getElementById('ti-notes');
+const tiSecretInfo = document.getElementById('ti-secret-info');
+const tiCopy = document.getElementById('ti-copy');
+const tiClose = document.getElementById('ti-close');
+let infoEntry = null;
 
 let totpUnlocked = false;
 let totpEntries = [];
@@ -106,10 +116,12 @@ function totpRender() {
         return `
             <tr>
                 <td>${esc(e.label)}</td>
+                <td>${esc(e.notes)}</td>
                 <td class="mono">${e.pw}</td>
                 <td>${timeLeft}s</td>
                 <td>
                     <button type="button" data-act="copy" data-id="${e.id}">复制</button>
+                    ${e.has_info ? '<button type="button" data-act="info" data-id="' + e.id + '">查看</button>' : ''}
                     <button type="button" data-act="edit" data-id="${e.id}">编辑</button>
                     <button type="button" data-act="del" data-id="${e.id}">删除</button>
                 </td>
@@ -133,17 +145,40 @@ function totpOpenAdd() {
     tfLabel.value = '';
     tfSecret.value = '';
     tfSecret.placeholder = 'Base32 密钥';
+    tfNotes.value = '';
+    tfSecretInfo.value = '';
     totpModal.hidden = false;
     tfLabel.focus();
 }
 
-function totpOpenEdit(entry) {
-    tfId.value = entry.id;
-    tfLabel.value = entry.label;
-    tfSecret.value = '';
-    tfSecret.placeholder = '留空则不修改密钥';
+async function totpOpenEdit(entry) {
+    const r = await http.get(baseURL + 'totp/get', { id: entry.id });
+    if (r.code !== 0) {
+        alert(r.msg);
+        return;
+    }
+    const e = r.data;
+    tfId.value = e.id;
+    tfLabel.value = e.label;
+    tfSecret.value = e.secret;
+    tfSecret.placeholder = 'Base32 密钥';
+    tfNotes.value = e.notes || '';
+    tfSecretInfo.value = e.secret_info || '';
     totpModal.hidden = false;
     tfLabel.focus();
+}
+
+async function totpOpenInfo(entry) {
+    const r = await http.get(baseURL + 'totp/get', { id: entry.id });
+    if (r.code !== 0) {
+        alert(r.msg);
+        return;
+    }
+    infoEntry = r.data;
+    tiLabel.textContent = infoEntry.label;
+    tiNotes.textContent = infoEntry.notes || '（无）';
+    tiSecretInfo.textContent = infoEntry.secret_info || '（无）';
+    infoModal.hidden = false;
 }
 
 totpTbody.addEventListener('click', async (ev) => {
@@ -156,8 +191,10 @@ totpTbody.addEventListener('click', async (ev) => {
 
     if (act === 'copy') {
         await totpCopy(entry.pw);
+    } else if (act === 'info') {
+        await totpOpenInfo(entry);
     } else if (act === 'edit') {
-        totpOpenEdit(entry);
+        await totpOpenEdit(entry);
     } else if (act === 'del') {
         if (!confirm(`确认删除 ${entry.label} ？`)) return;
         const r = await http.post(baseURL + 'totp/delete', { id });
@@ -192,7 +229,12 @@ totpLockBtn.addEventListener('click', async () => {
 
 totpForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const data = { label: tfLabel.value, secret: tfSecret.value };
+    const data = {
+        label: tfLabel.value,
+        secret: tfSecret.value,
+        notes: tfNotes.value,
+        secret_info: tfSecretInfo.value,
+    };
     const id = tfId.value;
     const r = id
         ? await http.put(baseURL + 'totp/update', { ...data, id })
@@ -206,6 +248,10 @@ totpForm.addEventListener('submit', async (ev) => {
 });
 
 tfCancel.addEventListener('click', () => { totpModal.hidden = true; });
+tiClose.addEventListener('click', () => { infoModal.hidden = true; });
+tiCopy.addEventListener('click', async () => {
+    if (infoEntry) await totpCopy(infoEntry.secret_info || '');
+});
 
 // 每秒刷新倒计时，到期或超时则重新拉取动态密码
 setInterval(() => {

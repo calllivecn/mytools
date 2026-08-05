@@ -50,14 +50,17 @@ class TOTPStore(SecretStore):
                 result.append(entry)
             return result
 
-    def add(self, label: str, secret: str) -> str:
+    def add(self, label: str, secret: str, notes: str = "", secret_info: str = "") -> str:
         with self._lock:
             if self._kek is None:
                 raise ValueError("需要登录")
 
             eid = uuid.uuid4().hex
             now = int(time.time())
-            payload = json.dumps({"label": label, "secret": secret}, ensure_ascii=False).encode("utf-8")
+            payload = json.dumps(
+                {"label": label, "secret": secret, "notes": notes, "secret_info": secret_info},
+                ensure_ascii=False,
+            ).encode("utf-8")
             blob = self._aesgcm_encrypt(self._kek, payload)
             self._conn.execute(
                 "INSERT INTO entries(id, data, created_at, updated_at) VALUES(?, ?, ?, ?)",
@@ -66,7 +69,7 @@ class TOTPStore(SecretStore):
             self._conn.commit()
             return eid
 
-    def update(self, eid: str, label: str, secret: str) -> bool:
+    def update(self, eid: str, label: str, secret: str, notes: str = "", secret_info: str = "") -> bool:
         with self._lock:
             if self._kek is None:
                 raise ValueError("需要登录")
@@ -76,11 +79,31 @@ class TOTPStore(SecretStore):
                 return False
 
             now = int(time.time())
-            payload = json.dumps({"label": label, "secret": secret}, ensure_ascii=False).encode("utf-8")
+            payload = json.dumps(
+                {"label": label, "secret": secret, "notes": notes, "secret_info": secret_info},
+                ensure_ascii=False,
+            ).encode("utf-8")
             blob = self._aesgcm_encrypt(self._kek, payload)
             self._conn.execute("UPDATE entries SET data=?, updated_at=? WHERE id=?", (blob, now, eid))
             self._conn.commit()
             return True
+
+    def get_entry(self, eid: str) -> dict | None:
+        with self._lock:
+            if self._kek is None:
+                raise ValueError("需要登录")
+
+            row = self._conn.execute(
+                "SELECT id, data, created_at, updated_at FROM entries WHERE id=?", (eid,)
+            ).fetchone()
+            if row is None:
+                return None
+
+            eid_, data, created, updated = row
+            plain = json.loads(self._aesgcm_decrypt(self._kek, data))
+            entry = {"id": eid_, "created_at": created, "updated_at": updated}
+            entry.update(plain)
+            return entry
 
     def delete(self, eid: str) -> bool:
         with self._lock:

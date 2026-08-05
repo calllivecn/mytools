@@ -21,18 +21,23 @@ def getpass_pw(prompt: str = "主密码: ") -> str:
 
 def cmd_list(store):
     for e in store.list_entries():
-        print(f"{e['id']}  {e['label']}")
+        notes = e.get("notes") or ""
+        print(f"{e['id']}  {e['label']}  {notes}")
 
 
-def cmd_add(store, label: str, secret: str):
-    eid = store.add(label, secret)
+def cmd_add(store, label: str, secret: str, notes: str = "", secret_info: str = ""):
+    eid = store.add(label, secret, notes, secret_info)
     print(f"已添加: {eid}  {label}")
 
 
-def cmd_update(store, target: str, label: str, secret: str):
+def cmd_update(store, target: str, label: str, secret: str, notes=None, secret_info=None):
     for e in store.list_entries():
         if e["id"] == target or e["label"] == target:
-            store.update(e["id"], label, secret)
+            if notes is None:
+                notes = e.get("notes", "")
+            if secret_info is None:
+                secret_info = e.get("secret_info", "")
+            store.update(e["id"], label, secret, notes, secret_info)
             print(f"已更新: {e['label']} -> {label}")
             return
     print(f"未找到: {target}", file=sys.stderr)
@@ -61,11 +66,15 @@ def main():
     p_add = sub.add_parser("add", help="添加条目")
     p_add.add_argument("label")
     p_add.add_argument("secret")
+    p_add.add_argument("--notes", default="", help="说明文本")
+    p_add.add_argument("--secret-info", default="", help="附加信息")
 
     p_update = sub.add_parser("update", help="按 id 或 label 更新条目")
     p_update.add_argument("target")
     p_update.add_argument("label")
     p_update.add_argument("secret")
+    p_update.add_argument("--notes", default=None, help="说明文本(不指定则保持不变)")
+    p_update.add_argument("--secret-info", default=None, help="附加信息(不指定则保持不变)")
 
     p_delete = sub.add_parser("delete", help="按 id 或 label 删除条目")
     p_delete.add_argument("target")
@@ -85,9 +94,9 @@ def main():
     if args.command == "list":
         cmd_list(store)
     elif args.command == "add":
-        cmd_add(store, args.label, args.secret)
+        cmd_add(store, args.label, args.secret, args.notes, args.secret_info)
     elif args.command == "update":
-        cmd_update(store, args.target, args.label, args.secret)
+        cmd_update(store, args.target, args.label, args.secret, args.notes, args.secret_info)
     elif args.command == "delete":
         cmd_delete(store, args.target)
 

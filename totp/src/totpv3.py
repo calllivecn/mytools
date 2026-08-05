@@ -58,7 +58,14 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
                 totp = TOTP(info["secret"])
                 pw = totp.generate_totp()
 
-                totps.append({"id": info["id"], "label": label, "pw": pw, "time_left": totp.time_left})
+                totps.append({
+                    "id": info["id"],
+                    "label": label,
+                    "pw": pw,
+                    "time_left": totp.time_left,
+                    "notes": info.get("notes", ""),
+                    "has_info": bool(info.get("secret_info")),
+                })
 
             return {"code": 0, "msg": "查询全部", "data": totps}
 
@@ -76,8 +83,19 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
         if not label or not secret:
             return {"code": -1, "msg": "名称和密钥不能为空"}
 
-        eid = store.add(label, secret)
+        eid = store.add(label, secret, js.get("notes", ""), js.get("secret_info", ""))
         return {"code": 0, "msg": "添加成功", "data": {"id": eid}}
+
+    @bp.get('/totp/get')
+    def totp_get():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录"}
+
+        eid = request.args.get("id")
+        entry = store.get_entry(eid)
+        if entry is None:
+            return {"code": -1, "msg": "条目不存在"}
+        return {"code": 0, "msg": "查询结果", "data": entry}
 
     @bp.put('/totp/update')
     def totp_update():
@@ -96,7 +114,7 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
         if not secret:
             secret = entries[eid]["secret"]
 
-        store.update(eid, label, secret)
+        store.update(eid, label, secret, js.get("notes", ""), js.get("secret_info", ""))
         return {"code": 0, "msg": "修改成功"}
 
     @bp.post('/totp/delete')
