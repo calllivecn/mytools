@@ -15,7 +15,7 @@ podman run -d --name totp -p 12201:12201 \
 
 ## TOTP 条目管理
 
-TOTP 数据存在 SQLite 中，条目通过命令行工具管理（Web 页面只读查询）：
+TOTP 数据存在 SQLite 中。Web 页面解锁后可直接新增/编辑/删除条目，也可用命令行工具管理：
 
 ```shell
 # 新建数据库并添加条目
@@ -29,7 +29,8 @@ python src/totp-manage.py --db /path/to/totp.db delete "example.com"
 
 ## 在浏览器中使用时
 
-- 登录后。可以在地址栏原本的路径后面追加 ?all=1 的参数，回车，就是查询所有。
+- 解锁后，TOTP 视图显示所有条目的实时动态密码（含倒计时），支持搜索、复制、新增/编辑/删除；「密码库」Tab 为密码管理器。
+- 两个视图可通过顶部按钮切换，地址栏 `#totp` / `#vault` 对应各自的视图链接。
 
 
 ## 密码库（Vault）

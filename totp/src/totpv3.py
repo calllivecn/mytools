@@ -58,12 +58,57 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
                 totp = TOTP(info["secret"])
                 pw = totp.generate_totp()
 
-                totps.append({"label": label, "pw": pw, "time_left": totp.time_left})
+                totps.append({"id": info["id"], "label": label, "pw": pw, "time_left": totp.time_left})
 
             return {"code": 0, "msg": "查询全部", "data": totps}
 
         else:
-            return {"code": 0, "msg": "请输入查询名"}
+            return {"code": -1, "msg": "需要登录", "data": []}
+
+    @bp.post('/totp/add')
+    def totp_add():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录"}
+
+        js = request.get_json(silent=True) or {}
+        label = js.get("label", "")
+        secret = js.get("secret", "")
+        if not label or not secret:
+            return {"code": -1, "msg": "名称和密钥不能为空"}
+
+        eid = store.add(label, secret)
+        return {"code": 0, "msg": "添加成功", "data": {"id": eid}}
+
+    @bp.put('/totp/update')
+    def totp_update():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录"}
+
+        js = request.get_json(silent=True) or {}
+        eid = js.get("id")
+        label = js.get("label", "")
+        secret = js.get("secret", "")
+
+        entries = {e["id"]: e for e in store.list_entries()}
+        if eid not in entries:
+            return {"code": -1, "msg": "条目不存在"}
+
+        if not secret:
+            secret = entries[eid]["secret"]
+
+        store.update(eid, label, secret)
+        return {"code": 0, "msg": "修改成功"}
+
+    @bp.post('/totp/delete')
+    def totp_delete():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录"}
+
+        js = request.get_json(silent=True) or {}
+        eid = js.get("id")
+        if store.delete(eid):
+            return {"code": 0, "msg": "删除成功"}
+        return {"code": -1, "msg": "条目不存在"}
 
     @bp.post('/totp')
     def post_totp():
@@ -104,6 +149,11 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str, vault_enabled: bool = F
             return {"code": 0, "msg": "登录成功"}
         else:
             return {"code": -1, "msg": "需要登录"}
+
+    @bp.post("/logout")
+    def logout():
+        store.lock()
+        return {"code": 0, "msg": "已锁定"}
 
     @bp.post("/login")
     def post_login():

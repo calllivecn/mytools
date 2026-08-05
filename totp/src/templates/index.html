@@ -27,14 +27,16 @@
             margin: 12px 20px;
         }
 
-        .tabs button {
+        .tabs a {
             padding: 6px 18px;
             border: 1px solid #ccc;
             background: #f8f8f8;
             cursor: pointer;
+            color: inherit;
+            text-decoration: none;
         }
 
-        .tabs button.active {
+        .tabs a.active {
             background: #2c7be5;
             color: #fff;
             border-color: #2c7be5;
@@ -115,29 +117,32 @@
 <body>
 
     <nav class="tabs" id="tabs">
-        <button id="tab-totp" class="active">TOTP</button>
-        <button id="tab-vault" hidden>密码库</button>
+        <a href="#totp" id="tab-totp" class="active">TOTP</a>
+        <a href="#vault" id="tab-vault" hidden>密码库</a>
     </nav>
 
     <!-- TOTP 视图 -->
     <div id="view-totp" class="view">
-        <div class="container">
-            <div class="centered-element" id="display">
+        <div id="totp-login">
+            <div id="totp-login-message" style="color: red;"></div>
+            <form id="totp-login-form">
+                <label for="totp-login-password">TOTP 密码：</label>
+                <input type="password" id="totp-login-password" placeholder="请输入密码">
+                <button type="submit">解锁</button>
+            </form>
+        </div>
 
-                <!-- 用于显示结果或错误信息的区域 -->
-                <div id="message-area" style="margin-top: 10px; color: red;"></div>
-
-                <form id="input-form">
-                    <label for="input-value" id="input-label">密码：</label>
-                    <!-- 添加 id 方便 JS 获取，name 保留以便如果需要 FormData 时使用 -->
-                    <!-- <input type="password" id="input-value" required placeholder="请输入密码"> -->
-                    <input type="password" id="input-value" placeholder="请输入密码">
-                    <button type="submit" id="submit-btn">提交</button>
-                </form>
-
-                <div id="totp-result-list"></div>
-
+        <div id="totp-main" hidden>
+            <div class="toolbar">
+                <input type="text" id="totp-search" placeholder="搜索名称...">
+                <button id="totp-refresh">刷新</button>
+                <button id="totp-add-btn">新增</button>
+                <button id="totp-lock">锁定</button>
             </div>
+            <table id="totp-table">
+                <thead><tr><th>名称</th><th>动态密码</th><th>剩余</th><th>操作</th></tr></thead>
+                <tbody id="totp-tbody"></tbody>
+            </table>
         </div>
     </div>
 
@@ -198,6 +203,19 @@
             <div style="text-align:center;">
                 <button type="submit">确定</button>
                 <button type="button" id="vpw-cancel">取消</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 新增/编辑 TOTP 条目弹窗 -->
+    <div id="totp-modal" class="modal-mask" hidden>
+        <form id="totp-form" class="modal-box">
+            <input type="hidden" id="tf-id">
+            <div><label>名称</label><input type="text" id="tf-label" required></div>
+            <div><label>密钥</label><input type="text" id="tf-secret" placeholder="Base32 密钥"></div>
+            <div style="text-align:center;">
+                <button type="submit">保存</button>
+                <button type="button" id="tf-cancel">取消</button>
             </div>
         </form>
     </div>

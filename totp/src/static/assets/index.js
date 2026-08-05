@@ -28,160 +28,206 @@ function switch_tab(name){
     tabVault.classList.toggle('active', !isTotp);
 }
 
-tabTotp.addEventListener('click', () => switch_tab('totp'));
-tabVault.addEventListener('click', () => switch_tab('vault'));
+// 依据地址栏 hash(#totp/#vault) 切换视图，两个视图可直接用链接访问
+function apply_hash(){
+    if (location.hash === '#vault' && vaultEnabled) {
+        switch_tab('vault');
+    } else {
+        switch_tab('totp');
+    }
+}
+
+window.addEventListener('hashchange', apply_hash);
+apply_hash();
 
 // ============ TOTP 视图 ============
-const div_display = document.getElementById('display');
+const totpLogin = document.getElementById('totp-login');
+const totpLoginForm = document.getElementById('totp-login-form');
+const totpLoginPassword = document.getElementById('totp-login-password');
+const totpLoginMessage = document.getElementById('totp-login-message');
+const totpMain = document.getElementById('totp-main');
+const totpSearch = document.getElementById('totp-search');
+const totpRefresh = document.getElementById('totp-refresh');
+const totpAddBtn = document.getElementById('totp-add-btn');
+const totpLockBtn = document.getElementById('totp-lock');
+const totpTbody = document.getElementById('totp-tbody');
 
-const form = document.getElementById('input-form');
-const Input = document.getElementById('input-value');
-const messageArea = document.getElementById('message-area');
-const submitBtn = document.getElementById('submit-btn');
+const totpModal = document.getElementById('totp-modal');
+const totpForm = document.getElementById('totp-form');
+const tfId = document.getElementById('tf-id');
+const tfLabel = document.getElementById('tf-label');
+const tfSecret = document.getElementById('tf-secret');
+const tfCancel = document.getElementById('tf-cancel');
 
-const totp_list = document.getElementById('totp-result-list');
+let totpUnlocked = false;
+let totpEntries = [];
+let totpLoadedAt = 0;
+let totpClipboardTimer = null;
 
-function change_login(){
-    messageArea.textContent = '需要登录';
-    document.getElementById('input-label').textContent = "密码";
-    document.getElementById('input-value').type = "password";
-    document.getElementById('input-value').placeholder = "请输入密码";
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }
 
-function change_query(){
-    messageArea.style.color = "green";
-    messageArea.textContent = '输入查询名称';
-    document.getElementById('input-label').textContent = "名称";
-    document.getElementById('input-value').type = "text";
-    document.getElementById('input-value').placeholder = "请输入名称";
+function totpShowLogin(msg) {
+    totpLogin.hidden = false;
+    totpMain.hidden = true;
+    totpLoginMessage.textContent = msg || '';
 }
 
-// 请查询
-async function label_query(response){
-    
-    console.log(response)
-
-    let totps = response.data
-    // 处理空数据情况
-    if (!totps || totps.length === 0) {
-        messageArea.innerText = '暂无数据';
-        totp_list.innerHTML = '';
-
-    }else{
-        // 使用反引号 ` 包裹模板字符串，${} 中插入变量
-        const htmlList = totps.map(totp => `
-            <br><label>${totp.label} 动态密码：${totp.pw} 剩下时间：${totp.time_left}</label></></br>
-        `);
-
-        // 4. 拼接并一次性写入 DOM
-        // join('') 把数组变成一个大字符串
-        totp_list.innerHTML = htmlList.join('');
-        messageArea.textContent = response.msg;
-    }
+function totpShowMain() {
+    totpLogin.hidden = true;
+    totpMain.hidden = false;
 }
 
-// 检测当前登录状态
-let result = await http.get(baseURL + "login")
-let login_status = false;
-
-if(result.code == 0){
-    login_status = true;
-    //说明已经是登录的
-    // 切换到 登录提示
-    change_query();
-}else{
-    change_login();
-}
-
-// 先处理 直接 填写URL 访问的情况
-let arg1 = 0;
-if(login_status){
-    // 1. 创建 URLSearchParams 对象. 获取当前完整的查询字符串 (?arg1=...&arg2=...)
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log("URLSearchParams=", urlParams);
-
-    // 2. 获取特定参数值
-    arg1 = urlParams.get('all');
-    console.log("拿到url里的参数信息：", arg1);
-
-    if(arg1 == 1){
-        label_query(await http.get(baseURL + 'totpall'));
-    }
-}
-
-
-let prevValue = '';
-// 定义表单按钮函数
-async function submit_eventListener(event){
-    // 🔴 关键步骤：阻止表单默认的提交行为（防止页面刷新跳转）
-    event.preventDefault();
-
-    // 获取用户输入的值
-    const Value = Input.value;
-    Input.value = ''; // 拿到之后清理
-    console.log("Value：", Value, "prevValse", prevValue);
-
-    if(arg1 == 1){
-        label_query(await http.get(baseURL + 'totpall'));
+async function totpLoad() {
+    const r = await http.get(baseURL + 'totpall');
+    if (r.code !== 0) {
+        totpUnlocked = false;
+        totpShowLogin(r.msg);
         return;
     }
+    totpEntries = r.data || [];
+    totpLoadedAt = Date.now();
+    totpRender();
+}
 
-    // 2. 此时浏览器已经完成了原生验证 (如 required)
-    // 如果验证失败，代码根本不会运行到这里
+function totpRender() {
+    const q = totpSearch.value.trim().toLowerCase();
+    const elapsed = Math.floor((Date.now() - totpLoadedAt) / 1000);
 
-    // 可选：简单的客户端验证
-    if (Value) {
-        prevValue = Value;
-    }else{
-        if(prevValue){
-            label_query(await http.post(baseURL + 'totp', {label: prevValue}));
-        }
-        return;
-    }
+    const filtered = totpEntries.filter(e =>
+        !q || String(e.label).toLowerCase().includes(q)
+    );
 
-    // UI 反馈：提交中，禁用按钮防止重复点击
-    const originalBtnText = submitBtn.textContent;
-    submitBtn.disabled = true;
+    totpTbody.innerHTML = filtered.map(e => {
+        const timeLeft = Math.max(0, e.time_left - elapsed);
+        return `
+            <tr>
+                <td>${esc(e.label)}</td>
+                <td class="mono">${e.pw}</td>
+                <td>${timeLeft}s</td>
+                <td>
+                    <button type="button" data-act="copy" data-id="${e.id}">复制</button>
+                    <button type="button" data-act="edit" data-id="${e.id}">编辑</button>
+                    <button type="button" data-act="del" data-id="${e.id}">删除</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
 
+async function totpCopy(text) {
     try {
-        // 使用 request.js 发送请求
-        // 如果已经是登录的。直接直接到查询页面。
-        if(login_status){
-            label_query(await http.post(baseURL + 'totp', {label: Value}));
-        }else{
-            const r = await http.post(baseURL + 'login', {password: Value});
+        await navigator.clipboard.writeText(text);
+        if (totpClipboardTimer) clearTimeout(totpClipboardTimer);
+        totpClipboardTimer = setTimeout(() => navigator.clipboard.writeText(''), 15000);
+    } catch (e) {
+        console.error('复制失败:', e);
+    }
+}
 
-            // 4. 处理成功响应
-            if(r.code == 0){
-                console.log(r);
-                login_status = true;
-                change_query();
-            }else{
-                console.log(r);
-                login_status = false;
-                messageArea.style.color = "red";
-                messageArea.textContent = r.msg;
-            }
-        }
+function totpOpenAdd() {
+    tfId.value = '';
+    tfLabel.value = '';
+    tfSecret.value = '';
+    tfSecret.placeholder = 'Base32 密钥';
+    totpModal.hidden = false;
+    tfLabel.focus();
+}
 
-        submitBtn.disabled = false;
+function totpOpenEdit(entry) {
+    tfId.value = entry.id;
+    tfLabel.value = entry.label;
+    tfSecret.value = '';
+    tfSecret.placeholder = '留空则不修改密钥';
+    totpModal.hidden = false;
+    tfLabel.focus();
+}
 
-    } catch (error) {
-        // 5. 处理错误响应
-        console.error('登录失败:', error);
-        
-        messageArea.style.color = "red";
-        // 显示后端返回的错误信息，或者默认错误提示
-        messageArea.textContent = "❌ 登录失败: " + (error.message || "密码错误或网络异常");
-        
-        // 重置按钮状态
-        submitBtn.textContent = originalBtnText;
-        submitBtn.disabled = false;
-      }
-};
+totpTbody.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const act = btn.dataset.act;
+    const entry = totpEntries.find(e => e.id === id);
+    if (!entry) return;
 
-// 2. 监听表单的 submit 事件
-form.addEventListener('submit', submit_eventListener);
+    if (act === 'copy') {
+        await totpCopy(entry.pw);
+    } else if (act === 'edit') {
+        totpOpenEdit(entry);
+    } else if (act === 'del') {
+        if (!confirm(`确认删除 ${entry.label} ？`)) return;
+        const r = await http.post(baseURL + 'totp/delete', { id });
+        if (r.code === 0) await totpLoad();
+        else alert(r.msg);
+    }
+});
+
+totpLoginForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const r = await http.post(baseURL + 'login', { password: totpLoginPassword.value });
+    totpLoginPassword.value = '';
+    if (r.code === 0) {
+        totpUnlocked = true;
+        totpShowMain();
+        await totpLoad();
+    } else {
+        totpLoginMessage.textContent = r.msg;
+    }
+});
+
+totpRefresh.addEventListener('click', totpLoad);
+totpAddBtn.addEventListener('click', totpOpenAdd);
+totpSearch.addEventListener('input', totpRender);
+
+totpLockBtn.addEventListener('click', async () => {
+    await http.post(baseURL + 'logout');
+    totpUnlocked = false;
+    totpEntries = [];
+    totpShowLogin('已锁定');
+});
+
+totpForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const data = { label: tfLabel.value, secret: tfSecret.value };
+    const id = tfId.value;
+    const r = id
+        ? await http.put(baseURL + 'totp/update', { ...data, id })
+        : await http.post(baseURL + 'totp/add', data);
+    if (r.code === 0) {
+        totpModal.hidden = true;
+        await totpLoad();
+    } else {
+        alert(r.msg);
+    }
+});
+
+tfCancel.addEventListener('click', () => { totpModal.hidden = true; });
+
+// 每秒刷新倒计时，到期或超时则重新拉取动态密码
+setInterval(() => {
+    if (!totpUnlocked || totpLoadedAt === 0) return;
+    const now = Date.now();
+    const elapsed = Math.floor((now - totpLoadedAt) / 1000);
+    const expired = totpEntries.some(e => (e.time_left - elapsed) <= 0);
+    if (expired || (now - totpLoadedAt >= 30000)) {
+        totpLoad();
+    } else {
+        totpRender();
+    }
+}, 1000);
+
+const totp_status = await http.get(baseURL + 'login');
+if (totp_status.code === 0) {
+    totpUnlocked = true;
+    totpShowMain();
+    await totpLoad();
+} else {
+    totpShowLogin();
+}
 
 // ============ 密码库视图 ============
 if (vaultEnabled) {
