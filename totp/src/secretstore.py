@@ -123,14 +123,22 @@ class SecretStore:
         self._conn.commit()
         self._kek = kek
 
+    def is_initialized(self) -> bool:
+        return self._conn.execute(
+            "SELECT 1 FROM meta WHERE k=?", (self._meta_key("salt"),)
+        ).fetchone() is not None
+
+    def initialize(self, password: str) -> bool:
+        with self._lock:
+            if self.is_initialized():
+                return False
+            self._init_vault(password)
+            return True
+
     def unlock(self, password: str) -> bool:
         with self._lock:
-            has_salt = self._conn.execute(
-                "SELECT 1 FROM meta WHERE k=?", (self._meta_key("salt"),)
-            ).fetchone() is not None
-            if not has_salt:
-                self._init_vault(password)
-                return True
+            if not self.is_initialized():
+                return False
 
             kek = self._verify(password)
             if kek is not None:

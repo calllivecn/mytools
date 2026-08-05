@@ -16,7 +16,7 @@ WORKDIR /app
 VOLUME /data
 
 ENTRYPOINT ["python", "uvicorn-run.py"]
-CMD ["--config", "/data/totp.a"]
+CMD ["--db", "/data/totp.db"]
 
 EXPOSE 12201
 

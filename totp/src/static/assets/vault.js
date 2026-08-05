@@ -40,7 +40,13 @@ export async function initVault(vaultBase) {
     const mainBox = document.getElementById('vault-main');
     const loginForm = document.getElementById('vault-login-form');
     const loginPassword = document.getElementById('vault-password');
+    const loginPassword2 = document.getElementById('vault-password2');
+    const loginPassword3 = document.getElementById('vault-password3');
     const loginMessage = document.getElementById('vault-login-message');
+    const initHint = document.getElementById('vault-init-hint');
+    const confirmField = document.getElementById('vault-confirm-field');
+    const loginSubmit = document.getElementById('vault-login-submit');
+    let initialized = false;
 
     const searchInput = document.getElementById('vault-search');
     const refreshBtn = document.getElementById('vault-refresh');
@@ -75,6 +81,15 @@ export async function initVault(vaultBase) {
         loginBox.hidden = false;
         mainBox.hidden = true;
         loginMessage.textContent = msg || '';
+        if (initialized) {
+            initHint.style.display = 'none';
+            confirmField.hidden = true;
+            loginSubmit.textContent = '解锁';
+        } else {
+            initHint.style.display = 'block';
+            confirmField.hidden = false;
+            loginSubmit.textContent = '创建密码';
+        }
     }
 
     function showMain() {
@@ -170,9 +185,20 @@ export async function initVault(vaultBase) {
 
     loginForm.addEventListener('submit', async (ev) => {
         ev.preventDefault();
-        const r = await http.post(vaultBase + '/login', { password: loginPassword.value });
-        loginPassword.value = '';
+        const pw = loginPassword.value;
+        let r;
+        if (!initialized) {
+            if (pw !== loginPassword2.value || pw !== loginPassword3.value) {
+                loginMessage.textContent = '三次输入的密码不一致';
+                return;
+            }
+            r = await http.post(vaultBase + '/init', { password: pw });
+        } else {
+            r = await http.post(vaultBase + '/login', { password: pw });
+        }
+        loginPassword.value = loginPassword2.value = loginPassword3.value = '';
         if (r.code === 0) {
+            initialized = true;
             showMain();
             await loadEntries();
         } else {
@@ -241,9 +267,11 @@ export async function initVault(vaultBase) {
 
     const r = await http.get(vaultBase + '/status');
     if (r.code === 0 && r.unlocked) {
+        initialized = true;
         showMain();
         await loadEntries();
     } else {
+        initialized = r.initialized === true;
         showLogin();
     }
 }

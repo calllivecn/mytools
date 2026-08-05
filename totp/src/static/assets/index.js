@@ -37,7 +37,12 @@ apply_hash();
 const totpLogin = document.getElementById('totp-login');
 const totpLoginForm = document.getElementById('totp-login-form');
 const totpLoginPassword = document.getElementById('totp-login-password');
+const totpLoginPassword2 = document.getElementById('totp-login-password2');
+const totpLoginPassword3 = document.getElementById('totp-login-password3');
 const totpLoginMessage = document.getElementById('totp-login-message');
+const totpInitHint = document.getElementById('totp-init-hint');
+const totpConfirmField = document.getElementById('totp-confirm-field');
+const totpLoginSubmit = document.getElementById('totp-login-submit');
 const totpMain = document.getElementById('totp-main');
 const totpSearch = document.getElementById('totp-search');
 const totpRefresh = document.getElementById('totp-refresh');
@@ -63,6 +68,7 @@ const tiClose = document.getElementById('ti-close');
 let infoEntry = null;
 
 let totpUnlocked = false;
+let totpInitialized = false;
 let totpEntries = [];
 let totpLoadedAt = 0;
 let totpClipboardTimer = null;
@@ -77,6 +83,15 @@ function totpShowLogin(msg) {
     totpLogin.hidden = false;
     totpMain.hidden = true;
     totpLoginMessage.textContent = msg || '';
+    if (totpInitialized) {
+        totpInitHint.style.display = 'none';
+        totpConfirmField.hidden = true;
+        totpLoginSubmit.textContent = '解锁';
+    } else {
+        totpInitHint.style.display = 'block';
+        totpConfirmField.hidden = false;
+        totpLoginSubmit.textContent = '创建密码';
+    }
 }
 
 function totpShowMain() {
@@ -198,10 +213,21 @@ totpTbody.addEventListener('click', async (ev) => {
 
 totpLoginForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const r = await http.post(baseURL + 'login', { password: totpLoginPassword.value });
-    totpLoginPassword.value = '';
+    const pw = totpLoginPassword.value;
+    let r;
+    if (!totpInitialized) {
+        if (pw !== totpLoginPassword2.value || pw !== totpLoginPassword3.value) {
+            totpLoginMessage.textContent = '三次输入的密码不一致';
+            return;
+        }
+        r = await http.post(baseURL + 'init', { password: pw });
+    } else {
+        r = await http.post(baseURL + 'login', { password: pw });
+    }
+    totpLoginPassword.value = totpLoginPassword2.value = totpLoginPassword3.value = '';
     if (r.code === 0) {
         totpUnlocked = true;
+        totpInitialized = true;
         totpShowMain();
         await totpLoad();
     } else {
@@ -259,12 +285,14 @@ setInterval(() => {
     }
 }, 1000);
 
-const totp_status = await http.get(baseURL + 'login');
-if (totp_status.code === 0) {
+const totp_status = await http.get(baseURL + 'status');
+if (totp_status.code === 0 && totp_status.unlocked) {
     totpUnlocked = true;
+    totpInitialized = true;
     totpShowMain();
     await totpLoad();
 } else {
+    totpInitialized = totp_status.initialized === true;
     totpShowLogin();
 }
 

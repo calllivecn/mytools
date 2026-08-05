@@ -119,6 +119,8 @@ class TOTPStore(SecretStore):
 
 def open_store(db_path: Path, password: str) -> TOTPStore:
     store = TOTPStore(db_path)
-    if not store.unlock(password):
+    if not store.is_initialized():
+        store.initialize(password)
+    elif not store.unlock(password):
         raise ValueError("密码错误")
     return store

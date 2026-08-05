@@ -13,7 +13,7 @@
 - `src/totplib.py` — 独立的 TOTP 实现（RFC 6238，HMAC-SHA1），也可作为 CLI 工具使用。
 - `src/totpstore.py` — TOTP 密钥存储（`TOTPStore` 继承 `SecretStore`，表 `totp_entries`、meta 前缀 `totp:`）。
 - `src/vaultlib.py` — 密码库（Vault，`VaultStore` 继承 `SecretStore`，表 `vault_entries`、meta 前缀 `vault:`），含 `/vault` Blueprint。
-- `src/totp-manage.py` — TOTP 条目管理 CLI（`add/list/update/delete`）。Web 端 TOTP 视图也提供条目的增删改查。
+- `src/manager.py` — 命令行管理工具（`totp`/`vault` 两组，各含 `add/list/update/delete/password`）：`--master-password` 为当前组主密码；`password` 子命令修改对应组的主密码。Web 端 TOTP 视图提供条目的增删改查，但不提供 TOTP 主密码修改。
 - `src/flask-run.py` — 使用 Flask 内置开发服务器的入口点。
 - `src/uvicorn-run.py` — 生产环境入口点，使用 uvicorn（Flask 通过 `asgiref.wsgi.WsgiToAsgi` 包装）。
 - `src/static/` / `src/templates/` — 前端资源（JS 模块，单个 HTML 页面，Tab 切换 TOTP/密码库）。
@@ -54,7 +54,7 @@ python src/uvicorn-run.py --db /path/to/totp.db --prefix /totp [--addr 0.0.0.0 -
 python src/flask-run.py   --db /path/to/totp.db --prefix /totp [--addr 0.0.0.0 --port 12201]
 ```
 
-- `--db` 为 TOTP 与密码库共用的 SQLite 数据库（不存在则新建），条目可在 Web 端或 `totp-manage.py` 管理。
+- `--db` 为 TOTP 与密码库共用的 SQLite 数据库（不存在则新建），条目可在 Web 端或 `manager.py` 管理。
 - 密码库设计文档：`docs/vault-design.md`（含未来多端同步方案）。
 
 ### 运行（容器）

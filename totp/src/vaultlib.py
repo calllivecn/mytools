@@ -109,12 +109,30 @@ def vault_main(app: Flask, store: VaultStore, prefix: str):
 
     @bp.get("/status")
     def status():
-        return {"code": 0, "unlocked": store.is_unlocked()}
+        return {
+            "code": 0,
+            "unlocked": store.is_unlocked(),
+            "initialized": store.is_initialized(),
+        }
+
+    @bp.post("/init")
+    def init():
+        js = request.get_json(silent=True) or {}
+        pw = js.get("password", "")
+        if not pw:
+            return {"code": -1, "msg": "密码不能为空"}
+        if not store.initialize(pw):
+            return {"code": -1, "msg": "已初始化，请直接解锁"}
+        return {"code": 0, "msg": "主密码已创建"}
 
     @bp.post("/login")
     def login():
         js = request.get_json(silent=True) or {}
         pw = js.get("password", "")
+
+        if not store.is_initialized():
+            return {"code": -1, "msg": "首次使用请先设置主密码"}
+
         if store.unlock(pw):
             return {"code": 0, "msg": "解锁成功"}
         return {"code": -1, "msg": "密码错误"}

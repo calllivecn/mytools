@@ -158,6 +158,24 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str):
         else:
             return {"code": -1, "msg": "需要登录"}
 
+    @bp.get("/status")
+    def totp_status():
+        return {
+            "code": 0,
+            "unlocked": store.is_unlocked(),
+            "initialized": store.is_initialized(),
+        }
+
+    @bp.post("/init")
+    def totp_init():
+        js = request.get_json(silent=True) or {}
+        pw = js.get("password", "")
+        if not pw:
+            return {"code": -1, "msg": "密码不能为空"}
+        if not store.initialize(pw):
+            return {"code": -1, "msg": "已初始化，请直接解锁"}
+        return {"code": 0, "msg": "主密码已创建"}
+
     @bp.get("/login")
     def login():
         """
@@ -178,6 +196,9 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str):
 
         js = request.get_json()
         pw = js.get("password", "not found pw")
+
+        if not store.is_initialized():
+            return {"code": -1, "msg": "首次使用请先设置主密码"}
 
         if store.unlock(pw):
             return {"code": 0, "msg": "登录成功"}

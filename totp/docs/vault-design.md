@@ -30,7 +30,7 @@ totp/
 │   ├── vaultlib.py            # VaultStore 继承 SecretStore + /vault Blueprint
 │   ├── totpstore.py           # TOTPStore 继承 SecretStore（相同加密方案）
 │   ├── totpv3.py              # create_app()，注册 TOTP 与 /vault 两个 Blueprint
-│   ├── totp-manage.py         # TOTP 条目管理 CLI（add/list/update/delete）
+│   ├── manager.py             # 命令行管理工具（totp/vault 两组，各含 add/list/update/delete/password）
 │   ├── uvicorn-run.py / flask-run.py  # 入口点，--db 指定共用数据库
 │   ├── templates/index.html   # Tab 导航（TOTP / 密码库）
 │   └── static/assets/         # index.js / vault.js / request.js

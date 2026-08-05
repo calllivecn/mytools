@@ -252,11 +252,16 @@
     <div id="view-totp" class="view">
         <div id="totp-login" class="login-card">
             <div id="totp-login-message" style="color: red; margin-bottom: 6px;"></div>
+            <div id="totp-init-hint" style="display:none; color:#666; margin-bottom:8px;">首次使用，请设置主密码并输入3次确认</div>
             <form id="totp-login-form">
                 <label for="totp-login-password">TOTP 密码：</label>
                 <input type="password" id="totp-login-password" placeholder="请输入密码">
+                <div id="totp-confirm-field" hidden>
+                    <input type="password" id="totp-login-password2" placeholder="请再次输入密码">
+                    <input type="password" id="totp-login-password3" placeholder="请第三次输入密码">
+                </div>
                 <div class="form-actions">
-                    <button type="submit" class="primary">解锁</button>
+                    <button type="submit" class="primary" id="totp-login-submit">解锁</button>
                 </div>
             </form>
         </div>
@@ -279,11 +284,16 @@
     <div id="view-vault" class="view" hidden>
         <div id="vault-login" class="login-card">
             <div id="vault-login-message" style="color: red; margin-bottom: 6px;"></div>
+            <div id="vault-init-hint" style="display:none; color:#666; margin-bottom:8px;">首次使用，请设置主密码并输入3次确认</div>
             <form id="vault-login-form">
                 <label for="vault-password">密码库密码：</label>
-                <input type="password" id="vault-password" placeholder="请输入密码库密码">
+                <input type="password" id="vault-password" placeholder="请输入密码">
+                <div id="vault-confirm-field" hidden>
+                    <input type="password" id="vault-password2" placeholder="请再次输入密码">
+                    <input type="password" id="vault-password3" placeholder="请第三次输入密码">
+                </div>
                 <div class="form-actions">
-                    <button type="submit" class="primary">解锁</button>
+                    <button type="submit" class="primary" id="vault-login-submit">解锁</button>
                 </div>
             </form>
         </div>
