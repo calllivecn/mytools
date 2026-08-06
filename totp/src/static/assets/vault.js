@@ -52,7 +52,6 @@ export async function initVault(vaultBase) {
     const refreshBtn = document.getElementById('vault-refresh');
     const addBtn = document.getElementById('vault-add-btn');
     const lockBtn = document.getElementById('vault-lock');
-    const chpwBtn = document.getElementById('vault-chpw-btn');
     const tbody = document.getElementById('vault-tbody');
 
     const modal = document.getElementById('vault-modal');
@@ -65,13 +64,6 @@ export async function initVault(vaultBase) {
     const vfCategory = document.getElementById('vf-category');
     const vfNotes = document.getElementById('vf-notes');
     const vfCancel = document.getElementById('vf-cancel');
-
-    const pwModal = document.getElementById('vault-pw-modal');
-    const vpwForm = document.getElementById('vault-pw-form');
-    const vpwOld = document.getElementById('vpw-old');
-    const vpwNew = document.getElementById('vpw-new');
-    const vpwConfirm = document.getElementById('vpw-confirm');
-    const vpwCancel = document.getElementById('vpw-cancel');
 
     let entries = [];
     const revealed = new Set();
@@ -270,31 +262,6 @@ export async function initVault(vaultBase) {
 
     vfCancel.addEventListener('click', () => { modal.hidden = true; });
     vfGen.addEventListener('click', () => { vfPassword.value = genPassword(16); });
-
-    chpwBtn.addEventListener('click', () => {
-        vpwOld.value = vpwNew.value = vpwConfirm.value = '';
-        pwModal.hidden = false;
-    });
-
-    vpwCancel.addEventListener('click', () => { pwModal.hidden = true; });
-
-    vpwForm.addEventListener('submit', async (ev) => {
-        ev.preventDefault();
-        if (vpwNew.value !== vpwConfirm.value) {
-            alert('两次输入的新密码不一致');
-            return;
-        }
-        const r = await http.post(vaultBase + '/password', {
-            old_password: vpwOld.value,
-            new_password: vpwNew.value,
-        });
-        if (r.code === 0) {
-            pwModal.hidden = true;
-            alert('主密码已修改');
-        } else {
-            alert(r.msg);
-        }
-    });
 
     const r = await http.get(vaultBase + '/status');
     if (r.code === 0 && r.unlocked) {

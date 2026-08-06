@@ -303,7 +303,6 @@
                 <input type="text" id="vault-search" placeholder="搜索站点/用户名/备注/分类...">
                 <button id="vault-refresh">刷新</button>
                 <button id="vault-add-btn" class="primary">新增</button>
-                <button id="vault-chpw-btn">修改主密码</button>
                 <button id="vault-lock">锁定</button>
             </div>
             <table id="vault-table" class="data-table">
@@ -328,22 +327,6 @@
             <div style="text-align:center;">
                 <button type="submit" id="vf-save">保存</button>
                 <button type="button" id="vf-cancel">取消</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- 修改主密码弹窗 -->
-    <div id="vault-pw-modal" class="modal-mask" hidden>
-        <form id="vault-pw-form" class="modal-box">
-            <div style="margin-bottom:10px;font-size:13px;color:#666;">
-                修改主密码是可选的。旧密码为当前主密码，即解锁时输入的密码。
-            </div>
-            <div><label>旧密码</label><input type="password" id="vpw-old" required></div>
-            <div><label>新密码</label><input type="password" id="vpw-new" required></div>
-            <div><label>确认新密码</label><input type="password" id="vpw-confirm" required></div>
-            <div style="text-align:center;">
-                <button type="submit">确定</button>
-                <button type="button" id="vpw-cancel">取消</button>
             </div>
         </form>
     </div>

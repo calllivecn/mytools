@@ -104,7 +104,8 @@ CREATE TABLE vault_entries(
 | `POST /add`     | 新增条目 |
 | `PUT  /update`  | 修改条目（body 带 `id`） |
 | `POST /delete`  | 删除条目（用 POST 而非 DELETE，兼容 `request.js` 将 DELETE 参数放入 query 的行为） |
-| `POST /password`| 修改主密码（重派生 KEK 并重加密全部条目） |
+
+> 主密码修改不在 Web 端提供（无 `POST /password` 路由），仅在 `manager.py` 的 `vault password` 子命令中提供。
 
 统一返回 `{"code": 0|-1, "msg": "...", "data": ...}`。
 

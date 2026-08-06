@@ -295,17 +295,4 @@ def vault_main(app: Flask, store: VaultStore, prefix: str):
             return {"code": 0, "msg": "删除成功"}
         return {"code": -1, "msg": "条目不存在"}
 
-    @bp.post("/password")
-    def change_password():
-        if not store.is_unlocked():
-            return {"code": -1, "msg": "需要登录"}
-        js = request.get_json(silent=True) or {}
-        old = js.get("old_password", "")
-        new = js.get("new_password", "")
-        if not new:
-            return {"code": -1, "msg": "新密码不能为空"}
-        if store.change_password(old, new):
-            return {"code": 0, "msg": "修改成功"}
-        return {"code": -1, "msg": "旧密码错误"}
-
     return bp
