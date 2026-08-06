@@ -40,13 +40,15 @@ class SecretStore:
     基于主密码的加密 SQLite 存储基类（TOTP 与密码库共用）。
 
     - meta 表：保存 Argon2id salt 与校验值，用于解锁验证主密码。
-    - entries 表：由子类定义；每条数据整体 AES-GCM 加密后存入 BLOB。
+    - entries 表：由子类定义；其中 `ENCRYPTED_COLUMNS` 指定的列单独 AES-GCM 加密存入 BLOB，
+      其余列（如 label/description）为明文，便于服务端 SQL 搜索。
     - 解锁后只在内存保留 KEK（32B），条目按需解密，超时自动锁定。
     """
 
     CHECK_VALUE = b"secret-store-check"
     ENTRIES_TABLE = "entries"
     META_PREFIX = ""
+    ENCRYPTED_COLUMNS: tuple[str, ...] = ()
 
     def __init__(self, db_path: Path, time_: float = 30 * 60):
         self.db_path = Path(db_path)
@@ -65,6 +67,19 @@ class SecretStore:
 
     def _init_db(self):
         raise NotImplementedError
+
+    def _has_column(self, column: str) -> bool:
+        cols = [r[1] for r in self._conn.execute(
+            f"PRAGMA table_info({self.ENTRIES_TABLE})"
+        ).fetchall()]
+        return column in cols
+
+    def _migrate_if_needed(self):
+        """
+        子类可覆写：解锁后把旧版 `data` blob 迁移到新列。
+        默认无操作。
+        """
+        return
 
     def _meta_key(self, name: str) -> str:
         if self.META_PREFIX:
@@ -143,6 +158,7 @@ class SecretStore:
             kek = self._verify(password)
             if kek is not None:
                 self._kek = kek
+                self._migrate_if_needed()
                 return True
             return False
 
@@ -162,15 +178,20 @@ class SecretStore:
             new_salt = os.urandom(SALT_LEN)
             new_kek = self._derive_kek(new_password, new_salt)
 
-            rows = self._conn.execute(
-                f"SELECT id, data FROM {self.ENTRIES_TABLE}"
-            ).fetchall()
-            for eid, data in rows:
-                plain = self._aesgcm_decrypt(kek, data)
-                self._conn.execute(
-                    f"UPDATE {self.ENTRIES_TABLE} SET data=? WHERE id=?",
-                    (self._aesgcm_encrypt(new_kek, plain), eid),
-                )
+            cols = self.ENCRYPTED_COLUMNS
+            if cols:
+                cols_sql = ", ".join(cols)
+                rows = self._conn.execute(
+                    f"SELECT id, {cols_sql} FROM {self.ENTRIES_TABLE}"
+                ).fetchall()
+                for row in rows:
+                    eid = row[0]
+                    new_vals = [self._aesgcm_encrypt(new_kek, self._aesgcm_decrypt(kek, c)) for c in row[1:]]
+                    sets = ", ".join(f"{c}=?" for c in cols)
+                    self._conn.execute(
+                        f"UPDATE {self.ENTRIES_TABLE} SET {sets} WHERE id=?",
+                        (*new_vals, eid),
+                    )
 
             check = self._aesgcm_encrypt(new_kek, self.CHECK_VALUE)
             self._conn.execute("INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?)", (self._meta_key("salt"), new_salt))

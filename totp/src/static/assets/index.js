@@ -55,7 +55,7 @@ const totpForm = document.getElementById('totp-form');
 const tfId = document.getElementById('tf-id');
 const tfLabel = document.getElementById('tf-label');
 const tfSecret = document.getElementById('tf-secret');
-const tfNotes = document.getElementById('tf-notes');
+const tfDescription = document.getElementById('tf-description');
 const tfSecretInfo = document.getElementById('tf-secret-info');
 const tfCancel = document.getElementById('tf-cancel');
 
@@ -100,7 +100,10 @@ function totpShowMain() {
 }
 
 async function totpLoad() {
-    const r = await http.get(baseURL + 'totpall');
+    const q = totpSearch.value.trim();
+    const r = q
+        ? await http.get(baseURL + 'totp/search', { q })
+        : await http.get(baseURL + 'totpall');
     if (r.code !== 0) {
         totpUnlocked = false;
         totpShowLogin(r.msg);
@@ -112,19 +115,14 @@ async function totpLoad() {
 }
 
 function totpRender() {
-    const q = totpSearch.value.trim().toLowerCase();
     const elapsed = Math.floor((Date.now() - totpLoadedAt) / 1000);
 
-    const filtered = totpEntries.filter(e =>
-        !q || String(e.label).toLowerCase().includes(q)
-    );
-
-    totpTbody.innerHTML = filtered.map(e => {
+    totpTbody.innerHTML = totpEntries.map(e => {
         const timeLeft = Math.max(0, e.time_left - elapsed);
         return `
             <tr>
                 <td>${esc(e.label)}</td>
-                <td>${esc(e.notes)}</td>
+                <td>${esc(e.description)}</td>
                 <td class="mono">${e.pw}</td>
                 <td>${timeLeft}s</td>
                 <td>
@@ -153,7 +151,7 @@ function totpOpenAdd() {
     tfLabel.value = '';
     tfSecret.value = '';
     tfSecret.placeholder = 'Base32 密钥';
-    tfNotes.value = '';
+    tfDescription.value = '';
     tfSecretInfo.value = '';
     totpModal.hidden = false;
     tfLabel.focus();
@@ -170,7 +168,7 @@ async function totpOpenEdit(entry) {
     tfLabel.value = e.label;
     tfSecret.value = e.secret;
     tfSecret.placeholder = 'Base32 密钥';
-    tfNotes.value = e.notes || '';
+    tfDescription.value = e.description || '';
     tfSecretInfo.value = e.secret_info || '';
     totpModal.hidden = false;
     tfLabel.focus();
@@ -184,7 +182,7 @@ async function totpOpenInfo(entry) {
     }
     infoEntry = r.data;
     tiLabel.textContent = infoEntry.label;
-    tiNotes.textContent = infoEntry.notes || '（无）';
+    tiNotes.textContent = infoEntry.description || '（无）';
     tiSecretInfo.textContent = infoEntry.secret_info || '（无）';
     infoModal.hidden = false;
 }
@@ -237,7 +235,12 @@ totpLoginForm.addEventListener('submit', async (ev) => {
 
 totpRefresh.addEventListener('click', totpLoad);
 totpAddBtn.addEventListener('click', totpOpenAdd);
-totpSearch.addEventListener('input', totpRender);
+
+let totpSearchTimer = null;
+totpSearch.addEventListener('input', () => {
+    clearTimeout(totpSearchTimer);
+    totpSearchTimer = setTimeout(totpLoad, 300);
+});
 
 totpLockBtn.addEventListener('click', async () => {
     await http.post(baseURL + 'logout');
@@ -251,7 +254,7 @@ totpForm.addEventListener('submit', async (ev) => {
     const data = {
         label: tfLabel.value,
         secret: tfSecret.value,
-        notes: tfNotes.value,
+        description: tfDescription.value,
         secret_info: tfSecretInfo.value,
     };
     const id = tfId.value;

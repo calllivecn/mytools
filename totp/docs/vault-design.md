@@ -53,17 +53,31 @@ totp/
 ```sql
 CREATE TABLE meta(k TEXT PRIMARY KEY, v BLOB);          -- 各前缀的 argon2id salt / 校验值
 CREATE TABLE totp_entries(
-  id         TEXT PRIMARY KEY,                          -- uuid4 hex
-  data       BLOB NOT NULL,                             -- AES-GCM 加密后的条目 JSON
+  id          TEXT PRIMARY KEY,                          -- uuid4 hex
+  label       TEXT NOT NULL,                             -- 明文，可搜索
+  description TEXT NOT NULL DEFAULT '',                  -- 明文，可搜索
+  secret      BLOB NOT NULL,                             -- AES-GCM 加密列
+  secret_info BLOB NOT NULL DEFAULT '',                  -- AES-GCM 加密列
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+CREATE TABLE vault_entries(
+  id         TEXT PRIMARY KEY,                           -- uuid4 hex
+  site       TEXT NOT NULL,                              -- 明文，可搜索
+  username   TEXT NOT NULL DEFAULT '',                   -- 明文，可搜索
+  password   BLOB NOT NULL,                              -- AES-GCM 加密列
+  notes      TEXT NOT NULL DEFAULT '',                   -- 明文，可搜索
+  category   TEXT NOT NULL DEFAULT '',                   -- 明文，可搜索
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
-CREATE TABLE vault_entries( ... 同上 ... );
 ```
 
 - `meta.<prefix>:salt`：Argon2id 盐（16B），解锁时派生 KEK。
 - `meta.<prefix>:check`：AES-GCM 加密的固定字符串，用于校验密码是否正确（GCM tag 校验失败即密码错误）。
-- `entries.data`：`nonce(12) + ciphertext + tag(16)`，明文为 JSON（TOTP：`{"label","secret","notes","secret_info"}`；Vault：`{"site","username","password","notes","category"}`）。
+- 加密列（`secret`/`secret_info`/`password`）：`nonce(12) + ciphertext + tag(16)`，明文为对应字符串（UTF-8）。
+- 搜索列明文存储，`search()` 用 `LIKE` 在 TOTP 的 `label`/`description`、Vault 的 `site`/`username`/`notes`/`category` 中匹配，只解密命中条目的加密列。
+- **旧版 `data` blob 结构的数据库会在首次解锁时自动迁移**（`_migrate_if_needed`）到新列，无需手动重建。
 - 元数据列（id、时间戳）明文存储，不含敏感信息。
 
 ### 密钥派生与加解密
@@ -80,10 +94,13 @@ CREATE TABLE vault_entries( ... 同上 ... );
 
 | 方法/路径 | 说明 |
 |---|---|
-| `GET  /status`  | 返回是否已解锁 |
-| `POST /login`   | 用独立密码解锁（首次登录即初始化主密码） |
+| `GET  /status`  | 返回是否已解锁 / 已初始化 |
+| `POST /init`    | 首次设置主密码（输入3次确认） |
+| `POST /login`   | 用独立密码解锁 |
 | `POST /logout`  | 锁库（清空内存 KEK） |
-| `GET  /list`    | 返回全部解密条目（搜索在前端做） |
+| `GET  /list`    | 返回条目元数据（不含密码，`has_password` 标记） |
+| `GET  /search?q=`| 在 site/username/notes/category 中搜索，返回命中条目的解密密码 |
+| `GET  /get?id=` | 返回单条完整信息（含解密密码，供显示/编辑） |
 | `POST /add`     | 新增条目 |
 | `PUT  /update`  | 修改条目（body 带 `id`） |
 | `POST /delete`  | 删除条目（用 POST 而非 DELETE，兼容 `request.js` 将 DELETE 参数放入 query 的行为） |
@@ -130,4 +147,4 @@ CREATE TABLE vault_entries( ... 同上 ... );
   3. 同步游标 / Lamport 时钟或服务器自增序号，用于增量拉取与全局排序；
   4. 每设备本地加密副本（离线优先，WebCrypto）或服务器权威 + 增量推送两种模式可选。
 
-推荐协议：设备拉取自上次游标以来的变更 → 逐条按字段 LWW 合并 → 推送本地变更 → 服务器为权威源合并写入。合并以解密后的明文为准，因此当前"条目整体加密"不构成障碍。
+推荐协议：设备拉取自上次游标以来的变更 → 逐条按字段 LWW 合并 → 推送本地变更 → 服务器为权威源合并写入。合并以解密后的明文为准，加密列（secret/secret_info/password）按条目整体重加密即可，不构成障碍。

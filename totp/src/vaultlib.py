@@ -20,37 +20,118 @@ from secretstore import (
 
 
 class VaultStore(SecretStore):
+    """
+    密码库存储。`site`/`username`/`notes`/`category` 明文列（用于 SQL 搜索），
+    `password` 为 AES-GCM 加密列，按需解密。
+    """
 
     CHECK_VALUE = b"vault-check"
     ENTRIES_TABLE = "vault_entries"
     META_PREFIX = "vault"
+    ENCRYPTED_COLUMNS = ("password",)
 
     def _init_db(self):
         self._conn.execute(
             f"""CREATE TABLE IF NOT EXISTS {self.ENTRIES_TABLE}(
                 id         TEXT PRIMARY KEY,
-                data       BLOB NOT NULL,
+                site       TEXT NOT NULL,
+                username   TEXT NOT NULL DEFAULT '',
+                password   BLOB NOT NULL,
+                notes      TEXT NOT NULL DEFAULT '',
+                category   TEXT NOT NULL DEFAULT '',
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             )"""
         )
 
-    def list_entries(self) -> list[dict]:
+    def _migrate_if_needed(self):
+        """把旧版 `data` blob（{site, username, password, notes, category}）拆分到新列。
+        调用时需已持有 self._lock（由 unlock 调用）。"""
+        if not self._has_column("data"):
+            return
+        for col, ddl in (
+            ("site", "TEXT NOT NULL DEFAULT ''"),
+            ("username", "TEXT NOT NULL DEFAULT ''"),
+            ("password", "BLOB NOT NULL DEFAULT ''"),
+            ("notes", "TEXT NOT NULL DEFAULT ''"),
+            ("category", "TEXT NOT NULL DEFAULT ''"),
+        ):
+            if not self._has_column(col):
+                self._conn.execute(f"ALTER TABLE {self.ENTRIES_TABLE} ADD COLUMN {col} {ddl}")
+
+        rows = self._conn.execute(
+            f"SELECT id, data FROM {self.ENTRIES_TABLE}"
+        ).fetchall()
+        for eid, data in rows:
+            plain = json.loads(self._aesgcm_decrypt(self._kek, data))
+            password = plain.get("password", "") or ""
+            self._conn.execute(
+                f"UPDATE {self.ENTRIES_TABLE} SET site=?, username=?, password=?, notes=?, category=? WHERE id=?",
+                (
+                    plain.get("site", ""),
+                    plain.get("username", ""),
+                    self._aesgcm_encrypt(self._kek, password.encode("utf-8")),
+                    plain.get("notes", ""),
+                    plain.get("category", ""),
+                    eid,
+                ),
+            )
+
+        self._conn.execute(f"ALTER TABLE {self.ENTRIES_TABLE} DROP COLUMN data")
+        self._conn.commit()
+
+    def _row_meta(self, row) -> dict:
+        eid, site, username, password, notes, category, created, updated = row
+        return {
+            "id": eid,
+            "site": site,
+            "username": username,
+            "notes": notes,
+            "category": category,
+            "has_password": bool(password),
+            "created_at": created,
+            "updated_at": updated,
+        }
+
+    def _row_full(self, row) -> dict:
+        meta = self._row_meta(row)
+        meta["password"] = self._aesgcm_decrypt(self._kek, row[3]).decode("utf-8") if row[3] else ""
+        return meta
+
+    def _select_sql(self, extra: str = "") -> str:
+        return (
+            f"SELECT id, site, username, password, notes, category, created_at, updated_at "
+            f"FROM {self.ENTRIES_TABLE} {extra}"
+        )
+
+    def list_metadata(self) -> list[dict]:
+        """返回条目元数据（不含解密后的 password），供列表展示。"""
         with self._lock:
             if self._kek is None:
                 return []
+            rows = self._conn.execute(self._select_sql("ORDER BY created_at")).fetchall()
+            return [self._row_meta(r) for r in rows]
 
+    def search(self, keyword: str) -> list[dict]:
+        """在 site/username/notes/category 中搜索，返回命中条目的解密密码。"""
+        with self._lock:
+            if self._kek is None:
+                return []
+            like = f"%{keyword}%"
             rows = self._conn.execute(
-                f"SELECT id, data, created_at, updated_at FROM {self.ENTRIES_TABLE} ORDER BY created_at"
+                self._select_sql("WHERE site LIKE ? OR username LIKE ? OR notes LIKE ? OR category LIKE ? ORDER BY created_at"),
+                (like, like, like, like),
             ).fetchall()
+            return [self._row_full(r) for r in rows]
 
-            result = []
-            for eid, data, created, updated in rows:
-                plain = json.loads(self._aesgcm_decrypt(self._kek, data))
-                entry = {"id": eid, "created_at": created, "updated_at": updated}
-                entry.update(plain)
-                result.append(entry)
-            return result
+    def get_entry(self, eid: str) -> dict | None:
+        with self._lock:
+            if self._kek is None:
+                raise ValueError("需要登录")
+            row = self._conn.execute(self._select_sql("WHERE id=?"), (eid,)).fetchone()
+            if row is None:
+                return None
+            return self._row_full(row)
 
     def add(self, entry: dict) -> str:
         with self._lock:
@@ -59,11 +140,19 @@ class VaultStore(SecretStore):
 
             eid = uuid.uuid4().hex
             now = int(time.time())
-            payload = json.dumps(entry, ensure_ascii=False).encode("utf-8")
-            blob = self._aesgcm_encrypt(self._kek, payload)
             self._conn.execute(
-                f"INSERT INTO {self.ENTRIES_TABLE}(id, data, created_at, updated_at) VALUES(?, ?, ?, ?)",
-                (eid, blob, now, now),
+                f"INSERT INTO {self.ENTRIES_TABLE}(id, site, username, password, notes, category, created_at, updated_at) "
+                "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    eid,
+                    entry.get("site", ""),
+                    entry.get("username", ""),
+                    self._aesgcm_encrypt(self._kek, entry.get("password", "").encode("utf-8")),
+                    entry.get("notes", ""),
+                    entry.get("category", ""),
+                    now,
+                    now,
+                ),
             )
             self._conn.commit()
             return eid
@@ -73,14 +162,25 @@ class VaultStore(SecretStore):
             if self._kek is None:
                 raise ValueError("需要登录")
 
-            row = self._conn.execute(f"SELECT 1 FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,)).fetchone()
+            row = self._conn.execute(
+                f"SELECT 1 FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,)
+            ).fetchone()
             if row is None:
                 return False
 
             now = int(time.time())
-            payload = json.dumps(entry, ensure_ascii=False).encode("utf-8")
-            blob = self._aesgcm_encrypt(self._kek, payload)
-            self._conn.execute(f"UPDATE {self.ENTRIES_TABLE} SET data=?, updated_at=? WHERE id=?", (blob, now, eid))
+            self._conn.execute(
+                f"UPDATE {self.ENTRIES_TABLE} SET site=?, username=?, password=?, notes=?, category=?, updated_at=? WHERE id=?",
+                (
+                    entry.get("site", ""),
+                    entry.get("username", ""),
+                    self._aesgcm_encrypt(self._kek, entry.get("password", "").encode("utf-8")),
+                    entry.get("notes", ""),
+                    entry.get("category", ""),
+                    now,
+                    eid,
+                ),
+            )
             self._conn.commit()
             return True
 
@@ -146,7 +246,26 @@ def vault_main(app: Flask, store: VaultStore, prefix: str):
     def get_list():
         if not store.is_unlocked():
             return {"code": -1, "msg": "需要登录", "data": []}
-        return {"code": 0, "msg": "查询结果", "data": store.list_entries()}
+        return {"code": 0, "msg": "查询结果", "data": store.list_metadata()}
+
+    @bp.get("/search")
+    def get_search():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录", "data": []}
+        q = (request.args.get("q") or "").strip()
+        if not q:
+            return {"code": -1, "msg": "缺少搜索关键字", "data": []}
+        return {"code": 0, "msg": "查询结果", "data": store.search(q)}
+
+    @bp.get("/get")
+    def get_entry():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录"}
+        eid = request.args.get("id")
+        entry = store.get_entry(eid)
+        if entry is None:
+            return {"code": -1, "msg": "条目不存在"}
+        return {"code": 0, "msg": "查询结果", "data": entry}
 
     @bp.post("/add")
     def add():

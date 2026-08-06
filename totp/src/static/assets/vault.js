@@ -75,6 +75,7 @@ export async function initVault(vaultBase) {
 
     let entries = [];
     const revealed = new Set();
+    const pwCache = new Map();
     let clipboardTimer = null;
 
     function showLogin(msg) {
@@ -98,28 +99,30 @@ export async function initVault(vaultBase) {
     }
 
     async function loadEntries() {
-        const r = await http.get(vaultBase + '/list');
+        const q = searchInput.value.trim();
+        const r = q
+            ? await http.get(vaultBase + '/search', { q })
+            : await http.get(vaultBase + '/list');
         if (r.code !== 0) {
             showLogin(r.msg);
             return;
         }
         entries = r.data || [];
+        entries.forEach(e => {
+            if (e.password !== undefined) pwCache.set(e.id, e.password);
+        });
         renderTable();
     }
 
     function renderTable() {
-        const q = searchInput.value.trim().toLowerCase();
-        const filtered = entries.filter(e =>
-            !q || [e.site, e.username, e.notes, e.category]
-                .some(v => String(v || '').toLowerCase().includes(q))
-        );
-
-        tbody.innerHTML = filtered.map(e => `
+        tbody.innerHTML = entries.map(e => {
+            const shown = revealed.has(e.id) ? (pwCache.get(e.id) || '') : MASK;
+            return `
             <tr>
                 <td>${esc(e.site)}</td>
                 <td>${esc(e.username)}</td>
                 <td class="mono">
-                    <span data-id="${e.id}">${revealed.has(e.id) ? esc(e.password) : MASK}</span>
+                    <span data-id="${e.id}">${shown}</span>
                     <button type="button" data-act="toggle" data-id="${e.id}">${revealed.has(e.id) ? '隐藏' : '显示'}</button>
                     <button type="button" data-act="copy" data-id="${e.id}">复制</button>
                 </td>
@@ -129,7 +132,16 @@ export async function initVault(vaultBase) {
                     <button type="button" data-act="del" data-id="${e.id}">删除</button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
+    }
+
+    async function getPassword(id) {
+        if (pwCache.has(id)) return pwCache.get(id);
+        const r = await http.get(vaultBase + '/get', { id });
+        if (r.code !== 0) throw new Error(r.msg);
+        pwCache.set(id, r.data.password);
+        return r.data.password;
     }
 
     async function copyPassword(text) {
@@ -167,14 +179,27 @@ export async function initVault(vaultBase) {
                 btn.textContent = '显示';
                 btn.parentElement.querySelector('span').textContent = MASK;
             } else {
-                revealed.add(id);
-                btn.textContent = '隐藏';
-                btn.parentElement.querySelector('span').textContent = entry.password;
+                try {
+                    const pw = await getPassword(id);
+                    revealed.add(id);
+                    btn.textContent = '隐藏';
+                    btn.parentElement.querySelector('span').textContent = pw;
+                } catch (e) {
+                    alert(e.message);
+                }
             }
         } else if (act === 'copy') {
-            await copyPassword(entry.password);
+            try {
+                await copyPassword(await getPassword(id));
+            } catch (e) {
+                alert(e.message);
+            }
         } else if (act === 'edit') {
-            openModal(id, entry);
+            let pw = '';
+            try {
+                pw = await getPassword(id);
+            } catch (e) { /* 保留空值 */ }
+            openModal(id, { ...entry, password: pw });
         } else if (act === 'del') {
             if (!confirm(`确认删除 ${entry.site || '(无站点)'} ？`)) return;
             const r = await http.post(vaultBase + '/delete', { id });
@@ -209,12 +234,18 @@ export async function initVault(vaultBase) {
     lockBtn.addEventListener('click', async () => {
         await http.post(vaultBase + '/logout');
         revealed.clear();
+        pwCache.clear();
         showLogin('已锁定');
     });
 
     refreshBtn.addEventListener('click', loadEntries);
     addBtn.addEventListener('click', () => openModal(null, {}));
-    searchInput.addEventListener('input', renderTable);
+
+    let searchTimer = null;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(loadEntries, 300);
+    });
 
     vaultForm.addEventListener('submit', async (ev) => {
         ev.preventDefault();

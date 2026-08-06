@@ -6,6 +6,7 @@
 - 如果在 nginx 中配置了 location /prefix/ {} 路径的， 需要通过 --prefix /prefix 参数指定前缀。
 - `--db` 是唯一的 SQLite 数据库文件（不存在则自动新建），TOTP 与密码库共用一个数据库（各自独立表与主密码）。
   TOTP 与密码库都使用 AES-GCM + Argon2id 派生 KEK，在进程内加解密。
+  **旧版 `data` blob 结构的数据库会在首次解锁时自动迁移到新列。**
 
 ```shell
 podman run -d --name totp -p 12201:12201 \
@@ -17,16 +18,16 @@ podman run -d --name totp -p 12201:12201 \
 
 TOTP 与密码库的数据都在这一个 SQLite 里，统一用 `src/manager.py` 管理（Web 页面也可增删改查 TOTP 与密码库条目）。
 
-TOTP 条目包含：名称、Base32 密钥、说明（可选）、附加信息（可选，如恢复码，与密钥一起加密保存）。
+TOTP 条目包含：名称、Base32 密钥、说明（可选）、附加信息（可选，如恢复码，与密钥一起加密保存）。名称/说明明文存储可搜索，密钥/附加信息加密存储，搜索时只解密命中条目。
 
 ```shell
 # ---- TOTP 管理 ----
 # 新建数据库并添加条目
-python src/manager.py --db /path/to/totp.db totp add "example.com" "JBSWY3DPEHPK3PXP" --notes "我的账号" --secret-info "恢复码 xxx"
+python src/manager.py --db /path/to/totp.db totp add "example.com" "JBSWY3DPEHPK3PXP" --description "我的账号" --secret-info "恢复码 xxx"
 
 # 列出 / 更新 / 删除（可按 id 或 label 定位）
 python src/manager.py --db /path/to/totp.db totp list
-python src/manager.py --db /path/to/totp.db totp update "example.com" "example.com" "NEWSECRET" --notes "改一下说明"
+python src/manager.py --db /path/to/totp.db totp update "example.com" "example.com" "NEWSECRET" --description "改一下说明"
 python src/manager.py --db /path/to/totp.db totp delete "example.com"
 
 # 修改 TOTP 主密码（--master-password 为旧密码；新密码不传则交互式输入两次确认）

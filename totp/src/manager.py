@@ -60,19 +60,19 @@ def cmd_totp_list(store):
         print(f"{e['id']}  {e['label']}  {notes}")
 
 
-def cmd_totp_add(store, label: str, secret: str, notes: str = "", secret_info: str = ""):
-    eid = store.add(label, secret, notes, secret_info)
+def cmd_totp_add(store, label: str, secret: str, description: str = "", secret_info: str = ""):
+    eid = store.add(label, secret, description, secret_info)
     print(f"已添加: {eid}  {label}")
 
 
-def cmd_totp_update(store, target: str, label: str, secret: str, notes=None, secret_info=None):
+def cmd_totp_update(store, target: str, label: str, secret: str, description=None, secret_info=None):
     for e in store.list_entries():
         if e["id"] == target or e["label"] == target:
-            if notes is None:
-                notes = e.get("notes", "")
+            if description is None:
+                description = e.get("description", "")
             if secret_info is None:
                 secret_info = e.get("secret_info", "")
-            store.update(e["id"], label, secret, notes, secret_info)
+            store.update(e["id"], label, secret, description, secret_info)
             print(f"已更新: {e['label']} -> {label}")
             return
     print(f"未找到: {target}", file=sys.stderr)
@@ -92,7 +92,7 @@ def cmd_totp_delete(store, target: str):
 # ---------- Vault ----------
 
 def cmd_vault_list(store):
-    for e in store.list_entries():
+    for e in store.list_metadata():
         print(f"{e['id']}  {e.get('site', '')}  {e.get('username', '')}  {e.get('category', '')}")
 
 
@@ -109,12 +109,13 @@ def cmd_vault_add(store, site: str, username: str = "", password: str = "", note
 
 
 def cmd_vault_update(store, target: str, site: str, username=None, password=None, notes=None, category=None):
-    for e in store.list_entries():
+    for e in store.list_metadata():
         if e["id"] == target or e.get("site") == target:
+            full = store.get_entry(e["id"]) if password is None else e
             entry = {
                 "site": site,
                 "username": e.get("username", "") if username is None else username,
-                "password": e.get("password", "") if password is None else password,
+                "password": full.get("password", "") if password is None else password,
                 "notes": e.get("notes", "") if notes is None else notes,
                 "category": e.get("category", "") if category is None else category,
             }
@@ -126,7 +127,7 @@ def cmd_vault_update(store, target: str, site: str, username=None, password=None
 
 
 def cmd_vault_delete(store, target: str):
-    for e in store.list_entries():
+    for e in store.list_metadata():
         if e["id"] == target or e.get("site") == target:
             store.delete(e["id"])
             print(f"已删除: {e.get('site')}")
@@ -150,14 +151,14 @@ def main():
     p_add = totp_sub.add_parser("add", help="添加条目")
     p_add.add_argument("label")
     p_add.add_argument("secret")
-    p_add.add_argument("--notes", default="", help="说明文本")
+    p_add.add_argument("--description", default="", help="说明文本")
     p_add.add_argument("--secret-info", default="", help="附加信息")
 
     p_upd = totp_sub.add_parser("update", help="按 id 或 label 更新条目")
     p_upd.add_argument("target")
     p_upd.add_argument("label")
     p_upd.add_argument("secret")
-    p_upd.add_argument("--notes", default=None, help="说明文本(不指定则保持不变)")
+    p_upd.add_argument("--description", default=None, help="说明文本(不指定则保持不变)")
     p_upd.add_argument("--secret-info", default=None, help="附加信息(不指定则保持不变)")
 
     p_del = totp_sub.add_parser("delete", help="按 id 或 label 删除条目")
@@ -204,9 +205,9 @@ def main():
             if args.cmd == "list":
                 cmd_totp_list(store)
             elif args.cmd == "add":
-                cmd_totp_add(store, args.label, args.secret, args.notes, args.secret_info)
+                cmd_totp_add(store, args.label, args.secret, args.description, args.secret_info)
             elif args.cmd == "update":
-                cmd_totp_update(store, args.target, args.label, args.secret, args.notes, args.secret_info)
+                cmd_totp_update(store, args.target, args.label, args.secret, args.description, args.secret_info)
             elif args.cmd == "delete":
                 cmd_totp_delete(store, args.target)
             elif args.cmd == "password":

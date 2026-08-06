@@ -17,95 +17,158 @@ from secretstore import (
 
 class TOTPStore(SecretStore):
     """
-    TOTP 密钥存储，与密码库共用相同的加密方式（AES-GCM + Argon2id KEK）。
-    每条目存 {label, secret}，整体加密后放入 entries.data。
+    TOTP 密钥存储。`label`/`description` 明文列（用于 SQL 搜索），
+    `secret`/`secret_info` 为 AES-GCM 加密列，搜索时只解密命中条目。
     """
 
     CHECK_VALUE = b"totp-check"
     ENTRIES_TABLE = "totp_entries"
     META_PREFIX = "totp"
+    ENCRYPTED_COLUMNS = ("secret", "secret_info")
 
     def _init_db(self):
         self._conn.execute(
             f"""CREATE TABLE IF NOT EXISTS {self.ENTRIES_TABLE}(
-                id         TEXT PRIMARY KEY,
-                data       BLOB NOT NULL,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
+                id          TEXT PRIMARY KEY,
+                label       TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                secret      BLOB NOT NULL,
+                secret_info BLOB NOT NULL DEFAULT '',
+                created_at  INTEGER NOT NULL,
+                updated_at  INTEGER NOT NULL
             )"""
+        )
+
+    def _migrate_if_needed(self):
+        """把旧版 `data` blob（{label, secret, notes, secret_info}）拆分到新列。
+        调用时需已持有 self._lock（由 unlock 调用）。"""
+        if not self._has_column("data"):
+            return
+        for col, ddl in (
+            ("label", "TEXT NOT NULL DEFAULT ''"),
+            ("description", "TEXT NOT NULL DEFAULT ''"),
+            ("secret", "BLOB NOT NULL DEFAULT ''"),
+            ("secret_info", "BLOB NOT NULL DEFAULT ''"),
+        ):
+            if not self._has_column(col):
+                self._conn.execute(f"ALTER TABLE {self.ENTRIES_TABLE} ADD COLUMN {col} {ddl}")
+
+        rows = self._conn.execute(
+            f"SELECT id, data FROM {self.ENTRIES_TABLE}"
+        ).fetchall()
+        for eid, data in rows:
+            plain = json.loads(self._aesgcm_decrypt(self._kek, data))
+            secret_info = plain.get("secret_info", "") or ""
+            self._conn.execute(
+                f"UPDATE {self.ENTRIES_TABLE} SET label=?, description=?, secret=?, secret_info=? WHERE id=?",
+                (
+                    plain.get("label", ""),
+                    plain.get("notes", "") or plain.get("description", ""),
+                    self._aesgcm_encrypt(self._kek, plain.get("secret", "").encode("utf-8")),
+                    self._aesgcm_encrypt(self._kek, secret_info.encode("utf-8")) if secret_info else b"",
+                    eid,
+                ),
+            )
+
+        self._conn.execute(f"ALTER TABLE {self.ENTRIES_TABLE} DROP COLUMN data")
+        self._conn.commit()
+
+    def _decrypt_row(self, row) -> dict:
+        eid, label, description, secret, secret_info, created, updated = row
+        entry = {
+            "id": eid,
+            "label": label,
+            "description": description,
+            "secret": self._aesgcm_decrypt(self._kek, secret).decode("utf-8"),
+            "secret_info": self._aesgcm_decrypt(self._kek, secret_info).decode("utf-8") if secret_info else "",
+            "created_at": created,
+            "updated_at": updated,
+        }
+        return entry
+
+    def _select_sql(self, extra: str = "") -> str:
+        return (
+            f"SELECT id, label, description, secret, secret_info, created_at, updated_at "
+            f"FROM {self.ENTRIES_TABLE} {extra}"
         )
 
     def list_entries(self) -> list[dict]:
         with self._lock:
             if self._kek is None:
                 return []
+            rows = self._conn.execute(self._select_sql("ORDER BY created_at")).fetchall()
+            return [self._decrypt_row(r) for r in rows]
 
+    def search(self, keyword: str) -> list[dict]:
+        with self._lock:
+            if self._kek is None:
+                return []
+            like = f"%{keyword}%"
             rows = self._conn.execute(
-                f"SELECT id, data, created_at, updated_at FROM {self.ENTRIES_TABLE} ORDER BY created_at"
+                self._select_sql("WHERE label LIKE ? OR description LIKE ? ORDER BY created_at"),
+                (like, like),
             ).fetchall()
+            return [self._decrypt_row(r) for r in rows]
 
-            result = []
-            for eid, data, created, updated in rows:
-                plain = json.loads(self._aesgcm_decrypt(self._kek, data))
-                entry = {"id": eid, "created_at": created, "updated_at": updated}
-                entry.update(plain)
-                result.append(entry)
-            return result
+    def get_entry(self, eid: str) -> dict | None:
+        with self._lock:
+            if self._kek is None:
+                raise ValueError("需要登录")
+            row = self._conn.execute(
+                self._select_sql("WHERE id=?"), (eid,)
+            ).fetchone()
+            if row is None:
+                return None
+            return self._decrypt_row(row)
 
-    def add(self, label: str, secret: str, notes: str = "", secret_info: str = "") -> str:
+    def add(self, label: str, secret: str, description: str = "", secret_info: str = "") -> str:
         with self._lock:
             if self._kek is None:
                 raise ValueError("需要登录")
 
             eid = uuid.uuid4().hex
             now = int(time.time())
-            payload = json.dumps(
-                {"label": label, "secret": secret, "notes": notes, "secret_info": secret_info},
-                ensure_ascii=False,
-            ).encode("utf-8")
-            blob = self._aesgcm_encrypt(self._kek, payload)
             self._conn.execute(
-                f"INSERT INTO {self.ENTRIES_TABLE}(id, data, created_at, updated_at) VALUES(?, ?, ?, ?)",
-                (eid, blob, now, now),
+                f"INSERT INTO {self.ENTRIES_TABLE}(id, label, description, secret, secret_info, created_at, updated_at) "
+                "VALUES(?, ?, ?, ?, ?, ?, ?)",
+                (
+                    eid,
+                    label,
+                    description,
+                    self._aesgcm_encrypt(self._kek, secret.encode("utf-8")),
+                    self._aesgcm_encrypt(self._kek, secret_info.encode("utf-8")) if secret_info else b"",
+                    now,
+                    now,
+                ),
             )
             self._conn.commit()
             return eid
 
-    def update(self, eid: str, label: str, secret: str, notes: str = "", secret_info: str = "") -> bool:
-        with self._lock:
-            if self._kek is None:
-                raise ValueError("需要登录")
-
-            row = self._conn.execute(f"SELECT 1 FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,)).fetchone()
-            if row is None:
-                return False
-
-            now = int(time.time())
-            payload = json.dumps(
-                {"label": label, "secret": secret, "notes": notes, "secret_info": secret_info},
-                ensure_ascii=False,
-            ).encode("utf-8")
-            blob = self._aesgcm_encrypt(self._kek, payload)
-            self._conn.execute(f"UPDATE {self.ENTRIES_TABLE} SET data=?, updated_at=? WHERE id=?", (blob, now, eid))
-            self._conn.commit()
-            return True
-
-    def get_entry(self, eid: str) -> dict | None:
+    def update(self, eid: str, label: str, secret: str, description: str = "", secret_info: str = "") -> bool:
         with self._lock:
             if self._kek is None:
                 raise ValueError("需要登录")
 
             row = self._conn.execute(
-                f"SELECT id, data, created_at, updated_at FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,)
+                f"SELECT 1 FROM {self.ENTRIES_TABLE} WHERE id=?", (eid,)
             ).fetchone()
             if row is None:
-                return None
+                return False
 
-            eid_, data, created, updated = row
-            plain = json.loads(self._aesgcm_decrypt(self._kek, data))
-            entry = {"id": eid_, "created_at": created, "updated_at": updated}
-            entry.update(plain)
-            return entry
+            now = int(time.time())
+            self._conn.execute(
+                f"UPDATE {self.ENTRIES_TABLE} SET label=?, description=?, secret=?, secret_info=?, updated_at=? WHERE id=?",
+                (
+                    label,
+                    description,
+                    self._aesgcm_encrypt(self._kek, secret.encode("utf-8")),
+                    self._aesgcm_encrypt(self._kek, secret_info.encode("utf-8")) if secret_info else b"",
+                    now,
+                    eid,
+                ),
+            )
+            self._conn.commit()
+            return True
 
     def delete(self, eid: str) -> bool:
         with self._lock:

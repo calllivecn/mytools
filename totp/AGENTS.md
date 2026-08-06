@@ -8,11 +8,11 @@
 
 ### 架构
 
-- `src/secretstore.py` — 加密 SQLite 存储基类 `SecretStore`（TOTP 与密码库共用）：主密码 Argon2id 派生 KEK（内存驻留，超时自动锁定）、AES-GCM 整体加密条目、`meta` 表存 salt/校验值（键按 `META_PREFIX` 命名空间隔离）。
+- `src/secretstore.py` — 加密 SQLite 存储基类 `SecretStore`（TOTP 与密码库共用）：主密码 Argon2id 派生 KEK（内存驻留，超时自动锁定）、AES-GCM 加密 `ENCRYPTED_COLUMNS` 列、`meta` 表存 salt/校验值（键按 `META_PREFIX` 命名空间隔离）。
 - `src/totpv3.py` — Flask 应用工厂 (`create_app()`)，Blueprint 支持可配置的 URL 前缀；TOTP 配置解密的密钥在 24 小时后自动过期。
 - `src/totplib.py` — 独立的 TOTP 实现（RFC 6238，HMAC-SHA1），也可作为 CLI 工具使用。
-- `src/totpstore.py` — TOTP 密钥存储（`TOTPStore` 继承 `SecretStore`，表 `totp_entries`、meta 前缀 `totp:`）。
-- `src/vaultlib.py` — 密码库（Vault，`VaultStore` 继承 `SecretStore`，表 `vault_entries`、meta 前缀 `vault:`），含 `/vault` Blueprint。
+- `src/totpstore.py` — TOTP 密钥存储（`TOTPStore` 继承 `SecretStore`，表 `totp_entries`、meta 前缀 `totp:`）。`label`/`description` 明文列可 SQL 搜索，`secret`/`secret_info` 加密列，`search()` 只解密命中条目。
+- `src/vaultlib.py` — 密码库（Vault，`VaultStore` 继承 `SecretStore`，表 `vault_entries`、meta 前缀 `vault:`），含 `/vault` Blueprint。`site`/`username`/`notes`/`category` 明文列，`password` 加密列；`/list` 返回元数据、`/get` 与 `/search` 按需解密。
 - `src/manager.py` — 命令行管理工具（`totp`/`vault` 两组，各含 `add/list/update/delete/password`）：`--master-password` 为当前组主密码；`password` 子命令修改对应组的主密码。Web 端 TOTP 视图提供条目的增删改查，但不提供 TOTP 主密码修改。
 - `src/flask-run.py` — 使用 Flask 内置开发服务器的入口点。
 - `src/uvicorn-run.py` — 生产环境入口点，使用 uvicorn（Flask 通过 `asgiref.wsgi.WsgiToAsgi` 包装）。

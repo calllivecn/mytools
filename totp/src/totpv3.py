@@ -61,9 +61,9 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str):
                 totps.append({
                     "id": info["id"],
                     "label": label,
+                    "description": info.get("description", ""),
                     "pw": pw,
                     "time_left": totp.time_left,
-                    "notes": info.get("notes", ""),
                     "has_info": bool(info.get("secret_info")),
                 })
 
@@ -71,6 +71,31 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str):
 
         else:
             return {"code": -1, "msg": "需要登录", "data": []}
+
+    @bp.get('/totp/search')
+    def totp_search():
+        if not store.is_unlocked():
+            return {"code": -1, "msg": "需要登录", "data": []}
+
+        q = (request.args.get("q") or "").strip()
+        if not q:
+            return {"code": -1, "msg": "缺少搜索关键字", "data": []}
+
+        totps = []
+        for info in store.search(q):
+            label = info["label"]
+            totp = TOTP(info["secret"])
+            pw = totp.generate_totp()
+            totps.append({
+                "id": info["id"],
+                "label": label,
+                "description": info.get("description", ""),
+                "pw": pw,
+                "time_left": totp.time_left,
+                "has_info": bool(info.get("secret_info")),
+            })
+
+        return {"code": 0, "msg": "查询结果", "data": totps}
 
     @bp.post('/totp/add')
     def totp_add():
@@ -83,7 +108,7 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str):
         if not label or not secret:
             return {"code": -1, "msg": "名称和密钥不能为空"}
 
-        eid = store.add(label, secret, js.get("notes", ""), js.get("secret_info", ""))
+        eid = store.add(label, secret, js.get("description", ""), js.get("secret_info", ""))
         return {"code": 0, "msg": "添加成功", "data": {"id": eid}}
 
     @bp.get('/totp/get')
@@ -114,7 +139,7 @@ def totp_main(app: Flask, store: TOTPStore, prefix: str):
         if not secret:
             secret = entries[eid]["secret"]
 
-        store.update(eid, label, secret, js.get("notes", ""), js.get("secret_info", ""))
+        store.update(eid, label, secret, js.get("description", ""), js.get("secret_info", ""))
         return {"code": 0, "msg": "修改成功"}
 
     @bp.post('/totp/delete')
