@@ -73,3 +73,6 @@
 
 ### mygzip.py:
 * 写个gzip练练手。（用法--help)
+
+### flask-speedtest-api/:
+* Flask 上传/下载测速 API，下载可用 size 参数按 MB 指定大小，不保存文件，支持 Nginx 路径前缀。
