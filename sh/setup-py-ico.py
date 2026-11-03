@@ -39,34 +39,30 @@ def find_pythonw(python_exe):
 
 
 def clean_old_py_associations():
-    """彻底清理旧的 .py 文件关联信息。"""
-    prog_id = "Python.File"
-
-    # 需要清理的注册表路径列表
+    """使用 PowerShell 强力清理旧的 .py 关联信息（绕过 winreg 权限限制）。"""
     paths_to_clean = [
-        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.py"),
-        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.pyw"),
-        (winreg.HKEY_CLASSES_ROOT, ".py"),
-        (winreg.HKEY_CLASSES_ROOT, ".pyw"),
-        (winreg.HKEY_CLASSES_ROOT, prog_id),
-        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.py"),
+        "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.py",
+        "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.pyw",
+        "HKCR:\\.py",
+        "HKCR:\\.pyw",
+        "HKCR:\\Python.File",
+        "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.py"
     ]
 
-    for root, subkey in paths_to_clean:
+    # 调用 PowerShell 执行强力递归删除
+    for path in paths_to_clean:
+        ps_command = f'if (Test-Path "{path}") {{ Remove-Item -Path "{path}" -Recurse -Force }}'
         try:
-            winreg.DeleteKey(root, subkey)
-            print(f"  已清理: {subkey}")
-        except FileNotFoundError:
-            pass  # 键不存在，跳过
-        except PermissionError:
-            print(f"  权限不足，跳过: {subkey}")
-        except OSError:
-            # 某些键下有子键，需要递归删除
-            try:
-                _delete_key_recursive(root, subkey)
-                print(f"  已清理(递归): {subkey}")
-            except Exception as e:
-                print(f"  清理失败: {subkey} ({e})")
+            subprocess.run(
+                ["powershell", "-Command", ps_command],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True
+            )
+            print(f"  已强力清理: {path}")
+        except subprocess.CalledProcessError:
+            # 如果路径不存在会报错，直接忽略即可
+            pass
 
     print("旧关联清理完成。")
 
