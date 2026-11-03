@@ -1,8 +1,8 @@
-
 import os
 import sys
 import subprocess
 import argparse
+import ctypes
 import winreg
 
 
@@ -36,6 +36,57 @@ def find_pythonw(python_exe):
     python_dir = os.path.dirname(python_exe)
     candidate = os.path.join(python_dir, "pythonw.exe")
     return candidate if os.path.isfile(candidate) else None
+
+
+def clean_old_py_associations():
+    """彻底清理旧的 .py 文件关联信息。"""
+    prog_id = "Python.File"
+
+    # 需要清理的注册表路径列表
+    paths_to_clean = [
+        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.py"),
+        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.pyw"),
+        (winreg.HKEY_CLASSES_ROOT, ".py"),
+        (winreg.HKEY_CLASSES_ROOT, ".pyw"),
+        (winreg.HKEY_CLASSES_ROOT, prog_id),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.py"),
+    ]
+
+    for root, subkey in paths_to_clean:
+        try:
+            winreg.DeleteKey(root, subkey)
+            print(f"  已清理: {subkey}")
+        except FileNotFoundError:
+            pass  # 键不存在，跳过
+        except PermissionError:
+            print(f"  权限不足，跳过: {subkey}")
+        except OSError:
+            # 某些键下有子键，需要递归删除
+            try:
+                _delete_key_recursive(root, subkey)
+                print(f"  已清理(递归): {subkey}")
+            except Exception as e:
+                print(f"  清理失败: {subkey} ({e})")
+
+    print("旧关联清理完成。")
+
+
+def _delete_key_recursive(root, subkey):
+    """递归删除注册表键及其所有子键。"""
+    try:
+        with winreg.OpenKey(root, subkey) as key:
+            i = 0
+            while True:
+                try:
+                    child_name = winreg.EnumKey(key, i)
+                    child_path = os.path.join(subkey, child_name)
+                    _delete_key_recursive(root, child_path)
+                    i += 1
+                except OSError:
+                    break
+        winreg.DeleteKey(root, subkey)
+    except OSError:
+        pass
 
 
 def register_py_file_type(python_exe, pythonw_exe, icon_path):
@@ -92,19 +143,8 @@ def refresh_icon_cache():
         pass
 
 
-#def check_admin():
-#    """检查是否以管理员身份运行。"""
-#    try:
-#        return subprocess.run(
-#            ["net", "session"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-#        ).returncode == 0
-#    except Exception:
-#        return False
-
-import ctypes
-
 def check_admin():
-    """通过 Windows API 准确检查当前是否具有管理员权限。"""
+    """通过 Windows API 检查当前是否具有管理员权限。"""
     try:
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except Exception:
@@ -113,7 +153,17 @@ def check_admin():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="为 .py 文件注册 Python.File 关联并设置默认图标"
+        prog="setup_py_icon.py",
+        description=(
+            "为 Windows 上的 .py 文件注册 Python.File 文件关联，并设置默认图标。\n"
+            "需要以管理员身份运行。"
+        ),
+        epilog=(
+            "示例：\n"
+            "  python setup_py_icon.py --python-exe C:\\Python311\\python.exe --icon C:\\icons\\python.ico\n"
+            "  python setup_py_icon.py --python-exe C:\\Python311\\python.exe --icon C:\\Python311\\python.exe --clean\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--python-exe",
@@ -123,7 +173,15 @@ def main():
     parser.add_argument(
         "--icon",
         required=True,
-        help="图标文件路径，支持 .ico、.exe、.dll",
+        help=(
+            "图标文件路径。支持 .ico、.exe、.dll；"
+            "若使用 .exe/.dll，将自动取其第一个图标资源"
+        ),
+    )
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="先彻底清理旧的 .py 文件关联信息，再重新注册（推荐遇到图标不生效时使用）",
     )
     args = parser.parse_args()
 
@@ -148,6 +206,11 @@ def main():
     print(f"python.exe  : {python_exe}")
     print(f"pythonw.exe : {pythonw_exe or '未找到'}")
     print(f"图标文件    : {icon_path}")
+
+    if args.clean:
+        print("\n正在清理旧的 .py 关联...")
+        clean_old_py_associations()
+        print()
 
     register_py_file_type(python_exe, pythonw_exe, icon_path)
     refresh_icon_cache()
