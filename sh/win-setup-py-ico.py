@@ -92,12 +92,21 @@ def refresh_icon_cache():
         pass
 
 
+#def check_admin():
+#    """检查是否以管理员身份运行。"""
+#    try:
+#        return subprocess.run(
+#            ["net", "session"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+#        ).returncode == 0
+#    except Exception:
+#        return False
+
+import ctypes
+
 def check_admin():
-    """检查是否以管理员身份运行。"""
+    """通过 Windows API 准确检查当前是否具有管理员权限。"""
     try:
-        return subprocess.run(
-            ["net", "session"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        ).returncode == 0
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except Exception:
         return False
 
