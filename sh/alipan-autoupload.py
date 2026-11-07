@@ -2,13 +2,14 @@
 
 import sys
 import argparse
-import subprocess
 import threading
 import logging
 import queue
 
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "testing" / "pyinotify--"))
+from inotify import E, INotify
 
 from aligo import Aligo
 
@@ -45,28 +46,18 @@ def upload_to_alipan(net_path: Path, file_path: Path):
 
 
 def monitor_dir(dir_path: Path, file_queue: queue.Queue):
-    cmd = [
-        "inotifywait", "-mrq",
-        "--format", r"%w%f",
-        "-e", "move,close_write",
-        dir_path
-    ]
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as proc:
+    mask = E.IN_MOVE | E.IN_CLOSE_WRITE
+    with INotify() as inotify:
+        inotify.inotify_add_watch_recursive(dir_path, mask)
         while True:
-            if proc.stdout is None:
-                break
-
-            line = proc.stdout.readline().strip()
-
-            # 添加检查，避免处理空行或 "." 目录
-            if not line or line == str(Path(".")) or line == ".":
-                continue
-
-            file_path = Path(line)
-
-            if file_path.parent == Path("."):
-                logger.info(f"忽略根目录文件: {file_path}")
-            else:
+            for events, file_path in inotify.read():
+                if E.IN_Q_OVERFLOW in events:
+                    logger.warning("inotify 事件队列溢出，可能丢失文件事件")
+                    continue
+                if not any(event.value & mask for event in events):
+                    continue
+                if file_path == Path("."):
+                    continue
                 file_queue.put(file_path)
                 logger.info(f"监控到新文件: {file_path}")
 
